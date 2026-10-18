@@ -1,0 +1,50 @@
+/* ==========================================================================
+   ANIMATIONS.CSS — Anthropic: Restrained & Quiet Paper Transitions
+   ========================================================================== */
+
+/* 1. Suave revelación editorial (Fade in sutil sin rebotes) */
+@keyframes editorial-fade-in {
+  0% {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.editorial-reveal {
+  animation: editorial-fade-in 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* 2. Sello Editorial / Marco de Placa Naturalista para el Emblema */
+.archival-frame {
+  background-color: var(--color-manilla);
+  border: 1px solid rgba(20, 20, 19, 0.12);
+  border-radius: 24px;
+  overflow: hidden;
+  transition: border-color 0.2s ease, transform 0.2s ease;
+}
+
+.archival-frame:hover {
+  border-color: var(--color-slate-dark);
+}
+
+.archival-frame img {
+  display: block;
+  transition: transform 0.4s ease;
+}
+
+.archival-frame:hover img {
+  transform: scale(1.015);
+}
+
+/* 3. Elevación de Tarjeta en Pergamino */
+.paper-card {
+  transition: background-color 0.18s ease, border-color 0.18s ease;
+}
+
+.paper-card:hover {
+  border-color: var(--color-slate-dark);
+}

@@ -1,0 +1,20 @@
+{
+  "name": "barberia-lopez",
+  "version": "1.0.0",
+  "description": "Sistema integral de gestión de turnos y sincronización de calendario para Barbería López",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "keywords": [
+    "barberia",
+    "turnos",
+    "icalendar",
+    "calendario"
+  ],
+  "author": "Barbería López",
+  "license": "ISC"
+}

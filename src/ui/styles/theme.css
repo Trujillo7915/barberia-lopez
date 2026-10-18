@@ -1,0 +1,389 @@
+/* ==========================================================================
+   THEME.CSS — Barbería Lopez: Luxury Obsidian & Imperial Gold Palette
+   Inspirado en: Emblema Oficial HD (Oro Pulido sobre Negro Obsidiana)
+   ========================================================================== */
+
+:root {
+  /* Colors — Brand Logo Palette (Obsidian & Imperial Gold) */
+  --color-obsidian: #0a0b0d;          /* Lienzo principal y fondo profundo del logo */
+  --color-charcoal: #12151b;          /* Superficie elevada de tarjetas y módulos */
+  --color-charcoal-light: #181c24;    /* Superficie hover y contenedores secundarios */
+  --color-charcoal-deep: #07080a;     /* Fondo del footer y zonas de máximo contraste */
+  
+  --color-gold: #d4af37;              /* Oro Imperial primario del logo "LOPEZ" */
+  --color-gold-light: #f3e5ab;        /* Champagne / Oro claro de brillos e iluminaciones */
+  --color-gold-deep: #b38828;         /* Oro bronce / sombra metálica bruñida */
+  --color-gold-border: rgba(212, 175, 55, 0.22); /* Bordes hairline de 1px en oro */
+  --color-gold-border-bright: rgba(212, 175, 55, 0.55);
+  
+  --color-text-primary: #fbfaf7;      /* Texto principal blanco luminoso cálido */
+  --color-text-secondary: #c5c0b6;    /* Texto de lectura y párrafos platino */
+  --color-text-muted: #8a8275;        /* Etiquetas técnicas y metadatos en bronce suave */
+
+  /* Typography — Dual System */
+  --font-editorial-serif: 'Source Serif 4', Georgia, Charter, 'Times New Roman', serif;
+  --font-ui-sans: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-mono-tech: 'JetBrains Mono', SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+
+  /* Typography Scale */
+  --text-caption: 12px;
+  --leading-caption: 1.4;
+  --text-body-sm: 15px;
+  --leading-body-sm: 1.45;
+  --text-body: 19px;
+  --leading-body: 1.5;
+  --text-subheading: 26px;
+  --leading-subheading: 1.25;
+  --text-heading: 46px;
+  --leading-heading: 1.1;
+  --text-display: 68px;
+  --leading-display: 1.08;
+
+  /* Border Radii */
+  --radius-cards: 24px;
+  --radius-buttons-full: 8px;
+  --radius-buttons-outlined: 12px;
+
+  /* Surfaces */
+  --surface-canvas: var(--color-obsidian);
+  --surface-card: var(--color-charcoal);
+  --surface-card-hover: var(--color-charcoal-light);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  background-color: var(--color-obsidian);
+  color: var(--color-text-primary);
+  font-family: var(--font-editorial-serif);
+  font-size: var(--text-body);
+  line-height: var(--leading-body);
+  margin: 0;
+  padding: 0;
+}
+
+/* ==========================================================================
+   TIPOGRAFÍA Y VOCES VISUALES
+   ========================================================================== */
+
+.font-serif-editorial {
+  font-family: var(--font-editorial-serif);
+}
+
+.font-sans-ui {
+  font-family: var(--font-ui-sans);
+}
+
+.font-mono-tech {
+  font-family: var(--font-mono-tech);
+}
+
+.type-display-editorial {
+  font-family: var(--font-editorial-serif);
+  font-size: clamp(38px, 6vw, 68px);
+  line-height: 1.1;
+  font-weight: 400;
+  color: var(--color-text-primary);
+}
+
+.type-subheading-editorial {
+  font-family: var(--font-editorial-serif);
+  font-size: var(--text-subheading);
+  line-height: var(--leading-subheading);
+  font-weight: 400;
+  color: var(--color-text-primary);
+}
+
+.type-body-editorial {
+  font-family: var(--font-editorial-serif);
+  font-size: var(--text-body);
+  line-height: var(--leading-body);
+  color: var(--color-text-secondary);
+}
+
+.type-body-sm-sans {
+  font-family: var(--font-ui-sans);
+  font-size: var(--text-body-sm);
+  line-height: var(--leading-body-sm);
+  color: var(--color-text-secondary);
+}
+
+/* Enlaces editoriales con subrayado dorado */
+.link-editorial {
+  color: var(--color-gold-light);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  text-decoration-thickness: 1px;
+  text-decoration-color: rgba(212, 175, 55, 0.4);
+  transition: opacity 0.2s ease, text-decoration-color 0.2s ease;
+}
+
+.link-editorial:hover {
+  color: #ffffff;
+  text-decoration-color: var(--color-gold);
+}
+
+/* ==========================================================================
+   COMPONENTES Y SUPERFICIES DE ORO IMPERIAL & OBSIDIANA
+   ========================================================================== */
+
+/* 1. Tarjeta Estándar (Obsidian Charcoal, 24px radius, 1px gold border) */
+.anthropic-card {
+  background-color: var(--color-charcoal);
+  border: 1px solid var(--color-gold-border);
+  border-radius: var(--radius-cards);
+  padding: 28px;
+  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.4);
+  transition: border-color 0.2s ease;
+}
+
+.anthropic-card:hover {
+  border-color: rgba(212, 175, 55, 0.35);
+}
+
+/* 2. Tarjeta Manilla / Marco Destacado */
+.anthropic-card-manilla {
+  background: linear-gradient(145deg, #181c24 0%, #101217 100%);
+  border: 1px solid rgba(212, 175, 55, 0.35);
+  border-radius: var(--radius-cards);
+  padding: 32px;
+  box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.6);
+}
+
+/* 3. Tarjeta Avena / Contenedor Secundario */
+.anthropic-card-oat {
+  background-color: var(--color-charcoal-light);
+  border: 1px solid var(--color-gold-border);
+  border-radius: var(--radius-cards);
+  padding: 24px;
+}
+
+/* 4. Botón CTA Primario — Oro Imperial Pulido */
+.btn-clay, .btn-gold {
+  background: linear-gradient(135deg, #d4af37 0%, #ebd382 50%, #c59b27 100%);
+  color: #0a0b0d;
+  font-family: var(--font-ui-sans);
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  border-radius: var(--radius-buttons-full);
+  padding: 12px 26px;
+  border: none;
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  box-shadow: 0 4px 14px rgba(212, 175, 55, 0.25);
+  transition: transform 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease;
+}
+
+.btn-clay:hover, .btn-gold:hover {
+  filter: brightness(1.08);
+  box-shadow: 0 6px 20px rgba(212, 175, 55, 0.4);
+  transform: translateY(-1px);
+}
+
+.btn-clay:active, .btn-gold:active {
+  transform: translateY(0);
+}
+
+/* 5. Botón Outlined en Oro Bruñido */
+.btn-stone-outline, .btn-gold-outline {
+  background-color: rgba(212, 175, 55, 0.05);
+  color: var(--color-gold-light);
+  font-family: var(--font-ui-sans);
+  font-size: 14px;
+  font-weight: 500;
+  border-radius: var(--radius-buttons-outlined);
+  padding: 10px 20px;
+  border: 1px solid rgba(212, 175, 55, 0.35);
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  transition: background-color 0.18s ease, border-color 0.18s ease, color 0.18s ease;
+}
+
+.btn-stone-outline:hover, .btn-gold-outline:hover {
+  background-color: rgba(212, 175, 55, 0.14);
+  border-color: var(--color-gold);
+  color: #ffffff;
+}
+
+/* 6. Barra de Navegación */
+.anthropic-nav {
+  background-color: rgba(10, 11, 13, 0.88);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--color-gold-border);
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  padding: 14px 24px;
+}
+
+/* 7. Campo de Entrada (Inputs en Obsidiana & Oro) */
+.input-parchment {
+  background-color: #161a22;
+  border: 1px solid rgba(212, 175, 55, 0.25);
+  border-radius: 8px;
+  color: #ffffff;
+  font-family: var(--font-ui-sans);
+  font-size: 15px;
+  padding: 12px 16px;
+  width: 100%;
+  outline: none;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.input-parchment:focus {
+  border-color: var(--color-gold);
+  box-shadow: 0 0 0 2px rgba(212, 175, 55, 0.2);
+}
+
+.input-parchment::placeholder {
+  color: #6c6659;
+}
+
+/* ==========================================================================
+   CALENDARIO INTERACTIVO EN OBSIDIANA Y ORO
+   ========================================================================= */
+
+.cal-journal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.cal-journal-header {
+  text-align: center;
+  padding: 8px 4px;
+  font-family: var(--font-ui-sans);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-gold-light);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  opacity: 0.8;
+}
+
+.cal-journal-cell {
+  background-color: #12151b;
+  border: 1px solid var(--color-gold-border);
+  border-radius: 12px;
+  padding: 10px;
+  min-height: 84px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+}
+
+.cal-journal-cell:hover:not(.disabled) {
+  background-color: #181c24;
+  border-color: var(--color-gold);
+  transform: translateY(-1px);
+}
+
+.cal-journal-cell.selected {
+  border: 2px solid var(--color-gold);
+  background-color: rgba(212, 175, 55, 0.16);
+  box-shadow: 0 0 16px rgba(212, 175, 55, 0.2);
+}
+
+.cal-journal-cell.today {
+  border-color: var(--color-gold-light);
+}
+
+.cal-journal-cell.disabled {
+  opacity: 0.28;
+  cursor: not-allowed;
+  background-color: rgba(10, 11, 13, 0.5);
+  border-color: rgba(255, 255, 255, 0.05);
+}
+
+.cal-journal-day-num {
+  font-family: var(--font-editorial-serif);
+  font-size: 18px;
+  font-weight: 600;
+  color: #ffffff;
+}
+
+.cal-journal-badge {
+  font-family: var(--font-ui-sans);
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background-color: rgba(212, 175, 55, 0.15);
+  color: var(--color-gold-light);
+  display: inline-block;
+  white-space: nowrap;
+}
+
+/* Franjas Horarias */
+.slot-journal-btn {
+  background-color: #161a22;
+  border: 1px solid rgba(212, 175, 55, 0.28);
+  border-radius: 10px;
+  color: #ffffff;
+  padding: 12px 10px;
+  font-family: var(--font-ui-sans);
+  font-size: 15px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+.slot-journal-btn:hover:not(.booked) {
+  background: var(--color-gold);
+  border-color: var(--color-gold);
+  color: #0a0b0d !important;
+  font-weight: 700;
+  box-shadow: 0 0 16px rgba(212, 175, 55, 0.4);
+  transform: translateY(-2px);
+}
+
+.slot-journal-btn:hover:not(.booked) span {
+  color: #0a0b0d !important;
+}
+
+.slot-journal-btn.booked {
+  background-color: rgba(255, 255, 255, 0.02);
+  border-color: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.25);
+  cursor: not-allowed;
+  opacity: 0.4;
+  text-decoration: line-through;
+}
+
+.slot-journal-hint {
+  font-family: var(--font-ui-sans);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-gold-light);
+  letter-spacing: 0.03em;
+  transition: color 0.15s ease;
+}
+
+/* ==========================================================================
+   FOOTER OBSIDIANA & DIVISORES EN ORO
+   ========================================================================== */
+
+.anthropic-footer {
+  background-color: var(--color-charcoal-deep);
+  color: var(--color-text-muted);
+  border-top: 1px solid var(--color-gold-border);
+  padding: 60px 24px 40px;
+}

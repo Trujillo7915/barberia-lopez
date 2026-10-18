@@ -1,0 +1,19 @@
+[
+  {
+    "id": "u-admin-01",
+    "username": "admin",
+    "passwordHash": "admin2026",
+    "role": "ADMIN",
+    "barberId": null,
+    "active": true
+  },
+  {
+    "id": "828401c4-1ef2-4bfd-a5b4-43f6c3b4bf35",
+    "username": "lopez.barber",
+    "passwordHash": "barberolopez",
+    "role": "JEFE",
+    "barberId": "7597ebfd-bbb0-4c71-9e49-8d1ea242a0e6",
+    "active": true,
+    "createdAt": "2026-10-18T19:51:47.734Z"
+  }
+]
