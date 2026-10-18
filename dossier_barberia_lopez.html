@@ -1,0 +1,782 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Dossier Oficial — Barbería López</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700;800&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+    @page {
+      size: A4 portrait;
+      margin: 0;
+    }
+
+    * {
+      box-sizing: border-box;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+
+    body {
+      margin: 0;
+      padding: 0;
+      background-color: #07080a;
+      color: #e5e0d8;
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-size: 13px;
+      line-height: 1.6;
+    }
+
+    .page {
+      width: 210mm;
+      height: 297mm;
+      position: relative;
+      background: radial-gradient(circle at 50% 0%, #151821 0%, #0a0b0e 70%, #060709 100%);
+      padding: 22mm 22mm 20mm 22mm;
+      page-break-after: always;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      border-bottom: 1px solid rgba(212, 175, 55, 0.15);
+    }
+
+    .page-border {
+      position: absolute;
+      top: 10mm;
+      left: 10mm;
+      right: 10mm;
+      bottom: 10mm;
+      border: 1px solid rgba(212, 175, 55, 0.22);
+      pointer-events: none;
+    }
+
+    .page-border-inner {
+      position: absolute;
+      top: 12mm;
+      left: 12mm;
+      right: 12mm;
+      bottom: 12mm;
+      border: 1px solid rgba(212, 175, 55, 0.08);
+      pointer-events: none;
+    }
+
+    .corner {
+      position: absolute;
+      width: 14px;
+      height: 14px;
+      border: 2px solid #d4af37;
+    }
+    .corner-tl { top: 9mm; left: 9mm; border-right: none; border-bottom: none; }
+    .corner-tr { top: 9mm; right: 9mm; border-left: none; border-bottom: none; }
+    .corner-bl { bottom: 9mm; left: 9mm; border-right: none; border-top: none; }
+    .corner-br { bottom: 9mm; right: 9mm; border-left: none; border-top: none; }
+
+    /* Tipografía de Lujo */
+    .font-serif {
+      font-family: 'Cinzel', Georgia, serif;
+      letter-spacing: 0.04em;
+    }
+    .font-mono {
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .gold-gradient-text {
+      background: linear-gradient(135deg, #ffffff 0%, #f3e5ab 35%, #d4af37 75%, #aa8214 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .gold-accent {
+      color: #d4af37;
+    }
+    .muted-text {
+      color: #9d9587;
+    }
+
+    /* Cabecera y Pie de Página estándar */
+    .page-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-bottom: 10px;
+      border-bottom: 1px solid rgba(212, 175, 55, 0.2);
+      margin-bottom: 16px;
+    }
+    .page-header-title {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.15em;
+      color: #d4af37;
+      font-weight: 600;
+    }
+    .page-header-meta {
+      font-size: 9px;
+      color: #7d7568;
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .page-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-top: 10px;
+      border-top: 1px solid rgba(212, 175, 55, 0.2);
+      margin-top: 16px;
+      font-size: 9px;
+      color: #7d7568;
+    }
+    .page-number {
+      font-family: 'JetBrains Mono', monospace;
+      color: #d4af37;
+      font-weight: 600;
+    }
+
+    /* Tarjetas y Contenedores Obsidian */
+    .card {
+      background: #0f1218;
+      border: 1px solid rgba(212, 175, 55, 0.25);
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 14px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+    }
+    .card-highlight {
+      background: linear-gradient(145deg, #131722 0%, #0d1017 100%);
+      border: 1px solid rgba(212, 175, 55, 0.45);
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 3px 9px;
+      border-radius: 100px;
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      background: rgba(212, 175, 55, 0.15);
+      color: #f3e5ab;
+      border: 1px solid rgba(212, 175, 55, 0.35);
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+    .grid-3 {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 12px;
+    }
+
+    .feature-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    .bullet {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #d4af37;
+      margin-top: 6px;
+      flex-shrink: 0;
+      box-shadow: 0 0 6px #d4af37;
+    }
+
+    /* Portada Específica */
+    .cover-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      text-align: center;
+      padding: 20px;
+    }
+    .cover-logo {
+      width: 140px;
+      height: 140px;
+      border-radius: 50%;
+      border: 3px solid #d4af37;
+      padding: 4px;
+      margin-bottom: 24px;
+      box-shadow: 0 0 30px rgba(212, 175, 55, 0.35);
+      object-fit: cover;
+    }
+    .cover-badge {
+      margin-bottom: 16px;
+    }
+    .cover-title {
+      font-size: 36px;
+      font-weight: 700;
+      line-height: 1.15;
+      margin-bottom: 14px;
+    }
+    .cover-subtitle {
+      font-size: 15px;
+      color: #c5beaf;
+      max-width: 480px;
+      line-height: 1.5;
+      margin-bottom: 32px;
+      font-weight: 300;
+    }
+    .cover-specs {
+      display: flex;
+      gap: 24px;
+      margin-top: 20px;
+      padding: 16px 28px;
+      background: #11141c;
+      border: 1px solid rgba(212, 175, 55, 0.25);
+      border-radius: 12px;
+    }
+    .cover-spec-val {
+      font-size: 18px;
+      font-weight: 700;
+      color: #d4af37;
+      font-family: 'Cinzel', serif;
+    }
+    .cover-spec-lbl {
+      font-size: 9px;
+      text-transform: uppercase;
+      color: #8b8375;
+      letter-spacing: 0.1em;
+    }
+
+    /* Títulos de sección */
+    h2.section-title {
+      font-size: 22px;
+      margin: 0 0 4px 0;
+      color: #ffffff;
+      font-weight: 600;
+    }
+    .section-desc {
+      font-size: 11px;
+      color: #9d9587;
+      margin-bottom: 14px;
+      line-height: 1.5;
+    }
+    h3.module-title {
+      font-size: 14px;
+      color: #f3e5ab;
+      margin: 0 0 8px 0;
+      font-weight: 600;
+    }
+    p {
+      margin: 0 0 8px 0;
+    }
+    strong {
+      color: #ffffff;
+    }
+
+    .kpi-box {
+      background: #131720;
+      border: 1px solid rgba(212, 175, 55, 0.2);
+      border-radius: 8px;
+      padding: 10px;
+      text-align: center;
+    }
+    .kpi-value {
+      font-size: 18px;
+      font-weight: 700;
+      color: #d4af37;
+      font-family: 'Cinzel', serif;
+    }
+    .kpi-label {
+      font-size: 8.5px;
+      color: #8f8778;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-top: 2px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ========================================== -->
+  <!-- PÁGINA 1: PORTADA EJECUTIVA                -->
+  <!-- ========================================== -->
+  <div class="page">
+    <div class="page-border"></div>
+    <div class="page-border-inner"></div>
+    <div class="corner corner-tl"></div>
+    <div class="corner corner-tr"></div>
+    <div class="corner corner-bl"></div>
+    <div class="corner corner-br"></div>
+
+    <div class="cover-container">
+      <div class="cover-badge">
+        <span class="badge">DOCUMENTO TÉCNICO & EJECUTIVO · 2026</span>
+      </div>
+
+      <img src="logo_barberia_lopez_hd.jpg" alt="Barbería López" class="cover-logo">
+
+      <h1 class="cover-title font-serif gold-gradient-text">
+        BARBERÍA LÓPEZ
+      </h1>
+      
+      <p style="font-family:'Cinzel',serif;font-size:12px;letter-spacing:0.25em;color:#d4af37;margin-bottom:14px;text-transform:uppercase;">
+        Neiva, Huila · Estudio de Alta Peluquería
+      </p>
+
+      <p class="cover-subtitle">
+        Dossier completo de especificaciones, capacidades funcionales y arquitectura de la plataforma digital oficial de agendamiento y gestión de turnos.
+      </p>
+
+      <div class="cover-specs">
+        <div>
+          <div class="cover-spec-val">100%</div>
+          <div class="cover-spec-lbl">Tiempo Real</div>
+        </div>
+        <div style="width:1px;background:rgba(212,175,55,0.2);"></div>
+        <div>
+          <div class="cover-spec-val">1 Toque</div>
+          <div class="cover-spec-lbl">Sincronización Celular</div>
+        </div>
+        <div style="width:1px;background:rgba(212,175,55,0.2);"></div>
+        <div>
+          <div class="cover-spec-val">0 Esperas</div>
+          <div class="cover-spec-lbl">Atención al Minuto</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="page-footer">
+      <span>Barbería López · Documento Oficial para el Cliente</span>
+      <span class="page-number">PÁGINA 01 / 05</span>
+    </div>
+  </div>
+
+
+  <!-- =================================================== -->
+  <!-- PÁGINA 2: RESUMEN EJECUTIVO & EXPERIENCIA DEL CLIENTE -->
+  <!-- =================================================== -->
+  <div class="page">
+    <div class="page-border"></div>
+    <div class="page-border-inner"></div>
+
+    <div>
+      <div class="page-header">
+        <span class="page-header-title">01 / PROPUESTA DE VALOR & CLIENT EXPERIENCE</span>
+        <span class="page-header-meta">BARBERIA LOPEZ · PORTAL WEB</span>
+      </div>
+
+      <h2 class="section-title font-serif gold-gradient-text">Experiencia del Cliente & Reserva en Vivo</h2>
+      <p class="section-desc">
+        La plataforma transforma radicalmente el proceso tradicional de agendamiento. Elimina esperas en sala y llamadas telefónicas, permitiendo al cliente reservar su cita en menos de 45 segundos.
+      </p>
+
+      <!-- Tarjeta Principal: Flujo de Reserva -->
+      <div class="card card-highlight">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+          <h3 class="module-title font-serif">Cuadrícula Interactiva de Disponibilidad</h3>
+          <span class="badge">EN TIEMPO REAL</span>
+        </div>
+        <div class="feature-item">
+          <div class="bullet"></div>
+          <div>
+            <strong>Calendario Mensual Dinámico:</strong> Vista de 30/31 días con indicadores de días disponibles, cálculo automático de cupos libres por fecha y selección táctil inmediata.
+          </div>
+        </div>
+        <div class="feature-item">
+          <div class="bullet"></div>
+          <div>
+            <strong>Validación Temporal Inteligente:</strong> El sistema bloquea de manera automática las horas que ya transcurrieron durante el día en curso. Nunca permite agendar en el pasado.
+          </div>
+        </div>
+        <div class="feature-item">
+          <div class="bullet"></div>
+          <div>
+            <strong>Filtrado por Barbero / Estación:</strong> El cliente puede visualizar la disponibilidad global o filtrar directamente por su barbero de preferencia (Maestro Lopez, Carlos Andrés u otros).
+          </div>
+        </div>
+      </div>
+
+      <!-- Grid 2 Columnas -->
+      <div class="grid-2">
+        <div class="card">
+          <h3 class="module-title font-serif">Catálogo Oficial de Servicios</h3>
+          <div class="feature-item">
+            <div class="bullet"></div>
+            <div><strong>Corte Tradicional:</strong> 30 min · $20.000 COP</div>
+          </div>
+          <div class="feature-item">
+            <div class="bullet"></div>
+            <div><strong>Combo 1 (Corte + Barba):</strong> 45 min · $25.000 COP</div>
+          </div>
+          <div class="feature-item">
+            <div class="bullet"></div>
+            <div><strong>Combo 2 (Corte + Barba + Cejas):</strong> 50 min · $35.000 COP</div>
+          </div>
+          <div class="feature-item">
+            <div class="bullet"></div>
+            <div><strong>Combo 3 (Ritual Facial):</strong> 60 min · $40.000 COP</div>
+          </div>
+          <div class="feature-item">
+            <div class="bullet"></div>
+            <div><strong>Combi Completa VIP:</strong> 75 min · $65.000 COP</div>
+          </div>
+          <p class="muted-text" style="font-size:10px;margin-top:6px;">Cada servicio calcula automáticamente la hora de finalización del turno en la agenda.</p>
+        </div>
+
+        <div class="card">
+          <h3 class="module-title font-serif">Reserva Ágil sin Fricción</h3>
+          <div class="feature-item">
+            <div class="bullet"></div>
+            <div><strong>Cero Contraseñas:</strong> El cliente no necesita crear usuarios ni recordar claves para apartar su turno.</div>
+          </div>
+          <div class="feature-item">
+            <div class="bullet"></div>
+            <div><strong>Campos Esenciales:</strong> Solo ingresa Nombre Completo, Teléfono WhatsApp y Notas opcionales de estilo.</div>
+          </div>
+          <div class="feature-item">
+            <div class="bullet"></div>
+            <div><strong>Protección contra Doble Reserva:</strong> Si una franja es reservada simultáneamente, el sistema previene cruces de horarios.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid-3" style="margin-top:4px;">
+        <div class="kpi-box">
+          <div class="kpi-value">45 seg</div>
+          <div class="kpi-label">Tiempo promedio de reserva</div>
+        </div>
+        <div class="kpi-box">
+          <div class="kpi-value">0%</div>
+          <div class="kpi-label">Riesgo de citas duplicadas</div>
+        </div>
+        <div class="kpi-box">
+          <div class="kpi-value">100%</div>
+          <div class="kpi-label">Adaptado a celulares</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="page-footer">
+      <span>Barbería López · Experiencia del Cliente</span>
+      <span class="page-number">PÁGINA 02 / 05</span>
+    </div>
+  </div>
+
+
+  <!-- ======================================================== -->
+  <!-- PÁGINA 3: SINCRONIZACIÓN MÓVIL (APPLE & GOOGLE CALENDAR)  -->
+  <!-- ======================================================== -->
+  <div class="page">
+    <div class="page-border"></div>
+    <div class="page-border-inner"></div>
+
+    <div>
+      <div class="page-header">
+        <span class="page-header-title">02 / CALENDARIOS NATIVOS & CONECTIVIDAD</span>
+        <span class="page-header-meta">TECNOLOGÍA WEBCAL · RFC 5545</span>
+      </div>
+
+      <h2 class="section-title font-serif gold-gradient-text">Sincronización Móvil en Segundo Plano</h2>
+      <p class="section-desc">
+        La mayor innovación de la plataforma: permite que tanto clientes como barberos reciban sus turnos directamente en la aplicación de Calendario nativa de su teléfono celular con 1 solo toque.
+      </p>
+
+      <!-- Tarjeta iPhone Destacada -->
+      <div class="card card-highlight">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+          <h3 class="module-title font-serif">En iPhone · Apple Calendar (1 Toque Nativo)</h3>
+          <span class="badge">PROTOCOLO WEBCAL</span>
+        </div>
+        <p style="font-size:11.5px;color:#c5c0b6;margin-bottom:12px;">
+          Bypass tecnológico del visor de descargas de Safari. Al pulsar el botón, iOS abre directamente la aplicación <strong>Calendario de Apple</strong> y despliega la consulta nativa: <em>"¿Deseas suscribirte al calendario 'Barbería López · Mis Turnos'?"</em>.
+        </p>
+        <div class="grid-2">
+          <div class="feature-item">
+            <div class="bullet"></div>
+            <div>
+              <strong>Feed por Teléfono:</strong> Vincula automáticamente todas las citas registradas con el número del cliente (/api/calendar/client/[telefono].ics).
+            </div>
+          </div>
+          <div class="feature-item">
+            <div class="bullet"></div>
+            <div>
+              <strong>Sincronización Futura:</strong> Cualquier cita adicional que el cliente agende en el futuro aparecerá sola en su iPhone sin volver a sincronizar.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Comparativa de Conectividad -->
+      <div class="grid-2">
+        <div class="card">
+          <h3 class="module-title font-serif">Google Calendar & Android</h3>
+          <div class="feature-item">
+            <div class="bullet"></div>
+            <div><strong>Integración Instantánea:</strong> Botón directo con enlace universal prellenado (título, descripción, valor COP y ubicación).</div>
+          </div>
+          <div class="feature-item">
+            <div class="bullet"></div>
+            <div><strong>Soporte Gmail:</strong> Guarda el evento en la nube de Google y sincroniza con smartwatches y dispositivos Android.</div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3 class="module-title font-serif">Recordatorios & WhatsApp</h3>
+          <div class="feature-item">
+            <div class="bullet"></div>
+            <div><strong>Alarma Automática:</strong> Alarma nativa integrada (VALARM) configurada 60 minutos antes del corte en el celular.</div>
+          </div>
+          <div class="feature-item">
+            <div class="bullet"></div>
+            <div><strong>Confirmación WhatsApp:</strong> Enlace preformateado directo al número oficial (+57 321 989 7910) para confirmar en 1 clic.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tarjeta Botón de Inicio para Clientes Existentes -->
+      <div class="card" style="margin-top:2px;">
+        <h3 class="module-title font-serif" style="color:#d4af37;">Acceso Directo para Clientes Existentes</h3>
+        <p style="font-size:11px;color:#c5c0b6;">
+          En la cabecera principal de la web existe el botón <strong>"Sincronizar mi calendario iPhone"</strong>. Si un cliente ya reservó anteriormente, puede ingresar su número de teléfono en cualquier momento y conectar su calendario sin necesidad de realizar una nueva reserva.
+        </p>
+      </div>
+
+      <div class="grid-3" style="margin-top:4px;">
+        <div class="kpi-box">
+          <div class="kpi-value">UTC Universal</div>
+          <div class="kpi-label">Sin errores de zona horaria</div>
+        </div>
+        <div class="kpi-box">
+          <div class="kpi-value">60 min</div>
+          <div class="kpi-label">Alarma previa en el móvil</div>
+        </div>
+        <div class="kpi-box">
+          <div class="kpi-value">15 min</div>
+          <div class="kpi-label">Intervalo de refresco TTL</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="page-footer">
+      <span>Barbería López · Sincronización Móvil</span>
+      <span class="page-number">PÁGINA 03 / 05</span>
+    </div>
+  </div>
+
+
+  <!-- ========================================================= -->
+  <!-- PÁGINA 4: PANEL DE BARBEROS & SECTORES DE ESTACIÓN        -->
+  <!-- ========================================================= -->
+  <div class="page">
+    <div class="page-border"></div>
+    <div class="page-border-inner"></div>
+
+    <div>
+      <div class="page-header">
+        <span class="page-header-title">03 / PANEL DE CONTROL & OPERACIÓN INTERNA</span>
+        <span class="page-header-meta">DASHBOARD DE ESTACIONES · WORKFLOW</span>
+      </div>
+
+      <h2 class="section-title font-serif gold-gradient-text">Dashboard de Barberos & Operación</h2>
+      <p class="section-desc">
+        Interfaz administrativa diseñada para que el barbero tenga control absoluto de su jornada laboral, sus clientes del día y su facturación sin complicaciones técnicas.
+      </p>
+
+      <!-- Sectores de Estación -->
+      <div class="card card-highlight">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+          <h3 class="module-title font-serif">Organización por Sectores de Estación</h3>
+          <span class="badge">CERO AMONTONAMIENTO</span>
+        </div>
+        <p style="font-size:11.5px;color:#c5c0b6;margin-bottom:10px;">
+          Cada barbero cuenta con un sector visualmente independiente en pantalla. Esto evita confusiones entre turnos y permite que cada estación opere con autonomía.
+        </p>
+        <div class="grid-2">
+          <div class="feature-item">
+            <div class="bullet"></div>
+            <div><strong>Filtro Rápido por Estación:</strong> Botones superiores para visualizar todas las estaciones simultáneamente o aislar la estación de un barbero específico.</div>
+          </div>
+          <div class="feature-item">
+            <div class="bullet"></div>
+            <div><strong>Tarjetas de Cita Detalladas:</strong> Muestran hora exacta, cliente, teléfono, servicio, valor en COP y estado en tiempo real.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Sincronización del Barbero y Finalización -->
+      <div class="grid-2">
+        <div class="card">
+          <h3 class="module-title font-serif">Sincronización Celular del Barbero</h3>
+          <p style="font-size:11px;color:#c5beaf;margin-bottom:8px;">
+            El barbero no necesita entrar a la web constantemente para revisar si tiene clientes nuevos.
+          </p>
+          <div class="feature-item">
+            <div class="bullet"></div>
+            <div><strong>Vinculación Única:</strong> Con pulsar el botón <em>"Sincronizar celular"</em>, el barbero suscribe su iPhone o Android a su feed privado de turnos (/api/calendar/[barberId].ics).</div>
+          </div>
+          <div class="feature-item">
+            <div class="bullet"></div>
+            <div><strong>Turnos Automáticos:</strong> Toda reserva hecha por un cliente en la web entra al calendario nativo del celular del barbero en segundo plano.</div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3 class="module-title font-serif">Cierre de Servicio en 1 Toque</h3>
+          <p style="font-size:11px;color:#c5beaf;margin-bottom:8px;">
+            Al terminar el corte, el barbero pulsa el botón dorado:
+          </p>
+          <div style="background:#181c24;border:1px solid rgba(212,175,55,0.3);border-radius:6px;padding:8px 12px;text-align:center;font-size:10.5px;color:#f3e5ab;font-weight:600;margin-bottom:8px;">
+            Finalizar corte y guardar en historial →
+          </div>
+          <div class="feature-item">
+            <div class="bullet"></div>
+            <div>La cita pasa a estado <strong>COMPLETADA</strong>, se archiva en la base de datos oficial y suma al cuadre de caja del día.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:2px;">
+        <h3 class="module-title font-serif">Privacidad & Control de Permisos</h3>
+        <p style="font-size:11px;color:#c5c0b6;">
+          Los barberos practicantes únicamente pueden visualizar y finalizar los cortes asignados a su propia estación. Solo el <strong>Barbero Jefe / Administrador</strong> tiene visibilidad integral y balances consolidados de toda la barbería.
+        </p>
+      </div>
+
+      <div class="grid-3" style="margin-top:4px;">
+        <div class="kpi-box">
+          <div class="kpi-value">1 Clic</div>
+          <div class="kpi-label">Para finalizar corte</div>
+        </div>
+        <div class="kpi-box">
+          <div class="kpi-value">Autónomo</div>
+          <div class="kpi-label">Sectores por estación</div>
+        </div>
+        <div class="kpi-box">
+          <div class="kpi-value">100% Móvil</div>
+          <div class="kpi-label">Turnos en el celular</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="page-footer">
+      <span>Barbería López · Dashboard de Barberos</span>
+      <span class="page-number">PÁGINA 04 / 05</span>
+    </div>
+  </div>
+
+
+  <!-- ========================================================= -->
+  <!-- PÁGINA 5: HISTORIAL, CUADRE DE CAJA & ADMINISTRACIÓN       -->
+  <!-- ========================================================= -->
+  <div class="page">
+    <div class="page-border"></div>
+    <div class="page-border-inner"></div>
+
+    <div>
+      <div class="page-header">
+        <span class="page-header-title">04 / AUDITORÍA, CONTABILIDAD & ADMINISTRACIÓN</span>
+        <span class="page-header-meta">HISTORIAL EN BASE DE DATOS · MODO INCÓGNITO</span>
+      </div>
+
+      <h2 class="section-title font-serif gold-gradient-text">Historial Contable & Panel Administrativo</h2>
+      <p class="section-desc">
+        Módulo financiero y de gobernanza que garantiza transparencia en los ingresos, control de asistencia de clientes y gestión centralizada de todo el personal.
+      </p>
+
+      <!-- Historial y Cuadre de Caja -->
+      <div class="card card-highlight">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+          <h3 class="module-title font-serif">Historial en Base de Datos & Cuadre Financiero</h3>
+          <span class="badge">BALANCE EN COP</span>
+        </div>
+        <div class="grid-2">
+          <div>
+            <div class="feature-item">
+              <div class="bullet"></div>
+              <div><strong>Filtro Rápido por Período:</strong> Botones instantáneos para consultar <em>"Este mes"</em>, <em>"Mes pasado"</em> o selector dropdown de meses específicos.</div>
+            </div>
+            <div class="feature-item">
+              <div class="bullet"></div>
+              <div><strong>Buscador Inteligente:</strong> Permite filtrar al instante por nombre del cliente o por fecha específica.</div>
+            </div>
+          </div>
+          <div>
+            <div class="feature-item">
+              <div class="bullet"></div>
+              <div><strong>Separación por Sectores:</strong> Cada barbero tiene su tabla individual de cortes con total recaudado en pesos colombianos.</div>
+            </div>
+            <div class="feature-item">
+              <div class="bullet"></div>
+              <div><strong>Métricas KPI en Vivo:</strong> Sumatoria exacta del dinero cobrado y total de clientes atendidos en el período.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Panel de Administración Incógnito -->
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+          <h3 class="module-title font-serif">Panel de Gestión de Usuarios y Barberos (Modo Incógnito)</h3>
+          <span class="badge">EXCLUSIVO ADMIN</span>
+        </div>
+        <p style="font-size:11px;color:#c5beaf;margin-bottom:10px;">
+          Accesible únicamente con credenciales maestras. Permite administrar de forma invisible todo el equipo de trabajo:
+        </p>
+        <div class="grid-2">
+          <div class="feature-item">
+            <div class="bullet"></div>
+            <div><strong>Creación Inmediata:</strong> Registro de nuevos barberos con asignación de nombre, teléfono, especialidad y credenciales de acceso.</div>
+          </div>
+          <div class="feature-item">
+            <div class="bullet"></div>
+            <div><strong>Activación / Desactivación en 1 Toque:</strong> Si un barbero no asiste, se desactiva con un botón y sus horarios desaparecen de la agenda pública de inmediato.</div>
+          </div>
+          <div class="feature-item">
+            <div class="bullet"></div>
+            <div><strong>Cambio Rápido de Claves:</strong> Modal directo para reasignar contraseñas a cualquier barbero del equipo.</div>
+          </div>
+          <div class="feature-item">
+            <div class="bullet"></div>
+            <div><strong>Login Inteligente:</strong> Tolerancia a mayúsculas automáticas, puntos y prefijo '@' al iniciar sesión desde celulares.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Resumen de Infraestructura Técnica -->
+      <div class="card" style="margin-top:2px;">
+        <h3 class="module-title font-serif">Infraestructura & Arquitectura Cloud</h3>
+        <div class="grid-3" style="font-size:10.5px;">
+          <div>
+            <strong style="color:#d4af37;">Arquitectura Limpia:</strong><br>
+            Separación de capas en Dominio, Casos de Uso, Repositorios y Gateways.
+          </div>
+          <div>
+            <strong style="color:#d4af37;">Motor Node.js:</strong><br>
+            Backend ultra-liviano de cero dependencias externas, veloz y seguro.
+          </div>
+          <div>
+            <strong style="color:#d4af37;">Despliegue Continuo:</strong><br>
+            Sincronizado con GitHub y Render para actualizaciones automáticas en la nube.
+          </div>
+        </div>
+      </div>
+
+      <div class="grid-3" style="margin-top:4px;">
+        <div class="kpi-box">
+          <div class="kpi-value">100% Cloud</div>
+          <div class="kpi-label">Listo para Render / Dominio propio</div>
+        </div>
+        <div class="kpi-box">
+          <div class="kpi-value">Obsidian & Gold</div>
+          <div class="kpi-label">Identidad visual de alta gama</div>
+        </div>
+        <div class="kpi-box">
+          <div class="kpi-value">Auditable</div>
+          <div class="kpi-label">Control total de ingresos COP</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="page-footer">
+      <span>Barbería López · Documento Oficial para el Cliente · Neiva, Huila</span>
+      <span class="page-number">PÁGINA 05 / 05</span>
+    </div>
+  </div>
+
+</body>
+</html>
