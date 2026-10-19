@@ -74,6 +74,9 @@
       clientPhone,
       barberId,
       serviceId,
+      serviceName = null,
+      additionals = [],
+      totalPriceCop = null,
       date,
       startTime,
       endTime,
@@ -87,6 +90,9 @@
       this.clientPhone = (clientPhone || '').trim();
       this.barberId = barberId;
       this.serviceId = serviceId;
+      this.serviceName = serviceName;
+      this.additionals = additionals || [];
+      this.totalPriceCop = totalPriceCop;
       this.date = date;
       this.startTime = startTime;
       this.endTime = endTime;
@@ -232,67 +238,62 @@
     {
       id: 's-01',
       name: 'Corte Básico',
-      category: 'Tradicional',
+      category: 'Corte + Masaje',
       durationMinutes: 30,
       priceCop: 20000,
-      description: 'Corte clásico o degradado a máquina y tijera, definición de contornos con navaja.',
+      description: 'Corte tradicional o moderno + masaje capilar relajante.',
       active: true
     },
     {
       id: 's-02',
       name: 'Combo 1',
-      category: 'Corte + Barba',
+      category: 'Corte + Masaje Espalda + Mascarilla + Cejas',
       durationMinutes: 30,
       priceCop: 25000,
-      description: 'Corte de cabello completo + perfilado de barba sencilla con vapor y aftershave.',
+      description: 'Corte completo + masaje de espalda + mascarilla negra + perfilado de cejas.',
       active: true
     },
     {
       id: 's-03',
       name: 'Combo 2',
-      category: 'Corte + Barba + Cejas',
+      category: 'Corte + Masaje + Mascarilla + Barba + Cejas',
       durationMinutes: 30,
       priceCop: 35000,
-      description: 'Corte de cabello + ritual de barba con toalla caliente + perfilado de cejas.',
+      description: 'Corte + masaje + mascarilla facial + ritual de barba con toalla caliente + cejas.',
       active: true
     },
     {
       id: 's-04',
       name: 'Combo 3',
-      category: 'Ritual Facial',
+      category: 'Corte + Spa + Lavado',
       durationMinutes: 30,
       priceCop: 40000,
-      description: 'Corte + barba completa + limpieza facial con mascarilla de carbón activado.',
+      description: 'Corte + masaje + mascarilla + barba completa + cejas + lavado de cabello con shampoo refrescante.',
       active: true
     },
     {
       id: 's-05',
       name: 'Combi Completa VIP',
-      category: 'Experiencia Integral',
+      category: 'Experiencia Total + Granizado',
       durationMinutes: 30,
       priceCop: 65000,
-      description: 'Servicio integral VIP: corte + barba spa + mascarilla hidratante + pigmentación.',
-      active: true
-    },
-    {
-      id: 's-06',
-      name: 'Pigmentación Aerógrafo',
-      category: 'Acabado Capilar',
-      durationMinutes: 30,
-      priceCop: 18000,
-      description: 'Definición de líneas y sombra natural con aerógrafo de precisión.',
-      active: true
-    },
-    {
-      id: 's-07',
-      name: 'Pigmentación Manual',
-      category: 'Acabado Artesanal',
-      durationMinutes: 30,
-      priceCop: 22000,
-      description: 'Pigmentación artesanal detallada para mayor densidad y fijación en barba o contornos.',
+      description: 'Corte + masaje + mascarilla + barba spa + cejas + lavado de cabello + granizado artesanal de la casa.',
       active: true
     }
   ];
+
+  const OPTIONAL_EXTRAS = {
+    pigmentacion: [
+      { id: 'pig-none', name: 'Sin pigmentación', priceCop: 0, desc: 'Acabado natural sin tinte' },
+      { id: 'pig-aero', name: 'Pigmentación Aerógrafo', priceCop: 18000, desc: 'Definición y sombra natural con aerógrafo' },
+      { id: 'pig-manual', name: 'Pigmentación Manual', priceCop: 22000, desc: 'Pigmentación artesanal para densidad capilar' }
+    ],
+    adicionales: [
+      { id: 'extra-cejas', name: 'Cejas', priceCop: 3000, desc: 'Perfilado y alineación a navaja' },
+      { id: 'extra-barba', name: 'Barba', priceCop: 10000, desc: 'Ritual y perfilado de barba con toalla caliente' },
+      { id: 'extra-afeitado', name: 'Afeitado tradicional', priceCop: 6000, desc: 'Afeitado al ras con espuma y toalla caliente' }
+    ]
+  };
 
   const SEED_APPOINTMENTS = [];
   const SEED_HISTORY = [];
@@ -305,7 +306,7 @@
 
     _initializeStorage() {
       // Actualización automática del catálogo de servicios (30 min) para producción
-      const CLEAN_DEPLOY_VERSION = 'v2_production_30min';
+      const CLEAN_DEPLOY_VERSION = 'v3_production_opcionales';
       try {
         if (localStorage.getItem('blopez_clean_version') !== CLEAN_DEPLOY_VERSION) {
           localStorage.setItem('blopez_services', JSON.stringify(SEED_SERVICES));
@@ -815,7 +816,7 @@
       this.repo = repo;
       this.calendarGateway = calendarGateway;
     }
-    async execute({ clientName, clientPhone, barberId, serviceId, date, startTime, paymentMethod }) {
+    async execute({ clientName, clientPhone, barberId, serviceId, pigmentacion = 'pig-none', additionals = [], date, startTime, paymentMethod }) {
       if (isSlotInPast(date, startTime)) {
         throw new Error("El horario seleccionado ya ha transcurrido. Por favor selecciona una hora disponible actual o futura.");
       }
@@ -827,7 +828,7 @@
       if (!service) throw new Error("Servicio no encontrado.");
 
       const [h, m] = startTime.split(':').map(Number);
-      const endTotalMinutes = h * 60 + m + service.durationMinutes;
+      const endTotalMinutes = h * 60 + m + (service.durationMinutes || 30);
       const endH = String(Math.floor(endTotalMinutes / 60)).padStart(2, '0');
       const endM = String(endTotalMinutes % 60).padStart(2, '0');
       const endTime = `${endH}:${endM}`;
@@ -839,11 +840,45 @@
         throw new Error(`El barbero ${barber.name} ya tiene un turno reservado en esa franja horaria.`);
       }
 
+      let extrasTotal = 0;
+      const extraLabels = [];
+
+      if (pigmentacion === 'pig-aero') {
+        extrasTotal += 18000;
+        extraLabels.push('Pigmentación Aerógrafo (+$18.000)');
+      } else if (pigmentacion === 'pig-manual') {
+        extrasTotal += 22000;
+        extraLabels.push('Pigmentación Manual (+$22.000)');
+      }
+
+      if (Array.isArray(additionals)) {
+        if (additionals.includes('extra-cejas')) {
+          extrasTotal += 3000;
+          extraLabels.push('Cejas (+$3.000)');
+        }
+        if (additionals.includes('extra-barba')) {
+          extrasTotal += 10000;
+          extraLabels.push('Barba (+$10.000)');
+        }
+        if (additionals.includes('extra-afeitado')) {
+          extrasTotal += 6000;
+          extraLabels.push('Afeitado tradicional (+$6.000)');
+        }
+      }
+
+      const totalPriceCop = (service.priceCop || 0) + extrasTotal;
+      const serviceFullTitle = extraLabels.length > 0 
+        ? `${service.name} + ${extraLabels.map(l => l.split(' (')[0]).join(' + ')}`
+        : service.name;
+
       const appointment = new Appointment({
         clientName,
         clientPhone,
         barberId,
         serviceId,
+        serviceName: serviceFullTitle,
+        additionals: extraLabels,
+        totalPriceCop,
         date,
         startTime,
         endTime,
@@ -854,11 +889,11 @@
       const calendarPayload = this.calendarGateway.generateSyncData({
         appointment: saved,
         barberName: barber.name,
-        serviceName: service.name,
-        priceCop: service.priceCop
+        serviceName: serviceFullTitle,
+        priceCop: totalPriceCop
       });
 
-      return { appointment: saved, barber, service, calendarPayload };
+      return { appointment: saved, barber, service, calendarPayload, totalPriceCop, serviceFullTitle, extraLabels };
     }
   }
 
@@ -873,7 +908,7 @@
       }
 
       const service = await this.repo.findServiceById(appointment.serviceId);
-      const priceCop = service ? service.priceCop : 0;
+      const priceCop = appointment.totalPriceCop || (service ? service.priceCop : 0);
 
       appointment.status = AppointmentStatus.COMPLETADA;
       await this.repo.updateAppointment(appointment);
@@ -1216,9 +1251,12 @@
     historyFilter: 'ALL',
     historySearch: '',
     bookingModalOpen: false,
+    confirmationModalData: null,
     bookingForm: {
       barberId: null,
       serviceId: null,
+      pigmentacion: 'pig-none',
+      extras: [],
       date: initialDateStr,
       startTime: '10:30',
       clientName: '',
@@ -1432,21 +1470,36 @@
         <!-- SECTION 03: SERVICIOS & FILOSOFÍA -->
         <section id="servicios" class="max-w-[1240px] mx-auto px-6 md:px-12 py-[72px] border-t border-[#d4af37]/20">
           <div class="mb-10">
-            <div class="font-sans-ui text-xs font-semibold uppercase tracking-wider text-[#d4af37] mb-2">03 / CATÁLOGO & DISTINCIÓN</div>
+            <div class="font-sans-ui text-xs font-semibold uppercase tracking-wider text-[#d4af37] mb-2">03 / CATÁLOGO OFICIAL & SERVICIOS</div>
             <h2 class="type-display-editorial text-[36px] sm:text-[46px] leading-[1.05] text-[#ffffff]">
-              Servicios de autor & filosofía
+              Servicios de autor & combos insignia
             </h2>
           </div>
 
           <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             
-            <!-- Card 1: Firma Clásica -->
+            <!-- Card 1: Corte Básico -->
             <div class="bg-[#12151b] border border-[#d4af37]/25 rounded-[24px] p-7 flex flex-col justify-between min-h-[240px] hover:border-[#d4af37]/50 transition-all shadow-lg">
               <div>
-                <span class="font-sans-ui text-xs font-semibold uppercase tracking-wider text-[#a39578] block mb-2">01 / ESTILO DE AUTOR</span>
-                <h3 class="font-serif-editorial text-[26px] font-normal text-[#ffffff] mb-2">Corte Clásico Lopez</h3>
+                <span class="font-sans-ui text-xs font-semibold uppercase tracking-wider text-[#a39578] block mb-2">01 / CORTE TRADICIONAL</span>
+                <h3 class="font-serif-editorial text-[26px] font-normal text-[#ffffff] mb-2">Corte Básico</h3>
                 <p class="font-sans-ui text-[14px] text-[#c5c0b6] leading-relaxed font-normal">
-                  Degradado milimétrico, pulido a tijera sobre peine y perfilado con navaja tradicional. Incluye lavado y fijación profesional.
+                  Corte tradicional o degradado a máquina y tijera + masaje capilar relajante al finalizar.
+                </p>
+              </div>
+              <div class="flex items-center justify-between pt-4 mt-4 border-t border-[#d4af37]/20">
+                <span class="font-mono-tech text-[20px] font-bold text-[#d4af37]">$20.000 COP</span>
+                <span class="font-sans-ui text-xs text-[#a39578]">30 MINUTOS</span>
+              </div>
+            </div>
+
+            <!-- Card 2: Combo 1 -->
+            <div class="bg-[#12151b] border border-[#d4af37]/25 rounded-[24px] p-7 flex flex-col justify-between min-h-[240px] hover:border-[#d4af37]/50 transition-all shadow-lg">
+              <div>
+                <span class="font-sans-ui text-xs font-semibold uppercase tracking-wider text-[#a39578] block mb-2">02 / CORTE + RELAJACIÓN</span>
+                <h3 class="font-serif-editorial text-[26px] font-normal text-[#ffffff] mb-2">Combo 1</h3>
+                <p class="font-sans-ui text-[14px] text-[#c5c0b6] leading-relaxed font-normal">
+                  Corte de cabello completo + masaje de espalda descontracturante + mascarilla negra purificante + perfilado de cejas.
                 </p>
               </div>
               <div class="flex items-center justify-between pt-4 mt-4 border-t border-[#d4af37]/20">
@@ -1455,28 +1508,28 @@
               </div>
             </div>
 
-            <!-- Card 2: Ritual de Barba -->
+            <!-- Card 3: Combo 2 -->
             <div class="bg-[#12151b] border border-[#d4af37]/25 rounded-[24px] p-7 flex flex-col justify-between min-h-[240px] hover:border-[#d4af37]/50 transition-all shadow-lg">
               <div>
-                <span class="font-sans-ui text-xs font-semibold uppercase tracking-wider text-[#a39578] block mb-2">02 / SPA MASCULINO</span>
-                <h3 class="font-serif-editorial text-[26px] font-normal text-[#ffffff] mb-2">Barba Esculpida</h3>
+                <span class="font-sans-ui text-xs font-semibold uppercase tracking-wider text-[#a39578] block mb-2">03 / CORTE + BARBA + SPA</span>
+                <h3 class="font-serif-editorial text-[26px] font-normal text-[#ffffff] mb-2">Combo 2</h3>
                 <p class="font-sans-ui text-[14px] text-[#c5c0b6] leading-relaxed font-normal">
-                  Ritual de toalla caliente aromatizada con eucalipto, aceite de argán hidratante y alineación geométrica de contornos a navaja.
+                  Corte de cabello + masaje capilar + mascarilla facial + ritual de barba con toalla caliente + perfilado de cejas.
                 </p>
               </div>
               <div class="flex items-center justify-between pt-4 mt-4 border-t border-[#d4af37]/20">
-                <span class="font-mono-tech text-[20px] font-bold text-[#d4af37]">$18.000 COP</span>
+                <span class="font-mono-tech text-[20px] font-bold text-[#d4af37]">$35.000 COP</span>
                 <span class="font-sans-ui text-xs text-[#a39578]">30 MINUTOS</span>
               </div>
             </div>
 
-            <!-- Card 3: Combo Imperial -->
+            <!-- Card 4: Combo 3 -->
             <div class="bg-[#12151b] border border-[#d4af37]/25 rounded-[24px] p-7 flex flex-col justify-between min-h-[240px] hover:border-[#d4af37]/50 transition-all shadow-lg">
               <div>
-                <span class="font-sans-ui text-xs font-semibold uppercase tracking-wider text-[#a39578] block mb-2">03 / EXPERIENCIA TOTAL</span>
-                <h3 class="font-serif-editorial text-[26px] font-normal text-[#ffffff] mb-2">Combo Imperial</h3>
+                <span class="font-sans-ui text-xs font-semibold uppercase tracking-wider text-[#a39578] block mb-2">04 / SPA FACIAL COMPLETO</span>
+                <h3 class="font-serif-editorial text-[26px] font-normal text-[#ffffff] mb-2">Combo 3</h3>
                 <p class="font-sans-ui text-[14px] text-[#c5c0b6] leading-relaxed font-normal">
-                  Corte integral + Ritual completo de barba + Limpieza e hidratación facial. La experiencia insignia de Barbería Lopez.
+                  Corte + masaje + mascarilla + barba completa + perfilado de cejas + lavado de cabello con shampoo refrescante.
                 </p>
               </div>
               <div class="flex items-center justify-between pt-4 mt-4 border-t border-[#d4af37]/20">
@@ -1485,48 +1538,36 @@
               </div>
             </div>
 
-            <!-- Card 4: Visagismo de Precisión -->
+            <!-- Card 5: Combi Completa VIP -->
             <div class="bg-[#12151b] border border-[#d4af37]/25 rounded-[24px] p-7 flex flex-col justify-between min-h-[240px] hover:border-[#d4af37]/50 transition-all shadow-lg">
               <div>
-                <span class="font-sans-ui text-xs font-semibold uppercase tracking-wider text-[#a39578] block mb-2">04 / ASESORÍA ANATÓMICA</span>
-                <h3 class="font-serif-editorial text-[26px] font-normal text-[#ffffff] mb-2">Visagismo y Estructura</h3>
+                <span class="font-sans-ui text-xs font-semibold uppercase tracking-wider text-[#a39578] block mb-2">05 / EXPERIENCIA TOTAL VIP</span>
+                <h3 class="font-serif-editorial text-[26px] font-normal text-[#ffffff] mb-2">Combi Completa VIP</h3>
                 <p class="font-sans-ui text-[14px] text-[#c5c0b6] leading-relaxed font-normal">
-                  Estudio anatómico del rostro para definir las líneas de corte que mejor proyectan tus rasgos. Incluido en tu consulta.
+                  Corte + masaje + mascarilla + barba spa + cejas + lavado de cabello + granizado artesanal de cortesía.
                 </p>
               </div>
               <div class="flex items-center justify-between pt-4 mt-4 border-t border-[#d4af37]/20">
-                <span class="font-sans-ui text-[16px] font-semibold text-[#d4af37]">Incluido</span>
-                <span class="font-sans-ui text-xs text-[#a39578]">CONSULTA PREVIA</span>
+                <span class="font-mono-tech text-[20px] font-bold text-[#d4af37]">$65.000 COP</span>
+                <span class="font-sans-ui text-xs text-[#a39578]">30 MINUTOS</span>
               </div>
             </div>
 
-            <!-- Card 5: Estaciones de Trabajo -->
-            <div class="bg-[#12151b] border border-[#d4af37]/25 rounded-[24px] p-7 flex flex-col justify-between min-h-[240px] hover:border-[#d4af37]/50 transition-all shadow-lg">
+            <!-- Card 6: Adicionales & Pigmentación -->
+            <div class="bg-gradient-to-br from-[#161a22] to-[#101217] border border-[#d4af37]/45 rounded-[24px] p-7 flex flex-col justify-between min-h-[240px] shadow-xl">
               <div>
-                <span class="font-sans-ui text-xs font-semibold uppercase tracking-wider text-[#a39578] block mb-2">05 / MAESTRÍA & RELEVO</span>
-                <h3 class="font-serif-editorial text-[26px] font-normal text-[#ffffff] mb-2">Dos Estaciones Activas</h3>
-                <p class="font-sans-ui text-[14px] text-[#c5c0b6] leading-relaxed font-normal">
-                  Estación 1: Maestro Lopez (Maestro Barbero & Estilista Clásico). Estación 2: Carlos Andrés (Practicante de Alta Escuela).
-                </p>
+                <span class="font-sans-ui text-xs font-semibold uppercase tracking-wider text-[#d4af37] block mb-2">OPCIONALES / PERSONALIZACIÓN</span>
+                <h3 class="font-serif-editorial text-[26px] font-normal text-[#ffffff] mb-2">Adicionales de Autor</h3>
+                <div class="font-sans-ui text-[13px] text-[#c5c0b6] space-y-1.5 leading-relaxed">
+                  <div class="flex justify-between"><span>Pigmentación Aerógrafo:</span><strong class="text-[#f3e5ab] font-mono-tech">$18.000</strong></div>
+                  <div class="flex justify-between"><span>Pigmentación Manual:</span><strong class="text-[#f3e5ab] font-mono-tech">$22.000</strong></div>
+                  <div class="flex justify-between"><span>Perfilado de Cejas:</span><strong class="text-[#f3e5ab] font-mono-tech">$3.000</strong></div>
+                  <div class="flex justify-between"><span>Ritual de Barba:</span><strong class="text-[#f3e5ab] font-mono-tech">$10.000</strong></div>
+                  <div class="flex justify-between"><span>Afeitado tradicional:</span><strong class="text-[#f3e5ab] font-mono-tech">$6.000</strong></div>
+                </div>
               </div>
-              <div class="flex items-center justify-between pt-4 mt-4 border-t border-[#d4af37]/20">
-                <span class="font-sans-ui text-[16px] font-semibold text-[#ffffff]">Neiva, Huila</span>
-                <span class="font-sans-ui text-xs text-[#a39578]">PRESENCIAL</span>
-              </div>
-            </div>
-
-            <!-- Card 6: Conexión Directa -->
-            <div class="bg-[#12151b] border border-[#d4af37]/25 rounded-[24px] p-7 flex flex-col justify-between min-h-[240px] hover:border-[#d4af37]/50 transition-all shadow-lg">
-              <div>
-                <span class="font-sans-ui text-xs font-semibold uppercase tracking-wider text-[#a39578] block mb-2">06 / TECNOLOGÍA TRANSPARENTE</span>
-                <h3 class="font-serif-editorial text-[26px] font-normal text-[#ffffff] mb-2">Conexión de Calendario</h3>
-                <p class="font-sans-ui text-[14px] text-[#c5c0b6] leading-relaxed font-normal">
-                  Al confirmar tu turno, obtienes enlace instantáneo a Google Calendar y sincronización nativa para Apple Calendar con recordatorios.
-                </p>
-              </div>
-              <div class="flex items-center justify-between pt-4 mt-4 border-t border-[#d4af37]/20">
-                <span class="font-sans-ui text-[14px] font-semibold text-[#f3e5ab]">RFC 5545 Nativo</span>
-                <span class="font-mono-tech text-xs text-[#d4af37] font-semibold">EN VIVO</span>
+              <div class="pt-4 mt-4 border-t border-[#d4af37]/20 text-xs text-[#a39578]">
+                Añádelos al agendar tu turno
               </div>
             </div>
 
@@ -2170,6 +2211,11 @@
                           </td>
                           <td class="p-3.5 text-right space-x-2 whitespace-nowrap">
                             <button data-user-id="${u.id}" data-username="${escapeHtml(u.username)}" class="btn-change-password btn-stone-outline py-1 px-2.5 text-xs font-medium">Cambiar clave</button>
+                            ${u.barberId ? `
+                              <button data-edit-barber-id="${u.barberId}" data-barber-name="${escapeHtml(name)}" data-barber-specialty="${escapeHtml(barber ? barber.specialty : '')}" class="btn-edit-barber btn-stone-outline py-1 px-2.5 text-xs font-medium text-[#f3e5ab]">
+                                Editar nombre
+                              </button>
+                            ` : ''}
                             ${u.role !== 'ADMIN' ? `
                               <button data-toggle-user-id="${u.id}" class="btn-toggle-status btn-stone-outline py-1 px-2.5 text-xs font-medium">
                                 ${u.active ? 'Desactivar' : 'Activar'}
@@ -2283,18 +2329,18 @@
       </div>
 
       <!-- MODAL DE FORMULARIO DE AGENDAMIENTO Y DATOS PERSONALES -->
-      <div id="modal-client-booking" class="fixed inset-0 z-50 bg-[#0a0b0d]/80 backdrop-blur-sm flex items-center justify-center p-4 ${state.bookingModalOpen ? '' : 'hidden'}">
-        <div class="anthropic-card w-full max-w-2xl max-h-[92vh] overflow-y-auto p-6 sm:p-8 relative">
-          <button id="btn-close-client-booking" class="absolute top-4 right-4 text-[#c5c0b6] hover:text-[#ffffff] text-xl font-light">&times;</button>
+      <div id="modal-client-booking" class="modal-backdrop-custom fixed inset-0 z-50 bg-[#0a0b0d]/85 backdrop-blur-sm flex items-center justify-center p-4 ${state.bookingModalOpen ? '' : 'hidden'}">
+        <div class="modal-window-custom anthropic-card w-full max-w-2xl max-h-[92vh] overflow-y-auto p-6 sm:p-8 relative">
+          <button id="btn-close-client-booking" class="absolute top-4 right-4 text-[#c5c0b6] hover:text-[#ffffff] text-2xl font-light cursor-pointer">&times;</button>
 
           <div class="mb-6">
             <div class="inline-flex items-center gap-2 mb-2 px-3 py-1 rounded-full bg-[#181c24] border border-[rgba(212,175,55,0.3)] text-[#f3e5ab] text-xs font-semibold">
               <span class="w-2 h-2 rounded-full bg-[#d4af37]"></span>
               <span>02 / RESERVA DE TURNO</span>
             </div>
-            <h3 class="font-serif-editorial text-[30px] sm:text-[34px] font-normal leading-tight text-[#ffffff] mb-1">Completar reserva de cita</h3>
+            <h3 class="font-serif-editorial text-[28px] sm:text-[34px] font-normal leading-tight text-[#ffffff] mb-1">Completar reserva de cita</h3>
             <div class="inline-block px-3 py-1 rounded-full bg-[#181c24] border border-[rgba(212,175,55,0.3)] font-mono-tech text-xs text-[#f3e5ab] font-bold mt-1">
-              ${formatDateFriendly(state.bookingForm.date)} · ${formatTime12h(state.bookingForm.startTime)}
+              ${formatDateFriendly(state.bookingForm.date)} · ${formatTime12h(state.bookingForm.startTime)} (30 MIN)
             </div>
           </div>
 
@@ -2309,7 +2355,7 @@
                   return `
                     <div 
                       data-modal-barber-id="${b.id}" 
-                      class="barber-modal-choice p-3.5 rounded-[12px] border cursor-pointer flex items-center gap-3 transition-all ${isSelected ? 'border-[#d4af37] bg-[rgba(212,175,55,0.14)] shadow-[0_0_15px_rgba(212,175,55,0.2)]' : 'border-[rgba(212,175,55,0.22)] bg-[#161a22] hover:border-[#d4af37]'}">
+                      class="barber-modal-choice p-3.5 rounded-[12px] border cursor-pointer flex items-center gap-3 transition-all ${isSelected ? 'selected border-[#d4af37] bg-[rgba(212,175,55,0.14)] shadow-[0_0_15px_rgba(212,175,55,0.2)]' : 'border-[rgba(212,175,55,0.22)] bg-[#161a22] hover:border-[#d4af37]'}">
                       <img src="${b.avatar || './logo_barberia_lopez_hd.jpg'}" alt="${b.name}" class="w-11 h-11 rounded-full object-cover border border-[rgba(212,175,55,0.35)]">
                       <div class="flex-1">
                         <div class="font-sans-ui font-semibold text-[#ffffff] text-[14px]">${b.name}</div>
@@ -2324,22 +2370,25 @@
               </div>
             </div>
 
-            <!-- 2. SELECCIÓN DE CORTE O COMBO -->
+            <!-- 2. SELECCIÓN DE CORTE O COMBO BASE -->
             <div>
-              <label class="block font-sans-ui text-xs font-semibold uppercase tracking-wider text-[#d4af37] mb-2">2. Selecciona el Corte o Combo</label>
+              <label class="block font-sans-ui text-xs font-semibold uppercase tracking-wider text-[#d4af37] mb-2">2. Selecciona tu Corte o Combo</label>
               <div id="service-modal-list" class="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-56 overflow-y-auto pr-1">
                 ${(Array.isArray(services) && services.length > 0 ? services : SEED_SERVICES).map((s, idx) => {
                   const isSelected = state.bookingForm.serviceId ? state.bookingForm.serviceId === s.id : idx === 0;
                   return `
                     <div 
                       data-modal-service-id="${s.id}" 
-                      class="service-modal-choice p-3.5 rounded-[12px] border cursor-pointer flex flex-col justify-between transition-all ${isSelected ? 'border-[#d4af37] bg-[rgba(212,175,55,0.14)] shadow-[0_0_15px_rgba(212,175,55,0.2)]' : 'border-[rgba(212,175,55,0.22)] bg-[#161a22] hover:border-[#d4af37]'}">
+                      class="service-modal-choice p-3.5 rounded-[12px] border cursor-pointer flex flex-col justify-between transition-all ${isSelected ? 'selected border-[#d4af37] bg-[rgba(212,175,55,0.14)] shadow-[0_0_15px_rgba(212,175,55,0.2)]' : 'border-[rgba(212,175,55,0.22)] bg-[#161a22] hover:border-[#d4af37]'}">
                       <div class="flex items-center justify-between gap-1 mb-1">
                         <span class="font-sans-ui font-semibold text-[#ffffff] text-[14px]">${s.name}</span>
                         <span class="font-mono-tech font-bold text-[#d4af37] text-sm">$${s.priceCop.toLocaleString('es-CO')}</span>
                       </div>
-                      <div class="font-sans-ui text-[#c5c0b6] text-[11px]">
-                        ${s.durationMinutes} MIN · ${s.category.toUpperCase()}
+                      <div class="font-sans-ui text-[#c5c0b6] text-[11px] leading-tight">
+                        ${s.description || s.category}
+                      </div>
+                      <div class="font-mono-tech text-[10px] text-[#a39578] mt-2">
+                        30 MIN · ${s.category.toUpperCase()}
                       </div>
                     </div>
                   `;
@@ -2347,9 +2396,79 @@
               </div>
             </div>
 
-            <!-- 3. DATOS PERSONALES NECESARIOS -->
+            <!-- 3. SERVICIOS ADICIONALES (OPCIONALES) -->
             <div class="pt-4 border-t border-[rgba(212,175,55,0.22)]">
-              <label class="block font-sans-ui text-xs font-semibold uppercase tracking-wider text-[#d4af37] mb-3">3. Tus Datos Personales</label>
+              <div class="flex items-center justify-between mb-2">
+                <label class="block font-sans-ui text-xs font-semibold uppercase tracking-wider text-[#d4af37]">3. Servicios Adicionales (Opcionales)</label>
+                <span class="text-[11px] text-[#a39578] font-sans-ui">Personaliza tu servicio</span>
+              </div>
+
+              <!-- PIGMENTACION (OPCIONAL RADIO) -->
+              <div class="mb-4">
+                <span class="text-[11px] font-semibold text-[#f3e5ab] block mb-2 font-sans-ui">Pigmentación de Barba o Contornos:</span>
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                  ${OPTIONAL_EXTRAS.pigmentacion.map((p) => {
+                    const isSelected = state.bookingForm.pigmentacion === p.id;
+                    return `
+                      <div 
+                        data-modal-pig-id="${p.id}" 
+                        class="pigmentacion-modal-choice extra-option-choice p-2.5 rounded-[10px] border cursor-pointer transition-all flex flex-col justify-between text-left ${isSelected ? 'selected border-[#d4af37] bg-[rgba(212,175,55,0.16)] shadow-[0_0_12px_rgba(212,175,55,0.2)]' : 'border-[rgba(212,175,55,0.22)] bg-[#161a22] hover:border-[#d4af37]'}">
+                        <div>
+                          <div class="font-sans-ui text-xs font-semibold text-white">${p.name}</div>
+                          <div class="font-sans-ui text-[10px] text-[#c5c0b6] mt-0.5">${p.desc}</div>
+                        </div>
+                        <div class="font-mono-tech text-xs font-bold text-[#d4af37] mt-2">
+                          ${p.priceCop > 0 ? '+$' + p.priceCop.toLocaleString('es-CO') : 'Incluido ($0)'}
+                        </div>
+                      </div>
+                    `;
+                  }).join('')}
+                </div>
+              </div>
+
+              <!-- OTROS EXTRAS (CHECKBOXES) -->
+              <div>
+                <span class="text-[11px] font-semibold text-[#f3e5ab] block mb-2 font-sans-ui">Otros adicionales sugeridos:</span>
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                  ${OPTIONAL_EXTRAS.adicionales.map((extra) => {
+                    const isChecked = state.bookingForm.extras.includes(extra.id);
+                    return `
+                      <div 
+                        data-modal-extra-id="${extra.id}" 
+                        class="extra-modal-choice extra-option-choice p-2.5 rounded-[10px] border cursor-pointer transition-all flex items-center justify-between ${isChecked ? 'selected border-[#d4af37] bg-[rgba(212,175,55,0.16)] shadow-[0_0_12px_rgba(212,175,55,0.2)]' : 'border-[rgba(212,175,55,0.22)] bg-[#161a22] hover:border-[#d4af37]'}">
+                        <div>
+                          <div class="font-sans-ui text-xs font-semibold text-white">${extra.name}</div>
+                          <div class="font-mono-tech text-[11px] font-bold text-[#d4af37]">+$ ${extra.priceCop.toLocaleString('es-CO')}</div>
+                        </div>
+                        <span class="w-4 h-4 rounded border flex items-center justify-center ${isChecked ? 'border-[#d4af37] bg-[#d4af37]' : 'border-[rgba(212,175,55,0.35)]'}">
+                          ${isChecked ? '<span class="text-[#0a0b0d] font-bold text-xs leading-none">✓</span>' : ''}
+                        </span>
+                      </div>
+                    `;
+                  }).join('')}
+                </div>
+              </div>
+
+              <!-- RESUMEN DINAMICO DE PRECIO -->
+              <div class="booking-price-summary bg-[#141820] border border-[rgba(212,175,55,0.35)] rounded-[12px] p-3.5 mt-4 space-y-1.5 font-sans-ui">
+                <div class="flex justify-between items-center text-xs">
+                  <span class="text-[#c5c0b6]">Servicio base seleccionado:</span>
+                  <span id="booking-summary-base" class="text-white font-medium">$20.000 COP</span>
+                </div>
+                <div class="flex justify-between items-center text-xs">
+                  <span class="text-[#c5c0b6]">Adicionales opcionales:</span>
+                  <span id="booking-summary-extras" class="text-[#f3e5ab] font-medium">$0 COP</span>
+                </div>
+                <div class="flex justify-between items-center text-sm pt-2 border-t border-[rgba(212,175,55,0.25)] font-bold">
+                  <span class="text-[#f3e5ab]">Total a pagar en efectivo:</span>
+                  <span id="booking-summary-total" class="text-[#d4af37] font-mono-tech text-base">$20.000 COP</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- 4. DATOS PERSONALES NECESARIOS -->
+            <div class="pt-4 border-t border-[rgba(212,175,55,0.22)]">
+              <label class="block font-sans-ui text-xs font-semibold uppercase tracking-wider text-[#d4af37] mb-3">4. Tus Datos Personales</label>
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
                 <div>
                   <label class="block font-sans-ui text-xs font-semibold text-[#c5c0b6] mb-1">Nombre completo *</label>
@@ -2392,24 +2511,25 @@
                     type="text" 
                     id="client-booking-notes" 
                     value="${escapeHtml(state.bookingForm.clientNotes || '')}" 
-                    placeholder="Ej. Fade medio, barba perfilada" 
+                    placeholder="Ej. Degradado medio en punta" 
                     class="input-parchment"
                   >
                 </div>
               </div>
-            </div>
 
-            <!-- SUBMIT -->
-            <div class="pt-5 border-t border-[rgba(212,175,55,0.22)] flex flex-col sm:flex-row items-center justify-between gap-4">
-              <div class="inline-flex items-center gap-2">
-                <span class="w-2 h-2 rounded-full bg-[#d4af37]"></span>
-                <span class="font-sans-ui text-xs font-semibold text-[#f3e5ab]">SINCRONIZACIÓN DIRECTA CON TU CALENDARIO</span>
+              <!-- METODO DE PAGO EN EFECTIVO -->
+              <div class="p-3.5 rounded-[10px] bg-[#161a22] border border-[rgba(212,175,55,0.25)] flex items-center gap-3">
+                <span class="w-2.5 h-2.5 rounded-full bg-[#d4af37]"></span>
+                <div class="flex-1">
+                  <span class="font-sans-ui text-xs font-semibold text-white block">Pago en Efectivo Presencial</span>
+                  <span class="font-sans-ui text-[11px] text-[#c5c0b6]">Pagas al finalizar tu corte directamente en la estación del barbero.</span>
+                </div>
               </div>
-              <button type="submit" class="btn-clay px-7 py-3 w-full sm:w-auto justify-center font-medium">
-                Agendar cita y conectar calendario →
-              </button>
             </div>
 
+            <button type="submit" class="btn-clay w-full py-3.5 justify-center text-sm font-bold shadow-lg">
+              Confirmar mi cita en agenda →
+            </button>
           </form>
         </div>
       </div>
@@ -2419,6 +2539,9 @@
     `;
 
     bindEvents(users, barbers, services);
+    if (state.confirmationModalData) {
+      showConfirmationModal(state.confirmationModalData);
+    }
   }
 
   // --- EVENTOS INTERACTIVOS ---
@@ -2563,6 +2686,31 @@
       };
     }
 
+    // Función para recalcular el precio en vivo en el modal
+    function updateLivePriceSummary() {
+      const activeServiceId = state.bookingForm.serviceId;
+      const allServices = (Array.isArray(state.services) && state.services.length > 0) ? state.services : SEED_SERVICES;
+      const s = allServices.find((x) => x.id === activeServiceId) || allServices[0] || SEED_SERVICES[0];
+      const basePrice = s ? s.priceCop : 20000;
+
+      let extrasPrice = 0;
+      if (state.bookingForm.pigmentacion === 'pig-aero') extrasPrice += 18000;
+      if (state.bookingForm.pigmentacion === 'pig-manual') extrasPrice += 22000;
+      if (state.bookingForm.extras.includes('extra-cejas')) extrasPrice += 3000;
+      if (state.bookingForm.extras.includes('extra-barba')) extrasPrice += 10000;
+      if (state.bookingForm.extras.includes('extra-afeitado')) extrasPrice += 6000;
+
+      const total = basePrice + extrasPrice;
+
+      const elBase = document.getElementById('booking-summary-base');
+      const elExtras = document.getElementById('booking-summary-extras');
+      const elTotal = document.getElementById('booking-summary-total');
+
+      if (elBase) elBase.textContent = '$' + basePrice.toLocaleString('es-CO') + ' COP';
+      if (elExtras) elExtras.textContent = extrasPrice > 0 ? '+$' + extrasPrice.toLocaleString('es-CO') + ' COP' : '$0 COP';
+      if (elTotal) elTotal.textContent = '$' + total.toLocaleString('es-CO') + ' COP';
+    }
+
     // Selección de barbero en el modal (in-place sin resetear scroll)
     document.querySelectorAll('.barber-modal-choice').forEach((card) => {
       card.onclick = () => {
@@ -2570,7 +2718,8 @@
         state.bookingForm.barberId = barberId;
         document.querySelectorAll('.barber-modal-choice').forEach((c) => {
           const isSelected = c.dataset.modalBarberId === barberId;
-          c.className = `barber-modal-choice p-3.5 rounded-[12px] border cursor-pointer flex items-center gap-3 transition-all ${isSelected ? 'border-[#d4af37] bg-[rgba(212,175,55,0.14)] shadow-[0_0_15px_rgba(212,175,55,0.2)]' : 'border-[rgba(212,175,55,0.22)] bg-[#161a22] hover:border-[#d4af37]'}`;
+          c.classList.toggle('selected', isSelected);
+          c.className = `barber-modal-choice p-3.5 rounded-[12px] border cursor-pointer flex items-center gap-3 transition-all ${isSelected ? 'selected border-[#d4af37] bg-[rgba(212,175,55,0.14)] shadow-[0_0_15px_rgba(212,175,55,0.2)]' : 'border-[rgba(212,175,55,0.22)] bg-[#161a22] hover:border-[#d4af37]'}`;
           const indicator = c.querySelector('span.w-4');
           if (indicator) {
             indicator.className = `w-4 h-4 rounded-full border flex items-center justify-center ${isSelected ? 'border-[#d4af37] bg-[#d4af37]' : 'border-[rgba(212,175,55,0.35)]'}`;
@@ -2587,8 +2736,76 @@
         state.bookingForm.serviceId = serviceId;
         document.querySelectorAll('.service-modal-choice').forEach((c) => {
           const isSelected = c.dataset.modalServiceId === serviceId;
-          c.className = `service-modal-choice p-3.5 rounded-[12px] border cursor-pointer flex flex-col justify-between transition-all ${isSelected ? 'border-[#d4af37] bg-[rgba(212,175,55,0.14)] shadow-[0_0_15px_rgba(212,175,55,0.2)]' : 'border-[rgba(212,175,55,0.22)] bg-[#161a22] hover:border-[#d4af37]'}`;
+          c.classList.toggle('selected', isSelected);
+          c.className = `service-modal-choice p-3.5 rounded-[12px] border cursor-pointer flex flex-col justify-between transition-all ${isSelected ? 'selected border-[#d4af37] bg-[rgba(212,175,55,0.14)] shadow-[0_0_15px_rgba(212,175,55,0.2)]' : 'border-[rgba(212,175,55,0.22)] bg-[#161a22] hover:border-[#d4af37]'}`;
         });
+        updateLivePriceSummary();
+      };
+    });
+
+    // Selección de pigmentación opcional
+    document.querySelectorAll('.pigmentacion-modal-choice').forEach((card) => {
+      card.onclick = () => {
+        const pigId = card.dataset.modalPigId;
+        state.bookingForm.pigmentacion = pigId;
+        document.querySelectorAll('.pigmentacion-modal-choice').forEach((c) => {
+          const isSelected = c.dataset.modalPigId === pigId;
+          c.classList.toggle('selected', isSelected);
+          c.className = `pigmentacion-modal-choice extra-option-choice p-2.5 rounded-[10px] border cursor-pointer transition-all flex flex-col justify-between text-left ${isSelected ? 'selected border-[#d4af37] bg-[rgba(212,175,55,0.16)] shadow-[0_0_12px_rgba(212,175,55,0.2)]' : 'border-[rgba(212,175,55,0.22)] bg-[#161a22] hover:border-[#d4af37]'}`;
+        });
+        updateLivePriceSummary();
+      };
+    });
+
+    // Selección de otros adicionales opcionales (Checkboxes)
+    document.querySelectorAll('.extra-modal-choice').forEach((card) => {
+      card.onclick = () => {
+        const extraId = card.dataset.modalExtraId;
+        const idx = state.bookingForm.extras.indexOf(extraId);
+        if (idx !== -1) {
+          state.bookingForm.extras.splice(idx, 1);
+        } else {
+          state.bookingForm.extras.push(extraId);
+        }
+        const isChecked = state.bookingForm.extras.includes(extraId);
+        card.classList.toggle('selected', isChecked);
+        card.className = `extra-modal-choice extra-option-choice p-2.5 rounded-[10px] border cursor-pointer transition-all flex items-center justify-between ${isChecked ? 'selected border-[#d4af37] bg-[rgba(212,175,55,0.16)] shadow-[0_0_12px_rgba(212,175,55,0.2)]' : 'border-[rgba(212,175,55,0.22)] bg-[#161a22] hover:border-[#d4af37]'}`;
+        const checkBadge = card.querySelector('span.w-4');
+        if (checkBadge) {
+          checkBadge.className = `w-4 h-4 rounded border flex items-center justify-center ${isChecked ? 'border-[#d4af37] bg-[#d4af37]' : 'border-[rgba(212,175,55,0.35)]'}`;
+          checkBadge.innerHTML = isChecked ? '<span class="text-[#0a0b0d] font-bold text-xs leading-none">✓</span>' : '';
+        }
+        updateLivePriceSummary();
+      };
+    });
+
+    // Inicializar cálculo de precios si el modal está abierto
+    if (state.bookingModalOpen) {
+      updateLivePriceSummary();
+    }
+
+    // Editar nombre de barbero (para Administrador o Barbero Jefe)
+    document.querySelectorAll('.btn-edit-barber').forEach((btn) => {
+      btn.onclick = async () => {
+        const barberId = btn.dataset.editBarberId;
+        const currentName = btn.dataset.barberName || '';
+        const currentSpecialty = btn.dataset.barberSpecialty || '';
+        const newName = prompt('Ingresa el nuevo nombre visible para este barbero (aparece en la agenda de los clientes):', currentName);
+        if (!newName || !newName.trim()) return;
+        const newSpecialty = prompt('Ingresa la especialidad o subtítulo (ej. Maestro Barbero, Barbero Profesional):', currentSpecialty);
+        
+        try {
+          const barber = await repo.findBarberById(barberId);
+          if (barber) {
+            barber.name = newName.trim();
+            if (newSpecialty !== null) barber.specialty = newSpecialty.trim();
+            await repo.updateBarber(barber);
+            alert(`Nombre actualizado con éxito a "${barber.name}".`);
+            renderApp();
+          }
+        } catch (err) {
+          alert('Error al actualizar el barbero: ' + err.message);
+        }
       };
     });
 
@@ -2599,7 +2816,6 @@
       };
     }
 
-    // Envío del formulario de agendamiento
     const formClientBooking = document.getElementById('form-client-booking');
     if (formClientBooking) {
       formClientBooking.onsubmit = async (e) => {
@@ -2623,6 +2839,8 @@
             clientPhone,
             barberId: state.bookingForm.barberId,
             serviceId: state.bookingForm.serviceId,
+            pigmentacion: state.bookingForm.pigmentacion,
+            additionals: state.bookingForm.extras,
             date: state.bookingForm.date,
             startTime: state.bookingForm.startTime,
             paymentMethod: state.bookingForm.paymentMethod
@@ -2782,36 +3000,45 @@
     });
   }
 
-  function showConfirmationModal({ appointment, barber, service, calendarPayload }) {
+  function showConfirmationModal({ appointment, barber, service, calendarPayload, totalPriceCop, serviceFullTitle, extraLabels = [] }) {
+    state.confirmationModalData = { appointment, barber, service, calendarPayload, totalPriceCop, serviceFullTitle, extraLabels };
     const container = document.getElementById('modal-confirmation-container');
     if (!container) return;
 
+    const displayPrice = totalPriceCop || appointment.totalPriceCop || service.priceCop || 20000;
+    const displayService = serviceFullTitle || appointment.serviceName || service.name;
+
     container.innerHTML = `
-      <div id="modal-confirm" class="fixed inset-0 z-50 bg-[#0a0b0d]/80 backdrop-blur-sm flex items-center justify-center p-4">
-        <div class="anthropic-card w-full max-w-lg p-6 sm:p-8 relative">
-          <div class="mb-6">
+      <div id="modal-confirm" class="modal-backdrop-custom fixed inset-0 z-50 bg-[#0a0b0d]/90 backdrop-blur-md flex items-center justify-center p-4">
+        <div class="modal-window-custom anthropic-card w-full max-w-lg p-6 sm:p-8 relative">
+          <button id="btn-close-confirm-x" class="absolute top-4 right-4 text-[#c5c0b6] hover:text-[#ffffff] text-2xl font-light cursor-pointer">&times;</button>
+
+          <div class="mb-5">
             <div class="inline-flex items-center gap-2 mb-2 px-3 py-1 rounded-full bg-[#181c24] border border-[rgba(212,175,55,0.3)] text-[#f3e5ab] text-xs font-semibold">
               <span class="w-2 h-2 rounded-full bg-[#d4af37]"></span>
               <span>TURNO CONFIRMADO EN AGENDA</span>
             </div>
-            <h3 class="font-serif-editorial text-[30px] sm:text-[34px] font-normal leading-tight text-[#ffffff] mb-1">¡Reserva completada!</h3>
-            <p class="font-sans-ui text-[#c5c0b6] text-[15px]">
+            <h3 class="font-serif-editorial text-[28px] sm:text-[32px] font-normal leading-tight text-[#ffffff] mb-1">¡Reserva completada!</h3>
+            <p class="font-sans-ui text-[#c5c0b6] text-[14px]">
               ${escapeHtml(appointment.clientName)}, tu turno ha sido agendado exitosamente con ${escapeHtml(barber.name)}.
             </p>
           </div>
 
-          <div class="bg-[#161a22] p-5 rounded-[12px] border border-[rgba(212,175,55,0.22)] space-y-2.5 mb-6 font-sans-ui text-sm">
-            <div class="flex justify-between"><span class="text-[#8a8275]">Barbero</span><span class="text-[#ffffff] font-semibold">${escapeHtml(barber.name)} (${escapeHtml(barber.specialty)})</span></div>
-            <div class="flex justify-between"><span class="text-[#8a8275]">Servicio</span><span class="text-[#ffffff]">${escapeHtml(service.name)}</span></div>
+          <div class="bg-[#161a22] p-4 sm:p-5 rounded-[14px] border border-[rgba(212,175,55,0.22)] space-y-2 mb-5 font-sans-ui text-sm">
+            <div class="flex justify-between"><span class="text-[#8a8275]">Barbero</span><span class="text-[#ffffff] font-semibold">${escapeHtml(barber.name)}</span></div>
+            <div class="flex justify-between"><span class="text-[#8a8275]">Servicio</span><span class="text-[#ffffff] text-right font-medium">${escapeHtml(service.name)}</span></div>
+            ${extraLabels.length > 0 ? `
+              <div class="flex justify-between"><span class="text-[#8a8275]">Adicionales</span><span class="text-[#f3e5ab] text-right text-xs">${escapeHtml(extraLabels.join(', '))}</span></div>
+            ` : ''}
             <div class="flex justify-between"><span class="text-[#8a8275]">Fecha y hora</span><span class="text-[#f3e5ab] font-mono-tech font-bold">${formatDateFriendly(appointment.date)} · ${formatTime12h(appointment.startTime)}</span></div>
-            <div class="flex justify-between"><span class="text-[#8a8275]">Duración estimada</span><span class="text-[#c5c0b6]">${service.durationMinutes} min</span></div>
-            <div class="flex justify-between pt-3 border-t border-[rgba(212,175,55,0.22)]">
-              <span class="text-[#8a8275]">Valor oficial</span>
-              <span class="text-[#d4af37] font-mono-tech font-bold text-base">$${service.priceCop.toLocaleString('es-CO')} COP</span>
+            <div class="flex justify-between"><span class="text-[#8a8275]">Duración</span><span class="text-[#c5c0b6]">30 min</span></div>
+            <div class="flex justify-between pt-2.5 border-t border-[rgba(212,175,55,0.22)]">
+              <span class="text-[#8a8275]">Total a pagar en efectivo</span>
+              <span class="text-[#d4af37] font-mono-tech font-bold text-base sm:text-lg">$${displayPrice.toLocaleString('es-CO')} COP</span>
             </div>
           </div>
 
-          <div class="space-y-3 mb-6">
+          <div class="space-y-3 mb-5">
             <p class="font-sans-ui text-xs font-semibold text-[#d4af37] uppercase tracking-wider">Conectar y sincronizar con tus calendarios:</p>
 
             <!-- OPCION IPHONE (WEBCAL NATIVO DE 1 TOQUE) -->
@@ -2823,13 +3050,13 @@
               <p class="text-xs text-[#c5c0b6] mb-3 leading-relaxed font-sans-ui">
                 Abre la app Calendario de Apple. iOS te preguntará <em>"¿Deseas suscribirte al calendario?"</em>. Pulsa <strong>Suscribirse</strong> y tus turnos se guardarán automáticamente con recordatorio previo.
               </p>
-              <a href="${calendarPayload.clientWebcalUrl}" class="btn-clay w-full py-3 justify-center text-xs sm:text-sm font-bold text-center block cursor-pointer">
+              <a href="${calendarPayload.clientWebcalUrl}" target="_blank" class="btn-clay w-full py-3 justify-center text-xs sm:text-sm font-bold text-center block cursor-pointer">
                 Añadir a Apple Calendar en iPhone →
               </a>
             </div>
 
             <!-- OPCION GOOGLE CALENDAR -->
-            <a href="${calendarPayload.googleUrl}" target="_blank" class="btn-stone-outline w-full py-2.5 justify-center text-xs font-semibold text-[#f3e5ab] text-center block">
+            <a href="${calendarPayload.googleUrl}" target="_blank" rel="noopener noreferrer" class="btn-stone-outline w-full py-2.5 justify-center text-xs font-semibold text-[#f3e5ab] text-center block">
               Conectar a Google Calendar (Android / Gmail) →
             </a>
 
@@ -2841,20 +3068,24 @@
             </div>
 
             <!-- CONFIRMACION POR WHATSAPP -->
-            <a href="${calendarPayload.whatsappUrl}" target="_blank" class="btn-stone-outline w-full py-2.5 justify-center text-xs font-semibold text-[#f3e5ab] link-editorial text-center block">
+            <a href="${calendarPayload.whatsappUrl}" target="_blank" rel="noopener noreferrer" class="btn-stone-outline w-full py-2.5 justify-center text-xs font-semibold text-[#f3e5ab] link-editorial text-center block">
               Enviar confirmación por WhatsApp (+57 321 989 7910)
             </a>
           </div>
 
-          <button id="btn-close-confirm" class="btn-stone-outline w-full py-2.5 justify-center text-xs text-[#8a8275] border-transparent hover:border-[rgba(212,175,55,0.3)]">Listo / Volver a la agenda</button>
+          <button id="btn-close-confirm" class="btn-stone-outline w-full py-2.5 justify-center text-xs text-[#c5c0b6] border-[rgba(212,175,55,0.3)] hover:text-white">Listo / Volver a la agenda</button>
         </div>
       </div>
     `;
 
-    document.getElementById('btn-close-confirm')?.addEventListener('click', () => {
+    const closeHandler = () => {
+      state.confirmationModalData = null;
       container.innerHTML = '';
       renderApp();
-    });
+    };
+
+    document.getElementById('btn-close-confirm')?.addEventListener('click', closeHandler);
+    document.getElementById('btn-close-confirm-x')?.addEventListener('click', closeHandler);
   }
 
   function showSyncModal(barberId, barberName) {
@@ -3078,7 +3309,7 @@
 
   // Actualización automática en tiempo real cada 30 segundos si el usuario está en la vista de cliente
   setInterval(() => {
-    if (state.activeView === 'home' && !state.bookingModalOpen) {
+    if (state.activeView === 'home' && !state.bookingModalOpen && !state.confirmationModalData) {
       const confirmModal = document.getElementById('modal-confirmation-container');
       const syncModal = document.getElementById('modal-sync-container');
       const clientSyncModal = document.getElementById('modal-client-sync-container');
@@ -3092,7 +3323,7 @@
   }, 30000);
 
   window.addEventListener('focus', () => {
-    if (state.activeView === 'home' && !state.bookingModalOpen) {
+    if (state.activeView === 'home' && !state.bookingModalOpen && !state.confirmationModalData) {
       renderApp();
     }
   });

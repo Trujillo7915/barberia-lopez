@@ -73,13 +73,11 @@ const DEFAULT_BARBERS = [
 ];
 
 const DEFAULT_SERVICES = [
-  { id: 's-01', name: 'Corte Básico', category: 'Tradicional', durationMinutes: 30, priceCop: 20000, description: 'Corte clásico o degradado a máquina y tijera.', active: true },
-  { id: 's-02', name: 'Combo 1', category: 'Corte + Barba', durationMinutes: 30, priceCop: 25000, description: 'Corte de cabello completo + perfilado de barba.', active: true },
-  { id: 's-03', name: 'Combo 2', category: 'Corte + Barba + Cejas', durationMinutes: 30, priceCop: 35000, description: 'Corte + ritual de toalla caliente + cejas.', active: true },
-  { id: 's-04', name: 'Combo 3', category: 'Ritual Facial', durationMinutes: 30, priceCop: 40000, description: 'Corte + barba + limpieza con mascarilla negra.', active: true },
-  { id: 's-05', name: 'Combi Completa VIP', category: 'Experiencia Integral', durationMinutes: 30, priceCop: 65000, description: 'Servicio VIP integral con pigmentación.', active: true },
-  { id: 's-06', name: 'Pigmentación Aerógrafo', category: 'Acabado Capilar', durationMinutes: 30, priceCop: 18000, description: 'Definición de contornos con aerógrafo.', active: true },
-  { id: 's-07', name: 'Pigmentación Manual', category: 'Acabado Artesanal', durationMinutes: 30, priceCop: 22000, description: 'Pigmentación artesanal para densidad capilar.', active: true }
+  { id: 's-01', name: 'Corte Básico', category: 'Corte + Masaje', durationMinutes: 30, priceCop: 20000, description: 'Corte tradicional o moderno + masaje capilar relajante.', active: true },
+  { id: 's-02', name: 'Combo 1', category: 'Corte + Masaje Espalda + Mascarilla + Cejas', durationMinutes: 30, priceCop: 25000, description: 'Corte completo + masaje de espalda + mascarilla negra + perfilado de cejas.', active: true },
+  { id: 's-03', name: 'Combo 2', category: 'Corte + Masaje + Mascarilla + Barba + Cejas', durationMinutes: 30, priceCop: 35000, description: 'Corte + masaje + mascarilla facial + ritual de barba con toalla caliente + cejas.', active: true },
+  { id: 's-04', name: 'Combo 3', category: 'Corte + Spa + Lavado', durationMinutes: 30, priceCop: 40000, description: 'Corte + masaje + mascarilla + barba completa + cejas + lavado de cabello con shampoo refrescante.', active: true },
+  { id: 's-05', name: 'Combi Completa VIP', category: 'Experiencia Total + Granizado', durationMinutes: 30, priceCop: 65000, description: 'Corte + masaje + mascarilla + barba spa + cejas + lavado de cabello + granizado artesanal de la casa.', active: true }
 ];
 
 const DEFAULT_APPOINTMENTS = [];
@@ -984,7 +982,7 @@ const server = http.createServer(async (req, res) => {
 
     if (req.method === 'POST') {
       const authUser = getAuthenticatedUser(req);
-      if (!authUser || authUser.role !== 'ADMIN') {
+      if (!authUser || (authUser.role !== 'ADMIN' && authUser.role !== 'JEFE')) {
         res.statusCode = 403;
         res.setHeader('Content-Type', 'application/json; charset=utf-8');
         res.end(JSON.stringify({ error: 'Acceso denegado: se requieren privilegios de Administrador.' }));
