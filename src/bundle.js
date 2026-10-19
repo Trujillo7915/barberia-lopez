@@ -137,13 +137,13 @@
   }
 
   class CashCalculatorService {
-    static calculateDailyCash(historyList, dateStr) {
+    static calculateDailyCash(historyList, dateStr, storeOrdersList = []) {
       const dayRecords = historyList.filter((r) => r.date === dateStr);
-      let totalConsolidated = 0;
+      let cutsTotal = 0;
       const byBarber = {};
 
       for (const record of dayRecords) {
-        totalConsolidated += record.priceCop;
+        cutsTotal += record.priceCop;
         if (!byBarber[record.barberId]) {
           byBarber[record.barberId] = { count: 0, total: 0 };
         }
@@ -151,10 +151,18 @@
         byBarber[record.barberId].total += record.priceCop;
       }
 
+      const deliveredStoreOrders = (storeOrdersList || []).filter(
+        (o) => o.status === 'ENTREGADO' && (o.deliveredDate || o.date) === dateStr
+      );
+      const storeTotalCop = deliveredStoreOrders.reduce((sum, o) => sum + (Number(o.totalCop) || 0), 0);
+
       return {
         date: dateStr,
         totalCount: dayRecords.length,
-        totalConsolidatedCop: totalConsolidated,
+        cutsTotalCop: cutsTotal,
+        storeOrdersCount: deliveredStoreOrders.length,
+        storeTotalCop: storeTotalCop,
+        totalConsolidatedCop: cutsTotal + storeTotalCop,
         breakdownByBarber: byBarber
       };
     }
@@ -296,6 +304,69 @@
 
   const SEED_APPOINTMENTS = [];
   const SEED_HISTORY = [];
+  const SEED_PRODUCTS = [
+    {
+      id: 'p-01',
+      name: 'Cera Mate Fijacion Extrema Lopez',
+      category: 'Cuidado Capilar',
+      priceCop: 32000,
+      stock: 15,
+      description: 'Acabado seco natural sin residuos grasos. Fijacion de alta duracion ideal para peinados texturizados y clasicos.',
+      imageUrl: 'https://images.unsplash.com/photo-1621607512214-68297480165e?w=600&auto=format&fit=crop&q=80',
+      active: true
+    },
+    {
+      id: 'p-02',
+      name: 'Pomada Clasica Brillo Imperial',
+      category: 'Cuidado Capilar',
+      priceCop: 30000,
+      stock: 12,
+      description: 'Formula a base de agua con brillo elegante para estilos clasicos, slick back y pompadour. Se retira facilmente con agua.',
+      imageUrl: 'https://images.unsplash.com/photo-1585751119414-ef2636f8aede?w=600&auto=format&fit=crop&q=80',
+      active: true
+    },
+    {
+      id: 'p-03',
+      name: 'Aceite Hidratante de Barba Cedro y Argan',
+      category: 'Barba y Piel',
+      priceCop: 35000,
+      stock: 10,
+      description: 'Nutre el vello facial desde la raiz, elimina la resequedad e irritacion y deja un aroma masculino amaderado.',
+      imageUrl: 'https://images.unsplash.com/photo-1608248597359-0e6d526a6828?w=600&auto=format&fit=crop&q=80',
+      active: true
+    },
+    {
+      id: 'p-04',
+      name: 'Tonico Capilar y de Barba Crecimiento 5%',
+      category: 'Tratamiento',
+      priceCop: 45000,
+      stock: 8,
+      description: 'Locion activadora de foliculos para poblar zonas abiertas en barba y fortalecer la densidad capilar.',
+      imageUrl: 'https://images.unsplash.com/photo-1556228720-195a672e8a03?w=600&auto=format&fit=crop&q=80',
+      active: true
+    },
+    {
+      id: 'p-05',
+      name: 'Polvo Texturizador Volumen Instantaneo',
+      category: 'Styling',
+      priceCop: 38000,
+      stock: 14,
+      description: 'Control de gravedad y volumen inmediato en la raiz con efecto mate invisible para cortes modernos y crop.',
+      imageUrl: 'https://images.unsplash.com/photo-1526947425960-945c6e72858f?w=600&auto=format&fit=crop&q=80',
+      active: true
+    },
+    {
+      id: 'p-06',
+      name: 'Cepillo Militar Cerdas Naturales para Barba',
+      category: 'Accesorios',
+      priceCop: 22000,
+      stock: 9,
+      description: 'Madera de nogal tallada con cerdas firmes para distribuir aceites, exfoliar la piel y domar la barba rebelde.',
+      imageUrl: 'https://images.unsplash.com/photo-1503951914875-452162b0f3f1?w=600&auto=format&fit=crop&q=80',
+      active: true
+    }
+  ];
+  const SEED_STORE_ORDERS = [];
 
   class LocalStorageRepository {
     constructor() {
@@ -320,6 +391,8 @@
       this._ensureKey('blopez_services', SEED_SERVICES);
       this._ensureKey('blopez_appointments', SEED_APPOINTMENTS);
       this._ensureKey('blopez_history', SEED_HISTORY);
+      this._ensureKey('blopez_products', SEED_PRODUCTS);
+      this._ensureKey('blopez_store_orders', SEED_STORE_ORDERS);
     }
 
     _ensureKey(key, seed) {
@@ -679,6 +752,133 @@
         }
       } catch (e) {}
       return this._get('blopez_history');
+    }
+
+    async findAllProducts() {
+      try {
+        const res = await fetch('/api/products');
+        if (res.ok) {
+          const serverProducts = await res.json();
+          if (Array.isArray(serverProducts)) {
+            this._set('blopez_products', serverProducts);
+            return serverProducts;
+          }
+        }
+      } catch (e) {}
+      return this._get('blopez_products');
+    }
+
+    async saveProduct(productData) {
+      const res = await fetch('/api/products', {
+        method: 'POST',
+        headers: this._getAuthHeaders(),
+        body: JSON.stringify(productData)
+      });
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || 'No fue posible crear el producto.');
+      }
+      const data = await res.json();
+      if (Array.isArray(data.products)) {
+        this._set('blopez_products', data.products);
+      }
+      return data.product;
+    }
+
+    async updateProduct(productId, updates) {
+      const res = await fetch(`/api/products/${encodeURIComponent(productId)}`, {
+        method: 'PUT',
+        headers: this._getAuthHeaders(),
+        body: JSON.stringify(updates)
+      });
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || 'No fue posible actualizar el producto.');
+      }
+      const data = await res.json();
+      if (Array.isArray(data.products)) {
+        this._set('blopez_products', data.products);
+      }
+      return data.product;
+    }
+
+    async deleteProduct(productId) {
+      const res = await fetch(`/api/products/${encodeURIComponent(productId)}`, {
+        method: 'DELETE',
+        headers: this._getAuthHeaders()
+      });
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || 'No fue posible eliminar el producto.');
+      }
+      const data = await res.json();
+      if (Array.isArray(data.products)) {
+        this._set('blopez_products', data.products);
+      }
+      return true;
+    }
+
+    async findAllStoreOrders() {
+      try {
+        const res = await fetch('/api/store/orders');
+        if (res.ok) {
+          const serverOrders = await res.json();
+          if (Array.isArray(serverOrders)) {
+            this._set('blopez_store_orders', serverOrders);
+            return serverOrders;
+          }
+        }
+      } catch (e) {}
+      return this._get('blopez_store_orders');
+    }
+
+    async createStoreOrder({ productId, quantity, clientName, clientPhone }) {
+      const res = await fetch('/api/store/orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ productId, quantity, clientName, clientPhone })
+      });
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || 'No fue posible registrar el pedido en tienda.');
+      }
+      const data = await res.json();
+      return data;
+    }
+
+    async deliverStoreOrder(orderIdOrRef) {
+      const res = await fetch(`/api/store/orders/${encodeURIComponent(orderIdOrRef)}/deliver`, {
+        method: 'PUT',
+        headers: this._getAuthHeaders()
+      });
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || 'No fue posible confirmar la entrega del pedido.');
+      }
+      const data = await res.json();
+      if (Array.isArray(data.orders)) {
+        this._set('blopez_store_orders', data.orders);
+      }
+      return data.order;
+    }
+
+    async cancelStoreOrder(orderIdOrRef) {
+      const res = await fetch(`/api/store/orders/${encodeURIComponent(orderIdOrRef)}/cancel`, {
+        method: 'PUT',
+        headers: this._getAuthHeaders()
+      });
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || 'No fue posible cancelar el pedido.');
+      }
+      const data = await res.json();
+      if (Array.isArray(data.orders)) {
+        this._set('blopez_store_orders', data.orders);
+      }
+      if (Array.isArray(data.products)) {
+        this._set('blopez_products', data.products);
+      }
+      return data.order;
     }
   }
 
@@ -1175,7 +1375,12 @@
     barbers: [],
     appointments: [],
     history: [],
+    products: [],
+    storeOrders: [],
     activeView: 'home',
+    storeCategoryFilter: 'ALL',
+    storeOrderSearch: '',
+    storeOrderStatusFilter: 'ALL',
     calendarYear: initialNow.getFullYear(),
     calendarMonth: initialNow.getMonth(),
     selectedDate: initialDateStr,
@@ -1215,11 +1420,15 @@
     const services = await repo.findAllServices();
     const appointments = await repo.findAllAppointments();
     const history = await repo.findAllCutHistory();
+    const products = await repo.findAllProducts();
+    const storeOrders = await repo.findAllStoreOrders();
 
     state.services = services;
     state.barbers = barbers;
     state.appointments = appointments;
     state.history = history;
+    state.products = products;
+    state.storeOrders = storeOrders;
 
     const publicBarbers = AccessControlService.filterPublicBarbers(barbers, users);
     const activeBarberIds = new Set(publicBarbers.map((b) => b.id));
@@ -1289,6 +1498,9 @@
                 <a href="#calendario" class="btn-clay">
                   Reservar turno →
                 </a>
+                <button type="button" id="btn-hero-open-store" class="btn-stone-outline text-[#f3e5ab] border-[#d4af37]/40 cursor-pointer">
+                  Explorar Tienda de Productos →
+                </button>
                 <button type="button" id="btn-open-client-sync" class="btn-stone-outline text-[#f3e5ab] cursor-pointer">
                   Sincronizar mi calendario iPhone
                 </button>
@@ -1502,9 +1714,144 @@
           </div>
         </section>
       `;
+    } else if (state.activeView === 'store') {
+      const activeProducts = products.filter((p) => p.active !== false);
+      const categories = ['ALL', ...Array.from(new Set(activeProducts.map((p) => p.category || 'General')))];
+      const filteredProducts = state.storeCategoryFilter === 'ALL'
+        ? activeProducts
+        : activeProducts.filter((p) => (p.category || 'General') === state.storeCategoryFilter);
+
+      mainContent = `
+        <section class="max-w-[1240px] mx-auto px-6 md:px-12 py-12 font-sans-ui">
+          
+          <!-- Encabezado Editorial de la Tienda -->
+          <div class="flex flex-col md:flex-row items-start md:items-end justify-between gap-6 mb-10 pb-8 border-b border-[rgba(212,175,55,0.22)]">
+            <div>
+              <div class="inline-flex items-center gap-2 mb-3 px-3.5 py-1 rounded-full bg-[#181c24] border border-[rgba(212,175,55,0.35)] text-[#f3e5ab] text-xs font-semibold tracking-wider uppercase">
+                <span class="w-2 h-2 rounded-full bg-[#d4af37] shadow-[0_0_8px_#d4af37]"></span>
+                <span>BOUTIQUE OFICIAL · PAGO EXCLUSIVO EN EFECTIVO</span>
+              </div>
+              <h1 class="type-display-editorial text-[36px] sm:text-[48px] leading-[1.05] text-[#ffffff] tracking-tight">
+                Tienda & Cuidado Masculino
+              </h1>
+              <p class="font-serif-editorial text-[#c5c0b6] max-w-2xl text-[17px] sm:text-[19px] mt-2 leading-relaxed">
+                Aparta tus productos de barbería en línea. El sistema genera una <strong>Referencia Única de Pago</strong> y reserva tus unidades en inventario para que las reclames y pagues en efectivo directamente en la barbería.
+              </p>
+            </div>
+            <button type="button" id="btn-store-back-home" class="btn-stone-outline text-xs font-semibold py-2.5 px-5 whitespace-nowrap cursor-pointer">
+              ← Volver a la agenda de cortes
+            </button>
+          </div>
+
+          <!-- BANDA INFORMATIVA DEL PROTOCOLO ANTI-ROBO CON REFERENCIA -->
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-10">
+            <div class="bg-[#12151b] border border-[rgba(212,175,55,0.25)] rounded-[16px] p-5">
+              <div class="text-xs font-mono-tech font-bold text-[#d4af37] uppercase tracking-wider mb-1">PASO 01 · SELECCIONA Y APARTA</div>
+              <p class="text-xs text-[#c5c0b6] leading-relaxed">Elige el producto y la cantidad deseada. Nuestro sistema descuenta y separa tu unidad inmediatamente del stock disponible.</p>
+            </div>
+            <div class="bg-[#12151b] border border-[rgba(212,175,55,0.25)] rounded-[16px] p-5">
+              <div class="text-xs font-mono-tech font-bold text-[#d4af37] uppercase tracking-wider mb-1">PASO 02 · GUARDA TU REFERENCIA</div>
+              <p class="text-xs text-[#c5c0b6] leading-relaxed">Recibirás un comprobante con código único <strong>REF-BL-XXXX</strong> en pantalla que podrás guardar o enviar por WhatsApp.</p>
+            </div>
+            <div class="bg-[#12151b] border border-[rgba(212,175,55,0.25)] rounded-[16px] p-5">
+              <div class="text-xs font-mono-tech font-bold text-[#d4af37] uppercase tracking-wider mb-1">PASO 03 · PAGA EN EFECTIVO Y RECIBE</div>
+              <p class="text-xs text-[#c5c0b6] leading-relaxed">Presenta tu referencia en Barbería Lopez, realiza el pago en efectivo y el barbero validará el código para entregarte tu producto.</p>
+            </div>
+          </div>
+
+          <!-- FILTRO DE CATEGORÍAS -->
+          <div class="flex flex-wrap items-center justify-between gap-4 mb-8 bg-[#12151b] border border-[rgba(212,175,55,0.2)] rounded-[16px] p-4">
+            <div class="flex items-center gap-2">
+              <span class="w-2 h-2 rounded-full bg-[#d4af37]"></span>
+              <span class="text-xs font-semibold uppercase tracking-wider text-[#f3e5ab]">CATEGORÍAS DE TIENDA:</span>
+            </div>
+            <div class="flex flex-wrap gap-2">
+              ${categories.map((cat) => {
+                const isSelected = state.storeCategoryFilter === cat;
+                const label = cat === 'ALL' ? `Todos los productos (${activeProducts.length})` : cat;
+                return `
+                  <button
+                    type="button"
+                    data-store-cat="${escapeHtml(cat)}"
+                    class="btn-store-cat ${isSelected ? 'btn-clay' : 'btn-stone-outline'} py-1.5 px-4 text-xs font-semibold cursor-pointer">
+                    ${escapeHtml(label)}
+                  </button>
+                `;
+              }).join('')}
+            </div>
+          </div>
+
+          <!-- CATÁLOGO DE PRODUCTOS -->
+          ${filteredProducts.length === 0 ? `
+            <div class="anthropic-card p-12 text-center">
+              <h3 class="font-serif-editorial text-2xl text-[#ffffff] mb-2">No hay productos en esta categoría</h3>
+              <p class="text-sm text-[#c5c0b6]">Selecciona otra categoría o consulta nuevamente más tarde.</p>
+            </div>
+          ` : `
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-7">
+              ${filteredProducts.map((p) => {
+                const outOfStock = (Number(p.stock) || 0) <= 0;
+                return `
+                  <div class="bg-[#12151b] border ${outOfStock ? 'border-stone-800 opacity-75' : 'border-[rgba(212,175,55,0.28)] hover:border-[#d4af37]'} rounded-[22px] overflow-hidden flex flex-col justify-between transition-all shadow-xl">
+                    <div>
+                      <div class="relative h-56 w-full bg-[#0a0b0d] overflow-hidden border-b border-[rgba(212,175,55,0.18)]">
+                        <img
+                          src="${escapeHtml(p.imageUrl || './logo_barberia_lopez_hd.jpg')}"
+                          alt="${escapeHtml(p.name)}"
+                          class="w-full h-full object-cover object-center transition-transform duration-500 hover:scale-105"
+                          onerror="this.src='./logo_barberia_lopez_hd.jpg'"
+                        >
+                        <div class="absolute top-3 left-3 px-3 py-1 rounded-full bg-[#0a0b0d]/85 backdrop-blur-md border border-[rgba(212,175,55,0.35)] text-[11px] font-semibold text-[#f3e5ab] uppercase tracking-wider">
+                          ${escapeHtml(p.category || 'Cuidado Personal')}
+                        </div>
+                        <div class="absolute top-3 right-3 px-3 py-1 rounded-full font-mono-tech text-[11px] font-bold ${
+                          outOfStock
+                            ? 'bg-red-950/90 border border-red-700 text-red-300'
+                            : 'bg-[#0a0b0d]/90 border border-[#d4af37] text-[#d4af37]'
+                        }">
+                          ${outOfStock ? 'AGOTADO' : `${p.stock} EN STOCK`}
+                        </div>
+                      </div>
+
+                      <div class="p-6">
+                        <h3 class="font-serif-editorial text-[24px] font-normal text-[#ffffff] leading-snug mb-2">
+                          ${escapeHtml(p.name)}
+                        </h3>
+                        <p class="font-sans-ui text-xs sm:text-sm text-[#c5c0b6] leading-relaxed">
+                          ${escapeHtml(p.description || 'Producto profesional de barbería.')}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div class="px-6 pb-6 pt-4 border-t border-[rgba(212,175,55,0.16)] flex items-center justify-between gap-4">
+                      <div>
+                        <span class="block text-[10px] font-semibold uppercase tracking-wider text-[#8a8275]">Pago en efectivo</span>
+                        <span class="font-mono-tech text-[22px] font-bold text-[#d4af37]">$${Number(p.priceCop || 0).toLocaleString('es-CO')} <span class="text-xs font-sans-ui text-[#f3e5ab]">COP</span></span>
+                      </div>
+                      ${outOfStock ? `
+                        <button type="button" disabled class="btn-stone-outline py-2.5 px-4 text-xs font-semibold opacity-50 cursor-not-allowed">
+                          Sin existencias
+                        </button>
+                      ` : `
+                        <button
+                          type="button"
+                          data-buy-product-id="${escapeHtml(p.id)}"
+                          class="btn-buy-store-product btn-clay py-2.5 px-5 text-xs font-semibold cursor-pointer">
+                          Comprar y generar referencia →
+                        </button>
+                      `}
+                    </div>
+                  </div>
+                `;
+              }).join('')}
+            </div>
+          `}
+
+        </section>
+      `;
     } else if (state.activeView === 'dashboard' && state.currentUser) {
       const todayStr = getLocalDateString();
-      const cashData = CashCalculatorService.calculateDailyCash(state.history, todayStr);
+      const cashData = CashCalculatorService.calculateDailyCash(state.history, todayStr, state.storeOrders);
       const isJefe = state.currentUser.role === Roles.JEFE || state.currentUser.role === Roles.ADMIN;
 
       const visibleAppointments = isJefe
@@ -1618,23 +1965,298 @@
 
           ${isJefe ? `
             <!-- CAJA CONSOLIDADA HOY (EXCLUSIVO BARBERO JEFE) -->
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 mb-10">
-              <div class="anthropic-card p-6">
-                <span class="block text-xs font-semibold text-[#c5c0b6] uppercase tracking-wider mb-2">Caja consolidada hoy</span>
-                <div class="text-3xl sm:text-4xl font-mono-tech font-bold text-[#ffffff] tracking-tight">
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mb-10">
+              <div class="anthropic-card p-6 border border-[rgba(212,175,55,0.4)]">
+                <span class="block text-xs font-semibold text-[#d4af37] uppercase tracking-wider mb-2">Gran Total Caja Hoy</span>
+                <div class="text-2xl sm:text-3xl font-mono-tech font-bold text-[#ffffff] tracking-tight">
                   $${cashData.totalConsolidatedCop.toLocaleString('es-CO')} <span class="text-xs font-sans-ui font-semibold text-[#d4af37]">COP</span>
                 </div>
-                <span class="text-xs font-medium text-[#8a8275] mt-2 block">${cashData.totalCount} cortes completados hoy</span>
+                <span class="text-xs font-medium text-[#c5c0b6] mt-2 block">Cortes ($${cashData.cutsTotalCop.toLocaleString('es-CO')}) + Tienda ($${cashData.storeTotalCop.toLocaleString('es-CO')})</span>
+              </div>
+              <div class="anthropic-card p-6">
+                <span class="block text-xs font-semibold text-[#f3e5ab] uppercase tracking-wider mb-2">Ventas Tienda Hoy (Efectivo)</span>
+                <div class="text-2xl sm:text-3xl font-mono-tech font-bold text-[#d4af37] tracking-tight">
+                  $${cashData.storeTotalCop.toLocaleString('es-CO')} <span class="text-xs font-sans-ui font-semibold text-[#8a8275]">COP</span>
+                </div>
+                <span class="text-xs font-medium text-[#8a8275] mt-2 block">${cashData.storeOrdersCount} ${cashData.storeOrdersCount === 1 ? 'pedido entregado hoy' : 'pedidos entregados hoy'}</span>
               </div>
               ${barbers.map((b) => `
                 <div class="anthropic-card p-6">
-                  <span class="block text-xs font-semibold text-[#c5c0b6] uppercase tracking-wider mb-2">Estación ${b.name}</span>
+                  <span class="block text-xs font-semibold text-[#c5c0b6] uppercase tracking-wider mb-2">Estación ${escapeHtml(b.name)}</span>
                   <div class="text-2xl sm:text-3xl font-mono-tech font-bold text-[#ffffff] tracking-tight">
                     $${(cashData.breakdownByBarber[b.id]?.total || 0).toLocaleString('es-CO')} <span class="text-xs font-sans-ui font-semibold text-[#8a8275]">COP</span>
                   </div>
                   <span class="text-xs font-medium text-[#8a8275] mt-2 block">Cortes realizados: ${cashData.breakdownByBarber[b.id]?.count || 0}</span>
                 </div>
               `).join('')}
+            </div>
+          ` : ''}
+
+          <!-- DESPACHO DE TIENDA Y VERIFICACIÓN DE REFERENCIAS DE PAGO (ANTI-ROBO) -->
+          <div class="mb-12">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5 pb-4 border-b border-[rgba(212,175,55,0.22)]">
+              <div>
+                <div class="inline-flex items-center gap-2 mb-1 px-2.5 py-0.5 rounded-full bg-[#181c24] border border-[rgba(212,175,55,0.3)] text-[#f3e5ab] text-[11px] font-semibold">
+                  <span class="w-1.5 h-1.5 rounded-full bg-[#d4af37]"></span>
+                  <span>CONTROL ANTI-ROBO · SOLO PAGO EN EFECTIVO</span>
+                </div>
+                <h3 class="font-serif-editorial text-xl sm:text-2xl font-normal text-[#ffffff] tracking-tight">
+                  Verificación de Referencias y Entrega de Productos
+                </h3>
+                <p class="font-sans-ui text-xs sm:text-sm text-[#c5c0b6] mt-0.5">
+                  Cuando el cliente venga a reclamar su producto, verifica aquí su código <strong>REF-BL-XXXX</strong>, recibe el efectivo y confirma la entrega.
+                </p>
+              </div>
+              <div class="flex items-center gap-2 self-start sm:self-auto">
+                <span class="text-xs font-mono-tech font-bold text-[#d4af37] bg-[#181c24] px-3 py-1.5 rounded-full border border-[rgba(212,175,55,0.3)]">
+                  ${state.storeOrders.filter((o) => o.status === 'PENDIENTE').length} pendientes por reclamar
+                </span>
+              </div>
+            </div>
+
+            <!-- BUSCADOR DE REFERENCIA RÁPIDA Y FILTRO DE ESTADO -->
+            <div class="anthropic-card p-4 mb-5 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
+              <div class="flex flex-wrap items-center gap-2">
+                <span class="text-xs font-semibold text-[#8a8275] uppercase tracking-wider mr-1">Estado:</span>
+                <button type="button" data-order-status-filter="ALL" class="btn-order-status-filter px-3 py-1.5 rounded-[8px] text-xs font-semibold cursor-pointer ${state.storeOrderStatusFilter === 'ALL' ? 'btn-clay' : 'btn-stone-outline'}">
+                  Todos (${state.storeOrders.length})
+                </button>
+                <button type="button" data-order-status-filter="PENDIENTE" class="btn-order-status-filter px-3 py-1.5 rounded-[8px] text-xs font-semibold cursor-pointer ${state.storeOrderStatusFilter === 'PENDIENTE' ? 'btn-clay' : 'btn-stone-outline'}">
+                  Pendientes de cobro (${state.storeOrders.filter((o) => o.status === 'PENDIENTE').length})
+                </button>
+                <button type="button" data-order-status-filter="ENTREGADO" class="btn-order-status-filter px-3 py-1.5 rounded-[8px] text-xs font-semibold cursor-pointer ${state.storeOrderStatusFilter === 'ENTREGADO' ? 'btn-clay' : 'btn-stone-outline'}">
+                  Entregados (${state.storeOrders.filter((o) => o.status === 'ENTREGADO').length})
+                </button>
+              </div>
+              <div class="relative flex-1 md:max-w-xs">
+                <input
+                  type="text"
+                  id="input-store-order-search"
+                  placeholder="Buscar referencia REF-BL-... o cliente"
+                  value="${escapeHtml(state.storeOrderSearch || '')}"
+                  class="input-parchment py-1.5 px-3 text-xs font-mono-tech uppercase"
+                >
+              </div>
+            </div>
+
+            <!-- TABLA / TARJETAS DE PEDIDOS DE TIENDA -->
+            ${(() => {
+              const filteredOrders = state.storeOrders.filter((o) => {
+                if (state.storeOrderStatusFilter !== 'ALL' && o.status !== state.storeOrderStatusFilter) return false;
+                if (state.storeOrderSearch && state.storeOrderSearch.trim() !== '') {
+                  const q = state.storeOrderSearch.toLowerCase().trim();
+                  const matchRef = (o.referenceCode || '').toLowerCase().includes(q);
+                  const matchClient = (o.clientName || '').toLowerCase().includes(q);
+                  const matchPhone = (o.clientPhone || '').toLowerCase().includes(q);
+                  const matchProd = (o.productName || '').toLowerCase().includes(q);
+                  return matchRef || matchClient || matchPhone || matchProd;
+                }
+                return true;
+              });
+
+              if (filteredOrders.length === 0) {
+                return `
+                  <div class="bg-[#12151b] rounded-[14px] border border-dashed border-[rgba(212,175,55,0.2)] p-8 text-center">
+                    <p class="font-serif-editorial text-lg text-[#c5c0b6]">No hay pedidos de tienda que coincidan con el filtro actual</p>
+                    <p class="text-xs text-[#8a8275] mt-1">Cuando un cliente compre un producto en el apartado TIENDA, su referencia aparecerá aquí al instante.</p>
+                  </div>
+                `;
+              }
+
+              return `
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  ${filteredOrders.map((ord) => {
+                    const isPending = ord.status === 'PENDIENTE';
+                    const isDelivered = ord.status === 'ENTREGADO';
+                    return `
+                      <div class="store-order-card anthropic-card p-5 flex flex-col justify-between border ${
+                        isPending
+                          ? 'border-[#d4af37]/50 bg-[#161a22]'
+                          : isDelivered
+                          ? 'border-emerald-700/40 bg-[#12151b]'
+                          : 'border-stone-800 bg-[#12151b] opacity-65'
+                      }">
+                        <div>
+                          <div class="flex items-center justify-between gap-2 mb-3 pb-2.5 border-b border-[rgba(212,175,55,0.15)]">
+                            <span class="font-mono-tech text-sm font-bold text-[#d4af37] bg-[#0a0b0d] px-3 py-1 rounded border border-[#d4af37]/40 tracking-wider">
+                              ${escapeHtml(ord.referenceCode)}
+                            </span>
+                            <span class="text-[11px] font-semibold px-2.5 py-0.5 rounded-full ${
+                              isPending
+                                ? 'bg-[#d4af37]/20 text-[#f3e5ab] border border-[#d4af37]/40'
+                                : isDelivered
+                                ? 'bg-emerald-950/80 text-emerald-300 border border-emerald-700/50'
+                                : 'bg-red-950/60 text-red-300 border border-red-800/50'
+                            }">
+                              ${isPending ? 'PENDIENTE DE PAGO' : isDelivered ? 'COBRADO Y ENTREGADO' : 'CANCELADO'}
+                            </span>
+                          </div>
+
+                          <h5 class="font-serif-editorial text-lg text-[#ffffff] leading-snug mb-1">
+                            ${escapeHtml(ord.productName)}
+                          </h5>
+                          <p class="text-xs font-mono-tech text-[#f3e5ab] mb-3">
+                            Cantidad: <strong>${ord.quantity} und</strong> · Total Efectivo: <strong class="text-[#d4af37]">$${Number(ord.totalCop || 0).toLocaleString('es-CO')} COP</strong>
+                          </p>
+
+                          <div class="space-y-1 text-xs bg-[#0a0b0d]/70 p-3 rounded-[8px] border border-[rgba(212,175,55,0.12)] mb-4">
+                            <div class="flex justify-between">
+                              <span class="text-[#8a8275]">Cliente:</span>
+                              <span class="text-[#ffffff] font-semibold">${escapeHtml(ord.clientName)}</span>
+                            </div>
+                            <div class="flex justify-between">
+                              <span class="text-[#8a8275]">WhatsApp:</span>
+                              <span class="text-[#c5c0b6] font-mono-tech">${escapeHtml(ord.clientPhone)}</span>
+                            </div>
+                            <div class="flex justify-between">
+                              <span class="text-[#8a8275]">Fecha pedido:</span>
+                              <span class="text-[#c5c0b6]">${escapeHtml(ord.date || '')}</span>
+                            </div>
+                            ${isDelivered && ord.deliveredBy ? `
+                              <div class="flex justify-between pt-1 border-t border-[rgba(212,175,55,0.12)]">
+                                <span class="text-[#8a8275]">Entregado por:</span>
+                                <span class="text-[#d4af37] font-mono-tech">@${escapeHtml(ord.deliveredBy)}</span>
+                              </div>
+                            ` : ''}
+                          </div>
+                        </div>
+
+                        ${isPending ? `
+                          <div class="space-y-2">
+                            <button
+                              type="button"
+                              data-deliver-order-id="${escapeHtml(ord.id)}"
+                              data-deliver-ref="${escapeHtml(ord.referenceCode)}"
+                              class="btn-deliver-store-order btn-clay w-full py-2.5 px-3 text-xs font-semibold justify-center cursor-pointer">
+                              Confirmar pago en efectivo y entregar →
+                            </button>
+                            <button
+                              type="button"
+                              data-cancel-order-id="${escapeHtml(ord.id)}"
+                              data-cancel-ref="${escapeHtml(ord.referenceCode)}"
+                              class="btn-cancel-store-order btn-stone-outline w-full py-1.5 px-3 text-[11px] text-red-300 hover:text-red-200 hover:border-red-500 justify-center cursor-pointer">
+                              Cancelar pedido y devolver al stock
+                            </button>
+                          </div>
+                        ` : isDelivered ? `
+                          <div class="text-xs font-semibold text-emerald-300 py-2 text-center bg-emerald-950/40 border border-emerald-700/40 rounded-[8px]">
+                            Producto entregado · Efectivo en caja
+                          </div>
+                        ` : `
+                          <div class="text-xs font-semibold text-[#8a8275] py-2 text-center bg-[#14171f] border border-stone-800 rounded-[8px]">
+                            Pedido anulado · Stock restaurado
+                          </div>
+                        `}
+                      </div>
+                    `;
+                  }).join('')}
+                </div>
+              `;
+            })()}
+          </div>
+
+          ${isJefe ? `
+            <!-- GESTIÓN DE INVENTARIO Y PRODUCTOS DE TIENDA (EXCLUSIVO BARBERO JEFE / ADMIN) -->
+            <div class="mb-12">
+              <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5 pb-4 border-b border-[rgba(212,175,55,0.22)]">
+                <div>
+                  <div class="inline-flex items-center gap-2 mb-1 px-2.5 py-0.5 rounded-full bg-[#181c24] border border-[rgba(212,175,55,0.3)] text-[#f3e5ab] text-[11px] font-semibold">
+                    <span class="w-1.5 h-1.5 rounded-full bg-[#d4af37]"></span>
+                    <span>ADMINISTRACIÓN DE BOUTIQUE · MAESTRO LOPEZ</span>
+                  </div>
+                  <h3 class="font-serif-editorial text-xl sm:text-2xl font-normal text-[#ffffff] tracking-tight">
+                    Control de Inventario y Catálogo de Productos
+                  </h3>
+                  <p class="font-sans-ui text-xs sm:text-sm text-[#c5c0b6] mt-0.5">
+                    Agrega nuevos productos a la tienda, ajusta precios en COP, recarga unidades de stock o elimina referencias.
+                  </p>
+                </div>
+              </div>
+
+              <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- FORMULARIO PARA AGREGAR NUEVO PRODUCTO -->
+                <div class="anthropic-card p-6">
+                  <h4 class="font-serif-editorial text-lg text-[#ffffff] mb-1">Agregar nuevo producto</h4>
+                  <p class="text-xs text-[#c5c0b6] mb-4">Publica un artículo inmediatamente en el apartado TIENDA.</p>
+                  <form id="form-create-product" class="space-y-3.5">
+                    <div>
+                      <label class="block text-xs font-semibold text-[#c5c0b6] mb-1">Nombre del producto *</label>
+                      <input type="text" id="new-prod-name" required placeholder="Ej. Cera Mate Imperial 120g" class="input-parchment text-xs">
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                      <div>
+                        <label class="block text-xs font-semibold text-[#c5c0b6] mb-1">Categoría</label>
+                        <input type="text" id="new-prod-category" placeholder="Ej. Cuidado Capilar" value="Cuidado Capilar" class="input-parchment text-xs">
+                      </div>
+                      <div>
+                        <label class="block text-xs font-semibold text-[#c5c0b6] mb-1">Stock inicial *</label>
+                        <input type="number" id="new-prod-stock" required min="0" value="10" class="input-parchment text-xs font-mono-tech">
+                      </div>
+                    </div>
+                    <div>
+                      <label class="block text-xs font-semibold text-[#c5c0b6] mb-1">Precio en Efectivo (COP) *</label>
+                      <input type="number" id="new-prod-price" required min="1000" step="500" placeholder="Ej. 32000" class="input-parchment text-xs font-mono-tech">
+                    </div>
+                    <div>
+                      <label class="block text-xs font-semibold text-[#c5c0b6] mb-1">URL de Imagen (opcional)</label>
+                      <input type="url" id="new-prod-image" placeholder="https://..." class="input-parchment text-xs">
+                    </div>
+                    <div>
+                      <label class="block text-xs font-semibold text-[#c5c0b6] mb-1">Descripción breve</label>
+                      <textarea id="new-prod-desc" rows="2" placeholder="Beneficios y características del producto..." class="input-parchment text-xs"></textarea>
+                    </div>
+                    <button type="submit" class="btn-clay w-full py-2.5 justify-center text-xs font-semibold cursor-pointer">
+                      Publicar producto en Tienda →
+                    </button>
+                  </form>
+                </div>
+
+                <!-- TABLA DE INVENTARIO ACTUAL -->
+                <div class="lg:col-span-2 anthropic-card p-6">
+                  <h4 class="font-serif-editorial text-lg text-[#ffffff] mb-1">Inventario activo en tienda (${products.length})</h4>
+                  <p class="text-xs text-[#c5c0b6] mb-4">Usa los botones rápidos para sumar/restar stock, cambiar precio o eliminar un producto.</p>
+                  <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse font-sans-ui">
+                      <thead class="border-b border-[rgba(212,175,55,0.22)] bg-[#161a22] text-[11px] font-semibold text-[#c5c0b6] uppercase tracking-wider">
+                        <tr>
+                          <th class="p-3">Producto</th>
+                          <th class="p-3">Precio (COP)</th>
+                          <th class="p-3">Stock Disponible</th>
+                          <th class="p-3 text-right">Acciones de Jefe</th>
+                        </tr>
+                      </thead>
+                      <tbody class="divide-y divide-[rgba(212,175,55,0.14)] text-xs">
+                        ${products.map((p) => `
+                          <tr class="hover:bg-[#181c24] transition-colors">
+                            <td class="p-3">
+                              <div class="font-semibold text-[#ffffff]">${escapeHtml(p.name)}</div>
+                              <div class="text-[11px] text-[#8a8275]">${escapeHtml(p.category || 'General')}</div>
+                            </td>
+                            <td class="p-3 font-mono-tech font-bold text-[#d4af37]">
+                              $${Number(p.priceCop || 0).toLocaleString('es-CO')}
+                            </td>
+                            <td class="p-3">
+                              <div class="inline-flex items-center gap-2">
+                                <button type="button" data-stock-prod-id="${escapeHtml(p.id)}" data-stock-delta="-1" class="btn-adjust-stock px-2 py-0.5 rounded bg-[#161a22] border border-[rgba(212,175,55,0.3)] text-[#f3e5ab] hover:border-[#d4af37] font-mono-tech font-bold cursor-pointer">-</button>
+                                <span class="font-mono-tech font-bold text-sm ${p.stock <= 2 ? 'text-red-400' : 'text-[#ffffff]'} min-w-[28px] text-center">${p.stock}</span>
+                                <button type="button" data-stock-prod-id="${escapeHtml(p.id)}" data-stock-delta="1" class="btn-adjust-stock px-2 py-0.5 rounded bg-[#161a22] border border-[rgba(212,175,55,0.3)] text-[#f3e5ab] hover:border-[#d4af37] font-mono-tech font-bold cursor-pointer">+</button>
+                              </div>
+                            </td>
+                            <td class="p-3 text-right space-x-1.5 whitespace-nowrap">
+                              <button type="button" data-edit-prod-id="${escapeHtml(p.id)}" class="btn-edit-product btn-stone-outline py-1 px-2.5 text-[11px] cursor-pointer">
+                                Editar precio/stock
+                              </button>
+                              <button type="button" data-delete-prod-id="${escapeHtml(p.id)}" data-delete-prod-name="${escapeHtml(p.name)}" class="btn-delete-product btn-stone-outline py-1 px-2.5 text-[11px] text-red-400 hover:text-red-300 hover:border-red-500 cursor-pointer">
+                                Quitar
+                              </button>
+                            </td>
+                          </tr>
+                        `).join('')}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
             </div>
           ` : ''}
 
@@ -2176,30 +2798,37 @@
 
           <!-- Center: Navigation Links -->
           <nav class="hidden md:flex items-center gap-8">
-            <a href="#hero" class="font-sans-ui text-xs font-semibold uppercase tracking-wider text-[#c5c0b6] hover:text-[#d4af37] transition-colors">INICIO</a>
-            <a href="#calendario" class="font-sans-ui text-xs font-semibold uppercase tracking-wider text-[#c5c0b6] hover:text-[#d4af37] transition-colors">CALENDARIO</a>
-            <a href="#servicios" class="font-sans-ui text-xs font-semibold uppercase tracking-wider text-[#c5c0b6] hover:text-[#d4af37] transition-colors">SERVICIOS</a>
+            <a href="#hero" id="nav-link-inicio" class="font-sans-ui text-xs font-semibold uppercase tracking-wider ${state.activeView === 'home' ? 'text-[#d4af37]' : 'text-[#c5c0b6]'} hover:text-[#d4af37] transition-colors">INICIO</a>
+            <a href="#calendario" id="nav-link-calendario" class="font-sans-ui text-xs font-semibold uppercase tracking-wider text-[#c5c0b6] hover:text-[#d4af37] transition-colors">CALENDARIO</a>
+            <a href="#servicios" id="nav-link-servicios" class="font-sans-ui text-xs font-semibold uppercase tracking-wider text-[#c5c0b6] hover:text-[#d4af37] transition-colors">SERVICIOS</a>
             <a href="https://wa.me/573219897910" target="_blank" class="font-sans-ui text-xs font-semibold uppercase tracking-wider text-[#f3e5ab] hover:text-[#d4af37] transition-colors link-editorial">WHATSAPP</a>
+            <button type="button" id="btn-nav-store" class="font-sans-ui text-xs font-semibold uppercase tracking-wider px-3 py-1 rounded-full border transition-all cursor-pointer ${state.activeView === 'store' ? 'bg-[#d4af37] text-[#0a0b0d] border-[#d4af37]' : 'bg-[#181c24] text-[#f3e5ab] border-[rgba(212,175,55,0.45)] hover:border-[#d4af37] hover:text-[#ffffff]'}">
+              TIENDA
+            </button>
           </nav>
 
           <!-- Far Right: Auth & Action Button -->
-          <div class="flex items-center gap-3">
+          <div class="flex items-center gap-2 sm:gap-3">
+            <button type="button" id="btn-nav-store-mobile" class="md:hidden btn-stone-outline py-2 px-3 text-xs font-semibold text-[#f3e5ab] border-[#d4af37]/50 cursor-pointer">
+              TIENDA
+            </button>
             ${!isAuth ? `
               <button id="btn-login-trigger" class="btn-stone-outline py-2 px-3.5 text-xs">
                 Acceder
               </button>
-              <a href="#calendario" class="btn-clay py-2 px-4 text-xs font-medium">
+              <a href="#calendario" id="btn-cta-reservar" class="btn-clay py-2 px-4 text-xs font-medium">
                 Reservar cita →
               </a>
             ` : `
-              <span class="font-sans-ui text-xs font-semibold text-[#f3e5ab] px-3 py-1 rounded-full bg-[#181c24] border border-[rgba(212,175,55,0.3)]">
+              <span class="font-sans-ui text-xs font-semibold text-[#f3e5ab] px-3 py-1 rounded-full bg-[#181c24] border border-[rgba(212,175,55,0.3)] hidden sm:inline-block">
                 @${state.currentUser.username}
               </span>
               ${state.activeView !== 'home' ? `
                 <button id="btn-nav-home" class="btn-stone-outline py-2 px-3.5 text-xs">Inicio</button>
-              ` : `
+              ` : ''}
+              ${state.activeView !== 'dashboard' && state.activeView !== 'admin' ? `
                 <button id="btn-nav-panel" class="btn-clay py-2 px-3.5 text-xs">Mi panel →</button>
-              `}
+              ` : ''}
               <button id="btn-logout" class="btn-stone-outline py-2 px-3 text-xs" title="Salir">Salir</button>
             `}
           </div>
@@ -2454,6 +3083,217 @@
 
     const btnBackHome2 = document.getElementById('btn-admin-back-home');
     if (btnBackHome2) btnBackHome2.onclick = () => { state.activeView = 'home'; renderApp(); };
+
+    const btnStoreBackHome = document.getElementById('btn-store-back-home');
+    if (btnStoreBackHome) btnStoreBackHome.onclick = () => { state.activeView = 'home'; renderApp(); };
+
+    const btnNavStore = document.getElementById('btn-nav-store');
+    if (btnNavStore) {
+      btnNavStore.onclick = () => {
+        state.activeView = 'store';
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        renderApp();
+      };
+    }
+
+    const btnNavStoreMobile = document.getElementById('btn-nav-store-mobile');
+    if (btnNavStoreMobile) {
+      btnNavStoreMobile.onclick = () => {
+        state.activeView = 'store';
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        renderApp();
+      };
+    }
+
+    const btnHeroOpenStore = document.getElementById('btn-hero-open-store');
+    if (btnHeroOpenStore) {
+      btnHeroOpenStore.onclick = () => {
+        state.activeView = 'store';
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        renderApp();
+      };
+    }
+
+    const navBrand = document.getElementById('nav-brand');
+    if (navBrand) {
+      navBrand.onclick = (e) => {
+        if (state.activeView !== 'home') {
+          e.preventDefault();
+          state.activeView = 'home';
+          renderApp();
+        }
+      };
+    }
+
+    ['nav-link-inicio', 'nav-link-calendario', 'nav-link-servicios', 'btn-cta-reservar'].forEach((id) => {
+      const el = document.getElementById(id);
+      if (el) {
+        el.onclick = () => {
+          if (state.activeView !== 'home') {
+            state.activeView = 'home';
+            renderApp();
+          }
+        };
+      }
+    });
+
+    // Filtros de categorías en Tienda
+    document.querySelectorAll('.btn-store-cat').forEach((btn) => {
+      btn.onclick = () => {
+        state.storeCategoryFilter = btn.dataset.storeCat || 'ALL';
+        renderApp();
+      };
+    });
+
+    // Comprar producto en Tienda
+    document.querySelectorAll('.btn-buy-store-product').forEach((btn) => {
+      btn.onclick = () => {
+        const prodId = btn.dataset.buyProductId;
+        const prod = (state.products || []).find((p) => p.id === prodId);
+        if (prod) {
+          showStoreBuyModal(prod);
+        }
+      };
+    });
+
+    // Filtros de estado de pedidos en Dashboard
+    document.querySelectorAll('.btn-order-status-filter').forEach((btn) => {
+      btn.onclick = () => {
+        state.storeOrderStatusFilter = btn.dataset.orderStatusFilter || 'ALL';
+        renderApp();
+      };
+    });
+
+    const inputStoreOrderSearch = document.getElementById('input-store-order-search');
+    if (inputStoreOrderSearch) {
+      inputStoreOrderSearch.oninput = (e) => {
+        state.storeOrderSearch = e.target.value;
+        const q = e.target.value.toLowerCase().trim();
+        document.querySelectorAll('.store-order-card').forEach((card) => {
+          const text = card.innerText.toLowerCase();
+          card.style.display = text.includes(q) ? '' : 'none';
+        });
+      };
+    }
+
+    // Confirmar cobro en efectivo y entregar pedido
+    document.querySelectorAll('.btn-deliver-store-order').forEach((btn) => {
+      btn.onclick = async () => {
+        const orderId = btn.dataset.deliverOrderId;
+        const refCode = btn.dataset.deliverRef;
+        const ok = confirm(`¿Confirmas que recibiste el PAGO EN EFECTIVO de la referencia ${refCode} y entregaste el producto al cliente?`);
+        if (!ok) return;
+        try {
+          await repo.deliverStoreOrder(orderId);
+          await renderApp();
+        } catch (err) {
+          alert(err.message);
+        }
+      };
+    });
+
+    // Cancelar pedido y devolver unidades al stock
+    document.querySelectorAll('.btn-cancel-store-order').forEach((btn) => {
+      btn.onclick = async () => {
+        const orderId = btn.dataset.cancelOrderId;
+        const refCode = btn.dataset.cancelRef;
+        const ok = confirm(`¿Deseas cancelar el pedido ${refCode} y devolver las unidades apartadas al inventario disponible?`);
+        if (!ok) return;
+        try {
+          await repo.cancelStoreOrder(orderId);
+          await renderApp();
+        } catch (err) {
+          alert(err.message);
+        }
+      };
+    });
+
+    // Crear nuevo producto desde el panel del Barbero Jefe
+    const formCreateProduct = document.getElementById('form-create-product');
+    if (formCreateProduct) {
+      formCreateProduct.onsubmit = async (e) => {
+        e.preventDefault();
+        try {
+          const name = document.getElementById('new-prod-name').value.trim();
+          const category = document.getElementById('new-prod-category').value.trim() || 'Cuidado Personal';
+          const stock = parseInt(document.getElementById('new-prod-stock').value, 10) || 0;
+          const priceCop = parseInt(document.getElementById('new-prod-price').value, 10) || 0;
+          const imageUrl = document.getElementById('new-prod-image').value.trim();
+          const description = document.getElementById('new-prod-desc').value.trim();
+
+          await repo.saveProduct({
+            name,
+            category,
+            stock,
+            priceCop,
+            imageUrl: imageUrl || undefined,
+            description
+          });
+          alert('Producto publicado exitosamente en el apartado TIENDA.');
+          renderApp();
+        } catch (err) {
+          alert(err.message);
+        }
+      };
+    }
+
+    // Ajuste rápido de stock (+1 / -1)
+    document.querySelectorAll('.btn-adjust-stock').forEach((btn) => {
+      btn.onclick = async () => {
+        const prodId = btn.dataset.stockProdId;
+        const delta = parseInt(btn.dataset.stockDelta, 10) || 0;
+        const prod = (state.products || []).find((p) => p.id === prodId);
+        if (!prod) return;
+        const nextStock = Math.max(0, (Number(prod.stock) || 0) + delta);
+        try {
+          await repo.updateProduct(prodId, { stock: nextStock });
+          renderApp();
+        } catch (err) {
+          alert(err.message);
+        }
+      };
+    });
+
+    // Editar precio y stock de un producto
+    document.querySelectorAll('.btn-edit-product').forEach((btn) => {
+      btn.onclick = async () => {
+        const prodId = btn.dataset.editProdId;
+        const prod = (state.products || []).find((p) => p.id === prodId);
+        if (!prod) return;
+        const newPriceStr = prompt(`Nuevo precio en Efectivo (COP) para "${prod.name}":`, String(prod.priceCop));
+        if (newPriceStr === null) return;
+        const newStockStr = prompt(`Cantidad de unidades disponibles en Stock para "${prod.name}":`, String(prod.stock));
+        if (newStockStr === null) return;
+
+        const priceCop = Math.max(0, parseInt(newPriceStr.replace(/\D/g, ''), 10) || prod.priceCop);
+        const stock = Math.max(0, parseInt(newStockStr, 10));
+        try {
+          await repo.updateProduct(prodId, {
+            priceCop,
+            stock: Number.isNaN(stock) ? prod.stock : stock
+          });
+          renderApp();
+        } catch (err) {
+          alert(err.message);
+        }
+      };
+    });
+
+    // Eliminar producto del catálogo
+    document.querySelectorAll('.btn-delete-product').forEach((btn) => {
+      btn.onclick = async () => {
+        const prodId = btn.dataset.deleteProdId;
+        const prodName = btn.dataset.deleteProdName;
+        const ok = confirm(`¿Seguro que deseas quitar "${prodName}" del catálogo de la tienda?`);
+        if (!ok) return;
+        try {
+          await repo.deleteProduct(prodId);
+          renderApp();
+        } catch (err) {
+          alert(err.message);
+        }
+      };
+    });
 
     // Controles de mes del calendario
     const btnPrev = document.getElementById('cal-btn-prev');
@@ -2754,6 +3594,211 @@
           }
         }
       };
+    });
+  }
+
+  function showStoreBuyModal(product) {
+    const container = document.getElementById('modal-confirmation-container');
+    if (!container) return;
+
+    const savedPhone = localStorage.getItem('blopez_last_phone') || '';
+    const maxQty = Math.min(10, Math.max(1, Number(product.stock) || 1));
+
+    container.innerHTML = `
+      <div id="modal-store-buy" class="fixed inset-0 z-50 bg-[#0a0b0d]/85 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="anthropic-card w-full max-w-lg p-6 sm:p-8 relative border border-[#d4af37]/40 shadow-2xl">
+          <button id="btn-close-store-buy" class="absolute top-4 right-4 text-[#c5c0b6] hover:text-[#ffffff] text-xl font-light cursor-pointer">&times;</button>
+
+          <div class="mb-5">
+            <div class="inline-flex items-center gap-2 mb-2 px-3 py-1 rounded-full bg-[#181c24] border border-[rgba(212,175,55,0.35)] text-[#f3e5ab] text-xs font-semibold">
+              <span class="w-2 h-2 rounded-full bg-[#d4af37]"></span>
+              <span>COMPRA EN TIENDA · PAGO EN EFECTIVO</span>
+            </div>
+            <h3 class="font-serif-editorial text-[26px] sm:text-[30px] font-normal leading-tight text-[#ffffff]">
+              ${escapeHtml(product.name)}
+            </h3>
+            <p class="font-sans-ui text-xs text-[#c5c0b6] mt-1">
+              Completa tus datos para generar tu <strong>Referencia Única de Pago</strong> y apartar el producto en inventario.
+            </p>
+          </div>
+
+          <form id="form-store-buy" class="space-y-4 font-sans-ui">
+            <div class="bg-[#161a22] p-4 rounded-[12px] border border-[rgba(212,175,55,0.22)] flex items-center justify-between">
+              <div>
+                <span class="block text-[11px] text-[#8a8275] uppercase font-semibold">Valor unitario</span>
+                <span class="font-mono-tech text-lg font-bold text-[#d4af37]">$${Number(product.priceCop || 0).toLocaleString('es-CO')} COP</span>
+              </div>
+              <div class="text-right">
+                <span class="block text-[11px] text-[#8a8275] uppercase font-semibold">Disponibles</span>
+                <span class="font-mono-tech text-sm font-bold text-[#f3e5ab]">${product.stock} unidades</span>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div>
+                <label class="block text-xs font-semibold text-[#c5c0b6] mb-1">Cantidad *</label>
+                <input type="number" id="store-buy-qty" required min="1" max="${maxQty}" value="1" class="input-parchment font-mono-tech text-sm">
+              </div>
+              <div class="sm:col-span-2">
+                <label class="block text-xs font-semibold text-[#c5c0b6] mb-1">Método de pago autorizado</label>
+                <div class="input-parchment bg-[#141720] text-[#d4af37] font-mono-tech text-xs font-bold flex items-center h-[42px] px-3 border border-[rgba(212,175,55,0.35)]">
+                  EFECTIVO (Al reclamar en barbería)
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-xs font-semibold text-[#c5c0b6] mb-1">Tu nombre completo *</label>
+              <input type="text" id="store-buy-name" required value="${escapeHtml(state.bookingForm.clientName || '')}" placeholder="Ej. Andrés Felipe Gómez" class="input-parchment text-sm">
+            </div>
+
+            <div>
+              <label class="block text-xs font-semibold text-[#c5c0b6] mb-1">Tu número de celular / WhatsApp *</label>
+              <input type="tel" id="store-buy-phone" required value="${escapeHtml(savedPhone)}" placeholder="Ej. 321 989 7910" class="input-parchment text-sm">
+            </div>
+
+            <div class="bg-[#12151b] p-4 rounded-[12px] border border-[rgba(212,175,55,0.28)] flex items-center justify-between">
+              <span class="text-xs font-semibold text-[#c5c0b6] uppercase tracking-wider">Total a pagar en efectivo:</span>
+              <span id="store-buy-total-display" class="font-mono-tech text-xl font-bold text-[#d4af37]">
+                $${Number(product.priceCop || 0).toLocaleString('es-CO')} COP
+              </span>
+            </div>
+
+            <div id="store-buy-error" class="hidden text-xs text-red-300 bg-red-950/60 border border-red-800 p-3 rounded-[8px]"></div>
+
+            <button type="submit" class="btn-clay w-full py-3 justify-center text-sm font-semibold cursor-pointer">
+              Confirmar pedido y generar Referencia de Pago →
+            </button>
+          </form>
+        </div>
+      </div>
+    `;
+
+    const qtyInput = document.getElementById('store-buy-qty');
+    const totalDisplay = document.getElementById('store-buy-total-display');
+    if (qtyInput && totalDisplay) {
+      qtyInput.oninput = () => {
+        const q = Math.max(1, Math.min(maxQty, parseInt(qtyInput.value, 10) || 1));
+        totalDisplay.textContent = `$${(q * Number(product.priceCop || 0)).toLocaleString('es-CO')} COP`;
+      };
+    }
+
+    document.getElementById('btn-close-store-buy')?.addEventListener('click', () => {
+      container.innerHTML = '';
+    });
+
+    const form = document.getElementById('form-store-buy');
+    if (form) {
+      form.onsubmit = async (e) => {
+        e.preventDefault();
+        const quantity = Math.max(1, parseInt(document.getElementById('store-buy-qty').value, 10) || 1);
+        const clientName = document.getElementById('store-buy-name').value.trim();
+        const clientPhone = document.getElementById('store-buy-phone').value.trim();
+        const errBox = document.getElementById('store-buy-error');
+
+        if (clientPhone) {
+          localStorage.setItem('blopez_last_phone', clientPhone);
+        }
+        state.bookingForm.clientName = clientName;
+        state.bookingForm.clientPhone = clientPhone;
+
+        try {
+          const res = await repo.createStoreOrder({
+            productId: product.id,
+            quantity,
+            clientName,
+            clientPhone
+          });
+          await renderApp();
+          showStoreVoucherModal(res.order);
+        } catch (err) {
+          if (errBox) {
+            errBox.textContent = err.message;
+            errBox.classList.remove('hidden');
+          } else {
+            alert(err.message);
+          }
+        }
+      };
+    }
+  }
+
+  function showStoreVoucherModal(order) {
+    const container = document.getElementById('modal-confirmation-container');
+    if (!container || !order) return;
+
+    const waText = encodeURIComponent(
+      `Hola Barberia Lopez, he apartado un producto en la Tienda Web:\n` +
+      `Referencia de Pago: ${order.referenceCode}\n` +
+      `Producto: ${order.productName} (x${order.quantity})\n` +
+      `Total a pagar en efectivo: $${Number(order.totalCop || 0).toLocaleString('es-CO')} COP\n` +
+      `Cliente: ${order.clientName} (${order.clientPhone})`
+    );
+    const whatsappUrl = `https://wa.me/573219897910?text=${waText}`;
+
+    container.innerHTML = `
+      <div id="modal-store-voucher" class="fixed inset-0 z-50 bg-[#0a0b0d]/85 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="anthropic-card w-full max-w-lg p-6 sm:p-8 relative border border-[#d4af37]/50 shadow-2xl">
+          <div class="mb-5 text-center">
+            <div class="inline-flex items-center gap-2 mb-2 px-3 py-1 rounded-full bg-[#181c24] border border-[rgba(212,175,55,0.4)] text-[#f3e5ab] text-xs font-semibold">
+              <span class="w-2 h-2 rounded-full bg-[#d4af37]"></span>
+              <span>PRODUCTO APARTADO · PAGO EN EFECTIVO</span>
+            </div>
+            <h3 class="font-serif-editorial text-[28px] sm:text-[32px] font-normal text-[#ffffff] leading-tight">
+              Referencia de Pago Generada
+            </h3>
+            <p class="font-sans-ui text-xs text-[#c5c0b6] mt-1">
+              Muestra este código al barbero cuando vayas a reclamar y pagar tu producto en la barbería.
+            </p>
+          </div>
+
+          <!-- CAJA DESTACADA DEL CÓDIGO DE REFERENCIA ANTI-ROBO -->
+          <div class="bg-[#0a0b0d] border-2 border-[#d4af37] rounded-[16px] p-5 text-center mb-5 shadow-[0_0_25px_rgba(212,175,55,0.2)]">
+            <span class="block text-[11px] font-sans-ui font-semibold uppercase tracking-widest text-[#f3e5ab] mb-1">
+              CÓDIGO ÚNICO DE RECLAMO Y VERIFICACIÓN
+            </span>
+            <div class="font-mono-tech text-3xl sm:text-4xl font-bold text-[#d4af37] tracking-widest select-all">
+              ${escapeHtml(order.referenceCode)}
+            </div>
+            <button type="button" id="btn-copy-store-ref" class="mt-3 btn-stone-outline py-1 px-3 text-[11px] font-semibold text-[#f3e5ab] cursor-pointer">
+              Copiar código de referencia
+            </button>
+          </div>
+
+          <div class="bg-[#161a22] p-4 rounded-[12px] border border-[rgba(212,175,55,0.22)] space-y-2 mb-5 font-sans-ui text-xs sm:text-sm">
+            <div class="flex justify-between"><span class="text-[#8a8275]">Producto</span><span class="text-[#ffffff] font-semibold">${escapeHtml(order.productName)}</span></div>
+            <div class="flex justify-between"><span class="text-[#8a8275]">Cantidad apartada</span><span class="text-[#f3e5ab] font-mono-tech font-bold">${order.quantity} und</span></div>
+            <div class="flex justify-between"><span class="text-[#8a8275]">Cliente titular</span><span class="text-[#ffffff]">${escapeHtml(order.clientName)}</span></div>
+            <div class="flex justify-between"><span class="text-[#8a8275]">Modalidad de pago</span><span class="text-[#f3e5ab] font-semibold">EFECTIVO EN BARBERÍA</span></div>
+            <div class="flex justify-between pt-2.5 border-t border-[rgba(212,175,55,0.2)]">
+              <span class="text-[#8a8275] font-semibold">Total a pagar en efectivo</span>
+              <span class="text-[#d4af37] font-mono-tech font-bold text-base">$${Number(order.totalCop || 0).toLocaleString('es-CO')} COP</span>
+            </div>
+          </div>
+
+          <div class="space-y-2.5">
+            <a href="${whatsappUrl}" target="_blank" class="btn-clay w-full py-3 justify-center text-xs sm:text-sm font-semibold text-center block cursor-pointer">
+              Enviar mi referencia por WhatsApp a la Barbería →
+            </a>
+            <button type="button" id="btn-close-store-voucher" class="btn-stone-outline w-full py-2.5 justify-center text-xs text-[#c5c0b6] cursor-pointer">
+              Listo, ya guardé mi número de referencia
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
+
+    document.getElementById('btn-copy-store-ref')?.addEventListener('click', () => {
+      navigator.clipboard.writeText(order.referenceCode).then(() => {
+        alert(`Referencia ${order.referenceCode} copiada al portapapeles.`);
+      }).catch(() => {
+        prompt('Copia tu código de referencia:', order.referenceCode);
+      });
+    });
+
+    document.getElementById('btn-close-store-voucher')?.addEventListener('click', () => {
+      container.innerHTML = '';
+      renderApp();
     });
   }
 

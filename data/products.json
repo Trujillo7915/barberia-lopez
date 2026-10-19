@@ -1,0 +1,62 @@
+[
+  {
+    "id": "p-01",
+    "name": "Cera Moldeadora Efecto Mate",
+    "category": "Ceras & Fijacion",
+    "priceCop": 25000,
+    "stock": 12,
+    "description": "Fijacion firme durante todo el dia con acabado seco y natural sin residuos grasos. Ideal para cortes texturizados y crop.",
+    "image": "https://images.unsplash.com/photo-1621607512214-68297480165e?auto=format&fit=crop&w=600&q=80",
+    "active": true
+  },
+  {
+    "id": "p-02",
+    "name": "Pomada Clasica Brillo Imperial",
+    "category": "Ceras & Fijacion",
+    "priceCop": 25000,
+    "stock": 10,
+    "description": "Formula a base de agua de facil lavado. Perfecta para peinados clasicos, slick back y pompadour con brillo elegante.",
+    "image": "https://images.unsplash.com/photo-1585751119414-ef2636f8aede?auto=format&fit=crop&w=600&q=80",
+    "active": true
+  },
+  {
+    "id": "p-03",
+    "name": "Aceite Hidratante para Barba",
+    "category": "Cuidado de Barba",
+    "priceCop": 30000,
+    "stock": 8,
+    "description": "Mezcla de aceites esenciales de argan, jojoba y eucalipto. Suaviza el vello facial, elimina la resequedad y aporta aroma masculino.",
+    "image": "https://images.unsplash.com/photo-1608248597359-0e6d526a6c18?auto=format&fit=crop&w=600&q=80",
+    "active": true
+  },
+  {
+    "id": "p-04",
+    "name": "Tonico Activador Capilar 5%",
+    "category": "Tratamiento Capilar",
+    "priceCop": 45000,
+    "stock": 6,
+    "description": "Locion fortalecedora para estimular el crecimiento en zonas despobladas de barba y cuero cabelludo.",
+    "image": "https://images.unsplash.com/photo-1556228720-195a672e8a03?auto=format&fit=crop&w=600&q=80",
+    "active": true
+  },
+  {
+    "id": "p-05",
+    "name": "Polvo Texturizador de Volumen",
+    "category": "Ceras & Fijacion",
+    "priceCop": 28000,
+    "stock": 9,
+    "description": "Polvo ultraligero que aporta volumen instantaneo desde la raiz y control mate de larga duracion sin apelmazar.",
+    "image": "https://images.unsplash.com/photo-1526947425960-945c6e72858f?auto=format&fit=crop&w=600&q=80",
+    "active": true
+  },
+  {
+    "id": "p-06",
+    "name": "Cepillo Fade Cerdas Naturales",
+    "category": "Accesorios",
+    "priceCop": 18000,
+    "stock": 15,
+    "description": "Cepillo ergonomico en madera con cerdas firmes para peinar degradados, limpiar contornos y distribuir aceites en la barba.",
+    "image": "https://images.unsplash.com/photo-1590159763121-7c9fd312190d?auto=format&fit=crop&w=600&q=80",
+    "active": true
+  }
+]

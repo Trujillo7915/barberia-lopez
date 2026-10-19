@@ -19,6 +19,8 @@ const BARBERS_FILE = path.join(DATA_DIR, 'barbers.json');
 const SERVICES_FILE = path.join(DATA_DIR, 'services.json');
 const USERS_FILE = path.join(DATA_DIR, 'users.json');
 const HISTORY_FILE = path.join(DATA_DIR, 'history.json');
+const PRODUCTS_FILE = path.join(DATA_DIR, 'products.json');
+const STORE_ORDERS_FILE = path.join(DATA_DIR, 'store_orders.json');
 
 // Clave secreta para tokens de sesion HMAC-SHA256
 const AUTH_SECRET = process.env.AUTH_SECRET || crypto.randomBytes(32).toString('hex');
@@ -82,8 +84,72 @@ const DEFAULT_SERVICES = [
   { id: 's-07', name: 'Pigmentación Manual', category: 'Acabado Artesanal', durationMinutes: 35, priceCop: 22000, description: 'Pigmentación artesanal para densidad capilar.', active: true }
 ];
 
+const DEFAULT_PRODUCTS = [
+  {
+    id: 'p-01',
+    name: 'Cera Moldeadora Efecto Mate',
+    category: 'Ceras & Fijacion',
+    priceCop: 25000,
+    stock: 12,
+    description: 'Fijacion firme durante todo el dia con acabado seco y natural sin residuos grasos. Ideal para cortes texturizados y crop.',
+    image: 'https://images.unsplash.com/photo-1621607512214-68297480165e?auto=format&fit=crop&w=600&q=80',
+    active: true
+  },
+  {
+    id: 'p-02',
+    name: 'Pomada Clasica Brillo Imperial',
+    category: 'Ceras & Fijacion',
+    priceCop: 25000,
+    stock: 10,
+    description: 'Formula a base de agua de facil lavado. Perfecta para peinados clasicos, slick back y pompadour con brillo elegante.',
+    image: 'https://images.unsplash.com/photo-1585751119414-ef2636f8aede?auto=format&fit=crop&w=600&q=80',
+    active: true
+  },
+  {
+    id: 'p-03',
+    name: 'Aceite Hidratante para Barba',
+    category: 'Cuidado de Barba',
+    priceCop: 30000,
+    stock: 8,
+    description: 'Mezcla de aceites esenciales de argan, jojoba y eucalipto. Suaviza el vello facial, elimina la resequedad y aporta aroma masculino.',
+    image: 'https://images.unsplash.com/photo-1608248597359-0e6d526a6c18?auto=format&fit=crop&w=600&q=80',
+    active: true
+  },
+  {
+    id: 'p-04',
+    name: 'Tonico Activador Capilar 5%',
+    category: 'Tratamiento Capilar',
+    priceCop: 45000,
+    stock: 6,
+    description: 'Locion fortalecedora para estimular el crecimiento en zonas despobladas de barba y cuero cabelludo.',
+    image: 'https://images.unsplash.com/photo-1556228720-195a672e8a03?auto=format&fit=crop&w=600&q=80',
+    active: true
+  },
+  {
+    id: 'p-05',
+    name: 'Polvo Texturizador de Volumen',
+    category: 'Ceras & Fijacion',
+    priceCop: 28000,
+    stock: 9,
+    description: 'Polvo ultraligero que aporta volumen instantaneo desde la raiz y control mate de larga duracion sin apelmazar.',
+    image: 'https://images.unsplash.com/photo-1526947425960-945c6e72858f?auto=format&fit=crop&w=600&q=80',
+    active: true
+  },
+  {
+    id: 'p-06',
+    name: 'Cepillo Fade Cerdas Naturales',
+    category: 'Accesorios',
+    priceCop: 18000,
+    stock: 15,
+    description: 'Cepillo ergonomico en madera con cerdas firmes para peinar degradados, limpiar contornos y distribuir aceites en la barba.',
+    image: 'https://images.unsplash.com/photo-1590159763121-7c9fd312190d?auto=format&fit=crop&w=600&q=80',
+    active: true
+  }
+];
+
 const DEFAULT_APPOINTMENTS = [];
 const DEFAULT_HISTORY = [];
+const DEFAULT_STORE_ORDERS = [];
 
 function readJsonFile(filePath, defaultValue) {
   try {
@@ -117,6 +183,8 @@ readJsonFile(BARBERS_FILE, DEFAULT_BARBERS);
 readJsonFile(SERVICES_FILE, DEFAULT_SERVICES);
 readJsonFile(APPOINTMENTS_FILE, DEFAULT_APPOINTMENTS);
 readJsonFile(HISTORY_FILE, DEFAULT_HISTORY);
+readJsonFile(PRODUCTS_FILE, DEFAULT_PRODUCTS);
+readJsonFile(STORE_ORDERS_FILE, DEFAULT_STORE_ORDERS);
 
 // ============================================================================
 // CRIPTOGRAFIA Y AUTENTICACION SEGURA NATIVA (SCRYPT + HMAC TOKENS)
@@ -1256,6 +1324,350 @@ const server = http.createServer(async (req, res) => {
         return;
       }
     }
+  }
+
+  // --------------------------------------------------------------------------
+  // API DE TIENDA E INVENTARIO DE PRODUCTOS (/api/products y /api/store/orders)
+  // --------------------------------------------------------------------------
+  if (reqUrl === '/api/products') {
+    if (req.method === 'GET') {
+      const products = readJsonFile(PRODUCTS_FILE, DEFAULT_PRODUCTS);
+      res.statusCode = 200;
+      res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      res.end(JSON.stringify(products));
+      return;
+    }
+
+    if (req.method === 'POST') {
+      const authUser = getAuthenticatedUser(req);
+      if (!authUser || (authUser.role !== 'ADMIN' && authUser.role !== 'JEFE')) {
+        res.statusCode = 403;
+        res.setHeader('Content-Type', 'application/json; charset=utf-8');
+        res.end(JSON.stringify({ error: 'Acceso denegado: solo el Barbero Jefe o Administrador puede agregar productos.' }));
+        return;
+      }
+
+      try {
+        const body = await readJsonBody(req);
+        const name = String(body.name || '').trim();
+        const category = String(body.category || 'Cuidado Personal').trim();
+        const description = String(body.description || '').trim();
+        const priceCop = Math.max(0, Number(body.priceCop) || 0);
+        const stock = Math.max(0, Math.floor(Number(body.stock) || 0));
+        const imageUrl = String(body.imageUrl || 'https://images.unsplash.com/photo-1621607512214-68297480165e?w=600&auto=format&fit=crop&q=80').trim();
+
+        if (!name || priceCop <= 0) {
+          res.statusCode = 400;
+          res.setHeader('Content-Type', 'application/json; charset=utf-8');
+          res.end(JSON.stringify({ error: 'Nombre del producto y precio mayor a cero son obligatorios.' }));
+          return;
+        }
+
+        const products = readJsonFile(PRODUCTS_FILE, DEFAULT_PRODUCTS);
+        const newProduct = {
+          id: body.id || `prod-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+          name,
+          category,
+          description: description || 'Producto oficial de cuidado masculino Barberia Lopez.',
+          priceCop,
+          stock,
+          imageUrl,
+          active: true,
+          createdAt: new Date().toISOString()
+        };
+
+        products.push(newProduct);
+        writeJsonFileAtomic(PRODUCTS_FILE, products);
+
+        res.statusCode = 200;
+        res.setHeader('Content-Type', 'application/json; charset=utf-8');
+        res.end(JSON.stringify({ success: true, product: newProduct, products }));
+        return;
+      } catch (err) {
+        res.statusCode = 400;
+        res.setHeader('Content-Type', 'application/json; charset=utf-8');
+        res.end(JSON.stringify({ error: err.message }));
+        return;
+      }
+    }
+  }
+
+  if (reqUrl.startsWith('/api/products/') && req.method === 'PUT') {
+    const authUser = getAuthenticatedUser(req);
+    if (!authUser || (authUser.role !== 'ADMIN' && authUser.role !== 'JEFE')) {
+      res.statusCode = 403;
+      res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      res.end(JSON.stringify({ error: 'Acceso denegado: solo el Barbero Jefe o Administrador puede editar el inventario.' }));
+      return;
+    }
+
+    try {
+      const productId = decodeURIComponent(reqUrl.substring('/api/products/'.length));
+      const updates = await readJsonBody(req);
+      const products = readJsonFile(PRODUCTS_FILE, DEFAULT_PRODUCTS);
+      const idx = products.findIndex((p) => p.id === productId);
+
+      if (idx === -1) {
+        res.statusCode = 404;
+        res.setHeader('Content-Type', 'application/json; charset=utf-8');
+        res.end(JSON.stringify({ error: 'Producto no encontrado.' }));
+        return;
+      }
+
+      if (updates.name !== undefined) products[idx].name = String(updates.name).trim();
+      if (updates.category !== undefined) products[idx].category = String(updates.category).trim();
+      if (updates.description !== undefined) products[idx].description = String(updates.description).trim();
+      if (updates.priceCop !== undefined) products[idx].priceCop = Math.max(0, Number(updates.priceCop) || 0);
+      if (updates.stock !== undefined) products[idx].stock = Math.max(0, Math.floor(Number(updates.stock) || 0));
+      if (updates.imageUrl !== undefined && String(updates.imageUrl).trim()) {
+        products[idx].imageUrl = String(updates.imageUrl).trim();
+      }
+      if (updates.active !== undefined) products[idx].active = Boolean(updates.active);
+
+      writeJsonFileAtomic(PRODUCTS_FILE, products);
+      res.statusCode = 200;
+      res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      res.end(JSON.stringify({ success: true, product: products[idx], products }));
+      return;
+    } catch (err) {
+      res.statusCode = 400;
+      res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      res.end(JSON.stringify({ error: err.message }));
+      return;
+    }
+  }
+
+  if (reqUrl.startsWith('/api/products/') && req.method === 'DELETE') {
+    const authUser = getAuthenticatedUser(req);
+    if (!authUser || (authUser.role !== 'ADMIN' && authUser.role !== 'JEFE')) {
+      res.statusCode = 403;
+      res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      res.end(JSON.stringify({ error: 'Acceso denegado: solo el Barbero Jefe o Administrador puede eliminar productos.' }));
+      return;
+    }
+
+    const productId = decodeURIComponent(reqUrl.substring('/api/products/'.length));
+    const products = readJsonFile(PRODUCTS_FILE, DEFAULT_PRODUCTS);
+    const filtered = products.filter((p) => p.id !== productId);
+    writeJsonFileAtomic(PRODUCTS_FILE, filtered);
+
+    res.statusCode = 200;
+    res.setHeader('Content-Type', 'application/json; charset=utf-8');
+    res.end(JSON.stringify({ success: true, products: filtered }));
+    return;
+  }
+
+  // Pedidos de Tienda con Referencia Unica Anti-Robo y Pago Solo en Efectivo
+  if (reqUrl === '/api/store/orders') {
+    if (req.method === 'GET') {
+      const orders = readJsonFile(STORE_ORDERS_FILE, DEFAULT_STORE_ORDERS);
+      res.statusCode = 200;
+      res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      res.end(JSON.stringify(orders));
+      return;
+    }
+
+    if (req.method === 'POST') {
+      try {
+        const body = await readJsonBody(req);
+        const productId = String(body.productId || '').trim();
+        const clientName = String(body.clientName || '').trim();
+        const clientPhone = String(body.clientPhone || '').trim();
+        const quantity = Math.max(1, Math.floor(Number(body.quantity) || 1));
+
+        if (!productId || !clientName || !clientPhone) {
+          res.statusCode = 400;
+          res.setHeader('Content-Type', 'application/json; charset=utf-8');
+          res.end(JSON.stringify({ error: 'Debes indicar producto, tu nombre completo y tu numero de WhatsApp.' }));
+          return;
+        }
+
+        const products = readJsonFile(PRODUCTS_FILE, DEFAULT_PRODUCTS);
+        const prodIdx = products.findIndex((p) => p.id === productId);
+        if (prodIdx === -1) {
+          res.statusCode = 404;
+          res.setHeader('Content-Type', 'application/json; charset=utf-8');
+          res.end(JSON.stringify({ error: 'El producto seleccionado no existe.' }));
+          return;
+        }
+
+        const product = products[prodIdx];
+        if (product.stock < quantity) {
+          res.statusCode = 409;
+          res.setHeader('Content-Type', 'application/json; charset=utf-8');
+          res.end(JSON.stringify({
+            error: product.stock === 0
+              ? 'Lo sentimos, este producto se encuentra agotado en este momento.'
+              : `Solo quedan ${product.stock} unidades disponibles de ${product.name}.`
+          }));
+          return;
+        }
+
+        const orders = readJsonFile(STORE_ORDERS_FILE, DEFAULT_STORE_ORDERS);
+
+        // Generar codigo de referencia unico e irrepetible formato REF-BL-XXXX
+        const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+        let referenceCode = '';
+        let exists = true;
+        while (exists) {
+          let suffix = '';
+          for (let i = 0; i < 4; i++) {
+            suffix += chars.charAt(Math.floor(Math.random() * chars.length));
+          }
+          referenceCode = `REF-BL-${suffix}`;
+          exists = orders.some((o) => o.referenceCode === referenceCode);
+        }
+
+        // Descontar del stock inmediatamente para reservar el producto al cliente
+        products[prodIdx].stock -= quantity;
+        writeJsonFileAtomic(PRODUCTS_FILE, products);
+
+        // Fecha actual en zona horaria de Colombia (UTC-5)
+        const nowCol = new Date(Date.now() - (5 * 60 * 60 * 1000));
+        const dateStr = nowCol.toISOString().split('T')[0];
+
+        const newOrder = {
+          id: `ord-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+          referenceCode,
+          productId: product.id,
+          productName: product.name,
+          productCategory: product.category,
+          unitPriceCop: product.priceCop,
+          quantity,
+          totalCop: product.priceCop * quantity,
+          clientName,
+          clientPhone,
+          paymentMethod: 'EFECTIVO',
+          status: 'PENDIENTE', // PENDIENTE | ENTREGADO | CANCELADO
+          date: dateStr,
+          createdAt: new Date().toISOString(),
+          deliveredAt: null,
+          deliveredDate: null,
+          deliveredBy: null
+        };
+
+        orders.unshift(newOrder);
+        writeJsonFileAtomic(STORE_ORDERS_FILE, orders);
+
+        res.statusCode = 200;
+        res.setHeader('Content-Type', 'application/json; charset=utf-8');
+        res.end(JSON.stringify({
+          success: true,
+          order: newOrder,
+          product: products[prodIdx]
+        }));
+        return;
+      } catch (err) {
+        res.statusCode = 400;
+        res.setHeader('Content-Type', 'application/json; charset=utf-8');
+        res.end(JSON.stringify({ error: err.message }));
+        return;
+      }
+    }
+  }
+
+  if (reqUrl.startsWith('/api/store/orders/') && reqUrl.endsWith('/deliver') && req.method === 'PUT') {
+    const authUser = getAuthenticatedUser(req);
+    if (!authUser) {
+      res.statusCode = 401;
+      res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      res.end(JSON.stringify({ error: 'Debes iniciar sesion como barbero o administrador para verificar y entregar pedidos.' }));
+      return;
+    }
+
+    const orderId = decodeURIComponent(reqUrl.slice('/api/store/orders/'.length, -'/deliver'.length));
+    const orders = readJsonFile(STORE_ORDERS_FILE, DEFAULT_STORE_ORDERS);
+    const idx = orders.findIndex((o) => o.id === orderId || o.referenceCode === orderId);
+
+    if (idx === -1) {
+      res.statusCode = 404;
+      res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      res.end(JSON.stringify({ error: 'Pedido o referencia no encontrada.' }));
+      return;
+    }
+
+    if (orders[idx].status === 'ENTREGADO') {
+      res.statusCode = 409;
+      res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      res.end(JSON.stringify({ error: 'ALERTA: Esta referencia ya fue cobrada y entregada anteriormente.' }));
+      return;
+    }
+
+    if (orders[idx].status === 'CANCELADO') {
+      res.statusCode = 409;
+      res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      res.end(JSON.stringify({ error: 'Este pedido fue cancelado y su stock ya fue devuelto.' }));
+      return;
+    }
+
+    const nowCol = new Date(Date.now() - (5 * 60 * 60 * 1000));
+    const deliveredDate = nowCol.toISOString().split('T')[0];
+
+    orders[idx].status = 'ENTREGADO';
+    orders[idx].deliveredAt = new Date().toISOString();
+    orders[idx].deliveredDate = deliveredDate;
+    orders[idx].deliveredBy = authUser.username;
+
+    writeJsonFileAtomic(STORE_ORDERS_FILE, orders);
+
+    res.statusCode = 200;
+    res.setHeader('Content-Type', 'application/json; charset=utf-8');
+    res.end(JSON.stringify({ success: true, order: orders[idx], orders }));
+    return;
+  }
+
+  if (reqUrl.startsWith('/api/store/orders/') && reqUrl.endsWith('/cancel') && req.method === 'PUT') {
+    const authUser = getAuthenticatedUser(req);
+    if (!authUser) {
+      res.statusCode = 401;
+      res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      res.end(JSON.stringify({ error: 'Debes iniciar sesion para cancelar un pedido y restaurar el stock.' }));
+      return;
+    }
+
+    const orderId = decodeURIComponent(reqUrl.slice('/api/store/orders/'.length, -'/cancel'.length));
+    const orders = readJsonFile(STORE_ORDERS_FILE, DEFAULT_STORE_ORDERS);
+    const idx = orders.findIndex((o) => o.id === orderId || o.referenceCode === orderId);
+
+    if (idx === -1) {
+      res.statusCode = 404;
+      res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      res.end(JSON.stringify({ error: 'Pedido o referencia no encontrada.' }));
+      return;
+    }
+
+    if (orders[idx].status === 'CANCELADO') {
+      res.statusCode = 409;
+      res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      res.end(JSON.stringify({ error: 'Este pedido ya se encuentra cancelado.' }));
+      return;
+    }
+
+    if (orders[idx].status === 'ENTREGADO') {
+      res.statusCode = 409;
+      res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      res.end(JSON.stringify({ error: 'No se puede cancelar un pedido que ya fue cobrado y entregado.' }));
+      return;
+    }
+
+    // Restaurar las unidades al inventario del producto
+    const products = readJsonFile(PRODUCTS_FILE, DEFAULT_PRODUCTS);
+    const prodIdx = products.findIndex((p) => p.id === orders[idx].productId);
+    if (prodIdx !== -1) {
+      products[prodIdx].stock += Number(orders[idx].quantity) || 1;
+      writeJsonFileAtomic(PRODUCTS_FILE, products);
+    }
+
+    orders[idx].status = 'CANCELADO';
+    orders[idx].cancelledAt = new Date().toISOString();
+    orders[idx].cancelledBy = authUser.username;
+
+    writeJsonFileAtomic(STORE_ORDERS_FILE, orders);
+
+    res.statusCode = 200;
+    res.setHeader('Content-Type', 'application/json; charset=utf-8');
+    res.end(JSON.stringify({ success: true, order: orders[idx], orders, products }));
+    return;
   }
 
   // --------------------------------------------------------------------------
