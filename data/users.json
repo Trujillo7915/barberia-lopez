@@ -2,7 +2,7 @@
   {
     "id": "u-admin-01",
     "username": "admin",
-    "passwordHash": "admin2026",
+    "passwordHash": "scrypt:d71c37557d299bae020f8760e3b9fe9b:1cd29592c6212aeda47199d46e9aa53499ec8a29ca1191cf87266690ff7a66fe4765880b1f2928123c6ea0a2a8105438736224d0a24b8825be34f070a81b6c6f",
     "role": "ADMIN",
     "barberId": null,
     "active": true
@@ -10,7 +10,7 @@
   {
     "id": "828401c4-1ef2-4bfd-a5b4-43f6c3b4bf35",
     "username": "lopez.barber",
-    "passwordHash": "barberolopez",
+    "passwordHash": "scrypt:232172833020895a935a1938145ec77c:5294dda5cba63b71c4587728513d7beffdf717f8541a45e30fd8668d970376920c26d6d0923ce50b6142d18ee2ae7986601cf6294400d8b98bcc7cfe5e794f8d",
     "role": "JEFE",
     "barberId": "7597ebfd-bbb0-4c71-9e49-8d1ea242a0e6",
     "active": true,

@@ -12,6 +12,16 @@
     return 'id_' + Math.random().toString(36).substring(2, 11) + '_' + Date.now();
   };
 
+  const escapeHtml = (str) => {
+    if (str === null || str === undefined) return '';
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  };
+
   // --- CAPA 1: DOMAIN TYPES & ENUMS ---
   const Roles = Object.freeze({
     ADMIN: 'ADMIN',
@@ -341,6 +351,15 @@
       }
     }
 
+    _getAuthHeaders() {
+      const token = localStorage.getItem('blopez_token') || '';
+      const headers = { 'Content-Type': 'application/json' };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+      return headers;
+    }
+
     async findUserByUsername(username) {
       const list = await this.findAllUsers();
       const cleanInput = (username || '').replace(/^@/, '').toLowerCase().trim();
@@ -356,21 +375,19 @@
     }
 
     async verifyPassword(user, plainPassword) {
-      if (!user || !user.passwordHash || !plainPassword) return false;
-      const cleanStored = String(user.passwordHash).trim();
-      const cleanPlain = String(plainPassword).trim();
-      
-      // Coincidencia exacta
-      if (cleanStored === cleanPlain) return true;
-      // Sin punto final accidental (habitual en teclados móviles tras doble espacio)
-      if (cleanStored.replace(/\.$/, '') === cleanPlain.replace(/\.$/, '')) return true;
-      // Sin distinción de mayúsculas/minúsculas
-      if (cleanStored.toLowerCase() === cleanPlain.toLowerCase()) return true;
-      if (cleanStored.toLowerCase().replace(/\.$/, '') === cleanPlain.toLowerCase().replace(/\.$/, '')) return true;
-      // Con o sin arroba inicial
-      if (cleanStored.replace(/^@/, '') === cleanPlain.replace(/^@/, '')) return true;
-      if (cleanStored.toLowerCase().replace(/^@/, '').replace(/\.$/, '') === cleanPlain.toLowerCase().replace(/^@/, '').replace(/\.$/, '')) return true;
-
+      if (!user || !plainPassword) return false;
+      try {
+        const res = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username: user.username, password: plainPassword })
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.token) localStorage.setItem('blopez_token', data.token);
+          return true;
+        }
+      } catch (e) {}
       return false;
     }
 
@@ -378,15 +395,20 @@
       const list = this._get('blopez_users');
       const idx = list.findIndex((u) => u.id === userId);
       if (idx !== -1) {
-        list[idx].passwordHash = newPassword;
         this._set('blopez_users', list);
         try {
-          await fetch(`/api/users/${userId}`, {
+          const res = await fetch(`/api/users/${userId}`, {
             method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(list[idx])
+            headers: this._getAuthHeaders(),
+            body: JSON.stringify({ password: newPassword })
           });
-        } catch (e) {}
+          if (!res.ok) {
+            const errData = await res.json().catch(() => ({}));
+            throw new Error(errData.error || 'No fue posible actualizar la contraseña.');
+          }
+        } catch (e) {
+          throw e;
+        }
         return true;
       }
       return false;
@@ -397,12 +419,18 @@
       list.push(user);
       this._set('blopez_users', list);
       try {
-        await fetch('/api/users', {
+        const res = await fetch('/api/users', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: this._getAuthHeaders(),
           body: JSON.stringify(user)
         });
-      } catch (e) {}
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.error || 'No fue posible crear el usuario en el servidor.');
+        }
+      } catch (e) {
+        throw e;
+      }
       return user;
     }
 
@@ -414,12 +442,18 @@
         this._set('blopez_users', list);
       }
       try {
-        await fetch(`/api/users/${user.id}`, {
+        const res = await fetch(`/api/users/${user.id}`, {
           method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
+          headers: this._getAuthHeaders(),
           body: JSON.stringify(user)
         });
-      } catch (e) {}
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.error || 'No fue posible actualizar el usuario.');
+        }
+      } catch (e) {
+        throw e;
+      }
       return user;
     }
 
@@ -442,8 +476,17 @@
       list = list.filter((u) => u.id !== userId);
       this._set('blopez_users', list);
       try {
-        await fetch(`/api/users/${userId}`, { method: 'DELETE' });
-      } catch (e) {}
+        const res = await fetch(`/api/users/${userId}`, {
+          method: 'DELETE',
+          headers: this._getAuthHeaders()
+        });
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.error || 'No fue posible eliminar el usuario.');
+        }
+      } catch (e) {
+        throw e;
+      }
       return true;
     }
 
@@ -471,12 +514,18 @@
       list.push(barber);
       this._set('blopez_barbers', list);
       try {
-        await fetch('/api/barbers', {
+        const res = await fetch('/api/barbers', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: this._getAuthHeaders(),
           body: JSON.stringify(barber)
         });
-      } catch (e) {}
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.error || 'No fue posible registrar el barbero.');
+        }
+      } catch (e) {
+        throw e;
+      }
       return barber;
     }
 
@@ -488,12 +537,18 @@
         this._set('blopez_barbers', list);
       }
       try {
-        await fetch(`/api/barbers/${barber.id}`, {
+        const res = await fetch(`/api/barbers/${barber.id}`, {
           method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
+          headers: this._getAuthHeaders(),
           body: JSON.stringify(barber)
         });
-      } catch (e) {}
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.error || 'No fue posible actualizar el barbero.');
+        }
+      } catch (e) {
+        throw e;
+      }
       return barber;
     }
 
@@ -502,15 +557,28 @@
       list = list.filter((b) => b.id !== barberId);
       this._set('blopez_barbers', list);
       try {
-        await fetch(`/api/barbers/${barberId}`, { method: 'DELETE' });
-      } catch (e) {}
+        const res = await fetch(`/api/barbers/${barberId}`, {
+          method: 'DELETE',
+          headers: this._getAuthHeaders()
+        });
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.error || 'No fue posible eliminar el barbero.');
+        }
+      } catch (e) {
+        throw e;
+      }
       return true;
     }
 
     async findServiceById(id) { return this._get('blopez_services').find((s) => s.id === id) || null; }
     async findAllServices() { return this._get('blopez_services'); }
     async findAppointmentById(id) { return this._get('blopez_appointments').find((a) => a.id === id) || null; }
-    async findAppointmentsByDate(date) { return this._get('blopez_appointments').filter((a) => a.date === date); }
+    async findAppointmentsByDate(date) {
+      const all = await this.findAllAppointments();
+      return all.filter((a) => a.date === date);
+    }
+
     async findAllAppointments() {
       try {
         const res = await fetch('/api/appointments');
@@ -526,34 +594,57 @@
     }
 
     async saveAppointment(appt) {
-      const list = this._get('blopez_appointments');
-      list.push(appt);
-      this._set('blopez_appointments', list);
       try {
-        await fetch('/api/appointments', {
+        const res = await fetch('/api/appointments', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(appt)
         });
-      } catch (e) {}
-      return appt;
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.error || 'El turno seleccionado no pudo ser reservado en el servidor.');
+        }
+        const data = await res.json();
+        const savedAppt = data.appointment || appt;
+        const list = this._get('blopez_appointments');
+        const existingIdx = list.findIndex((a) => a.id === savedAppt.id);
+        if (existingIdx !== -1) {
+          list[existingIdx] = savedAppt;
+        } else {
+          list.push(savedAppt);
+        }
+        this._set('blopez_appointments', list);
+        return savedAppt;
+      } catch (e) {
+        throw e;
+      }
     }
 
     async updateAppointment(appt) {
-      const list = this._get('blopez_appointments');
-      const idx = list.findIndex((a) => a.id === appt.id);
-      if (idx !== -1) {
-        list[idx] = { ...list[idx], ...appt };
-        this._set('blopez_appointments', list);
-      }
       try {
-        await fetch(`/api/appointments/${appt.id}`, {
+        const res = await fetch(`/api/appointments/${appt.id}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(appt)
         });
-      } catch (e) {}
-      return appt;
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.error || 'No fue posible actualizar la cita.');
+        }
+        const data = await res.json();
+        const savedAppt = data.appointment || appt;
+        const list = this._get('blopez_appointments');
+        const idx = list.findIndex((a) => a.id === savedAppt.id);
+        if (idx !== -1) {
+          list[idx] = { ...list[idx], ...savedAppt };
+        } else {
+          list.push(savedAppt);
+        }
+        this._set('blopez_appointments', list);
+        return savedAppt;
+      } catch (e) {
+        throw e;
+      }
     }
 
     async saveCutHistory(rec) {
@@ -561,12 +652,18 @@
       list.push(rec);
       this._set('blopez_history', list);
       try {
-        await fetch('/api/history', {
+        const res = await fetch('/api/history', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: this._getAuthHeaders(),
           body: JSON.stringify(rec)
         });
-      } catch (e) {}
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.error || 'No fue posible registrar el corte en el historial.');
+        }
+      } catch (e) {
+        throw e;
+      }
       return rec;
     }
 
@@ -772,13 +869,25 @@
   class LoginUseCase {
     constructor({ repo }) { this.repo = repo; }
     async execute({ username, password }) {
-      const user = await this.repo.findUserByUsername(username);
-      if (!user || !user.active) throw new Error("Credenciales inválidas o usuario inactivo.");
-      const valid = await this.repo.verifyPassword(user, password);
-      if (!valid) throw new Error("Credenciales inválidas.");
-      let barber = null;
-      if (user.barberId) barber = await this.repo.findBarberById(user.barberId);
-      return { user, barber };
+      try {
+        const res = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password })
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.token) {
+            localStorage.setItem('blopez_token', data.token);
+          }
+          return { user: data.user, barber: data.barber };
+        } else {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.error || 'Credenciales inválidas o usuario inactivo.');
+        }
+      } catch (err) {
+        throw err;
+      }
     }
   }
 
@@ -1050,9 +1159,18 @@
   const initialNow = new Date();
   const initialDateStr = getLocalDateString(initialNow);
 
+  let initialUser = null;
+  try {
+    const rawUser = localStorage.getItem('blopez_current_user');
+    const token = localStorage.getItem('blopez_token');
+    if (rawUser && token) {
+      initialUser = JSON.parse(rawUser);
+    }
+  } catch (e) {}
+
   // --- CAPA 4: UI STATE ---
   const state = {
-    currentUser: null,
+    currentUser: initialUser,
     services: [],
     barbers: [],
     appointments: [],
@@ -1680,7 +1798,7 @@
                                 </div>
 
                                 <h5 class="text-base sm:text-lg font-bold text-[#ffffff] tracking-tight mb-1">
-                                  ${appt.clientName}
+                                  ${escapeHtml(appt.clientName)}
                                 </h5>
                                 
                                 <p class="text-xs font-medium text-[#d4af37] mb-3">
@@ -1690,7 +1808,7 @@
                                 <div class="space-y-1.5 mb-4 text-xs font-sans-ui bg-[#12151b]/70 p-3 rounded-[8px] border border-[rgba(212,175,55,0.1)]">
                                   <div class="flex items-center justify-between text-[#ffffff]">
                                     <span class="text-[#8a8275] font-semibold">Teléfono:</span>
-                                    <span class="font-medium text-[#c5c0b6]">${appt.clientPhone || 'No registrado'}</span>
+                                    <span class="font-medium text-[#c5c0b6]">${escapeHtml(appt.clientPhone || 'No registrado')}</span>
                                   </div>
                                   <div class="flex items-center justify-between text-[#ffffff]">
                                     <span class="text-[#8a8275] font-semibold">Fecha:</span>
@@ -1698,7 +1816,7 @@
                                   </div>
                                   <div class="flex items-center justify-between text-[#ffffff]">
                                     <span class="text-[#8a8275] font-semibold">Pago:</span>
-                                    <span class="font-medium text-[#c5c0b6]">${appt.paymentMethod}</span>
+                                    <span class="font-medium text-[#c5c0b6]">${escapeHtml(appt.paymentMethod)}</span>
                                   </div>
                                 </div>
                               </div>
@@ -1903,7 +2021,7 @@
                             <tbody class="divide-y divide-[rgba(212,175,55,0.12)] text-sm">
                               ${bCuts.map((h) => `
                                 <tr class="history-cut-row hover:bg-[#181c24] transition-colors">
-                                  <td class="p-3.5 pl-4 text-[#ffffff] font-semibold">${h.clientName}</td>
+                                  <td class="p-3.5 pl-4 text-[#ffffff] font-semibold">${escapeHtml(h.clientName)}</td>
                                   <td class="p-3.5 text-[#c5c0b6] text-xs sm:text-sm">${formatDateFriendly(h.date)}</td>
                                   <td class="p-3.5 text-[#f3e5ab] font-mono-tech text-xs">${h.time}</td>
                                   <td class="p-3.5 pr-4 text-right text-[#d4af37] font-bold font-mono-tech text-sm">$${h.priceCop.toLocaleString('es-CO')} COP</td>
@@ -2010,8 +2128,8 @@
                       const roleDisplay = roleLabels[u.role] || u.role;
                       return `
                         <tr class="hover:bg-[#181c24] transition-colors">
-                          <td class="p-3.5 text-[#ffffff] font-semibold">${name}</td>
-                          <td class="p-3.5 font-mono-tech text-xs text-[#f3e5ab]">@${u.username}</td>
+                          <td class="p-3.5 text-[#ffffff] font-semibold">${escapeHtml(name)}</td>
+                          <td class="p-3.5 font-mono-tech text-xs text-[#f3e5ab]">@${escapeHtml(u.username)}</td>
                           <td class="p-3.5"><span class="text-xs font-medium px-2.5 py-0.5 rounded-full bg-[#161a22] border border-[rgba(212,175,55,0.25)] text-[#f3e5ab]">${roleDisplay}</span></td>
                           <td class="p-3.5">
                             <span class="inline-flex items-center gap-1.5 text-xs font-medium text-[#ffffff]">
@@ -2020,12 +2138,12 @@
                             </span>
                           </td>
                           <td class="p-3.5 text-right space-x-2 whitespace-nowrap">
-                            <button data-user-id="${u.id}" data-username="${u.username}" class="btn-change-password btn-stone-outline py-1 px-2.5 text-xs font-medium">Cambiar clave</button>
+                            <button data-user-id="${u.id}" data-username="${escapeHtml(u.username)}" class="btn-change-password btn-stone-outline py-1 px-2.5 text-xs font-medium">Cambiar clave</button>
                             ${u.role !== 'ADMIN' ? `
                               <button data-toggle-user-id="${u.id}" class="btn-toggle-status btn-stone-outline py-1 px-2.5 text-xs font-medium">
                                 ${u.active ? 'Desactivar' : 'Activar'}
                               </button>
-                              <button data-delete-user-id="${u.id}" data-username="${u.username}" class="btn-delete-user btn-stone-outline py-1 px-2.5 text-xs font-medium text-red-400 hover:text-red-300 hover:border-red-500">
+                              <button data-delete-user-id="${u.id}" data-username="${escapeHtml(u.username)}" class="btn-delete-user btn-stone-outline py-1 px-2.5 text-xs font-medium text-red-400 hover:text-red-300 hover:border-red-500">
                                 Eliminar
                               </button>
                             ` : ''}
@@ -2208,7 +2326,7 @@
                     type="text" 
                     id="client-booking-name" 
                     required 
-                    value="${state.bookingForm.clientName}" 
+                    value="${escapeHtml(state.bookingForm.clientName)}" 
                     placeholder="Ej. Camilo Andrés Pérez" 
                     class="input-parchment"
                   >
@@ -2219,7 +2337,7 @@
                     type="tel" 
                     id="client-booking-phone" 
                     required 
-                    value="${state.bookingForm.clientPhone}" 
+                    value="${escapeHtml(state.bookingForm.clientPhone)}" 
                     placeholder="Ej. 321 989 7910" 
                     class="input-parchment"
                   >
@@ -2232,7 +2350,7 @@
                   <input 
                     type="email" 
                     id="client-booking-email" 
-                    value="${state.bookingForm.clientEmail || ''}" 
+                    value="${escapeHtml(state.bookingForm.clientEmail || '')}" 
                     placeholder="Para invitación a calendario" 
                     class="input-parchment"
                   >
@@ -2242,7 +2360,7 @@
                   <input 
                     type="text" 
                     id="client-booking-notes" 
-                    value="${state.bookingForm.clientNotes || ''}" 
+                    value="${escapeHtml(state.bookingForm.clientNotes || '')}" 
                     placeholder="Ej. Fade medio, barba perfilada" 
                     class="input-parchment"
                   >
@@ -2299,6 +2417,7 @@
           const { user } = await loginUseCase.execute({ username, password });
           modalAuth.classList.add('hidden');
           state.currentUser = user;
+          localStorage.setItem('blopez_current_user', JSON.stringify(user));
           state.activeView = user.role === Roles.ADMIN ? 'admin' : 'dashboard';
           renderApp();
         } catch (err) {
@@ -2312,6 +2431,8 @@
     if (btnLogout) {
       btnLogout.onclick = () => {
         state.currentUser = null;
+        localStorage.removeItem('blopez_token');
+        localStorage.removeItem('blopez_current_user');
         state.activeView = 'home';
         renderApp();
       };
@@ -2485,6 +2606,8 @@
           state.bookingModalOpen = false;
           showConfirmationModal(result);
         } catch (err) {
+          await repo.findAllAppointments();
+          await renderApp();
           alert(err.message);
         }
       };
@@ -2648,13 +2771,13 @@
             </div>
             <h3 class="font-serif-editorial text-[30px] sm:text-[34px] font-normal leading-tight text-[#ffffff] mb-1">¡Reserva completada!</h3>
             <p class="font-sans-ui text-[#c5c0b6] text-[15px]">
-              ${appointment.clientName}, tu turno ha sido agendado exitosamente con ${barber.name}.
+              ${escapeHtml(appointment.clientName)}, tu turno ha sido agendado exitosamente con ${escapeHtml(barber.name)}.
             </p>
           </div>
 
           <div class="bg-[#161a22] p-5 rounded-[12px] border border-[rgba(212,175,55,0.22)] space-y-2.5 mb-6 font-sans-ui text-sm">
-            <div class="flex justify-between"><span class="text-[#8a8275]">Barbero</span><span class="text-[#ffffff] font-semibold">${barber.name} (${barber.specialty})</span></div>
-            <div class="flex justify-between"><span class="text-[#8a8275]">Servicio</span><span class="text-[#ffffff]">${service.name}</span></div>
+            <div class="flex justify-between"><span class="text-[#8a8275]">Barbero</span><span class="text-[#ffffff] font-semibold">${escapeHtml(barber.name)} (${escapeHtml(barber.specialty)})</span></div>
+            <div class="flex justify-between"><span class="text-[#8a8275]">Servicio</span><span class="text-[#ffffff]">${escapeHtml(service.name)}</span></div>
             <div class="flex justify-between"><span class="text-[#8a8275]">Fecha y hora</span><span class="text-[#f3e5ab] font-mono-tech font-bold">${formatDateFriendly(appointment.date)} · ${formatTime12h(appointment.startTime)}</span></div>
             <div class="flex justify-between"><span class="text-[#8a8275]">Duración estimada</span><span class="text-[#c5c0b6]">${service.durationMinutes} min</span></div>
             <div class="flex justify-between pt-3 border-t border-[rgba(212,175,55,0.22)]">

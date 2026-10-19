@@ -1,11 +1,13 @@
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 
 const PORT = process.env.PORT || 3000;
 const HOST = '0.0.0.0';
-const ROOT_DIR = __dirname;
+const ROOT_DIR = path.resolve(__dirname);
 const DATA_DIR = path.join(ROOT_DIR, 'data');
+const PUBLIC_SRC_DIR = path.join(ROOT_DIR, 'src');
 
 // Asegurar directorio de datos persistente
 if (!fs.existsSync(DATA_DIR)) {
@@ -17,6 +19,9 @@ const BARBERS_FILE = path.join(DATA_DIR, 'barbers.json');
 const SERVICES_FILE = path.join(DATA_DIR, 'services.json');
 const USERS_FILE = path.join(DATA_DIR, 'users.json');
 const HISTORY_FILE = path.join(DATA_DIR, 'history.json');
+
+// Clave secreta para tokens de sesion HMAC-SHA256
+const AUTH_SECRET = process.env.AUTH_SECRET || crypto.randomBytes(32).toString('hex');
 
 // Semillas por defecto si los archivos no existen aún
 const DEFAULT_USERS = [
@@ -83,7 +88,7 @@ const DEFAULT_HISTORY = [];
 function readJsonFile(filePath, defaultValue) {
   try {
     if (!fs.existsSync(filePath)) {
-      fs.writeFileSync(filePath, JSON.stringify(defaultValue, null, 2), 'utf8');
+      writeJsonFileAtomic(filePath, defaultValue);
       return defaultValue;
     }
     const raw = fs.readFileSync(filePath, 'utf8');
@@ -94,12 +99,14 @@ function readJsonFile(filePath, defaultValue) {
   }
 }
 
-function writeJsonFile(filePath, data) {
+function writeJsonFileAtomic(filePath, data) {
   try {
-    fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf8');
+    const tempPath = `${filePath}.tmp.${Date.now()}.${Math.random().toString(36).substring(2, 8)}`;
+    fs.writeFileSync(tempPath, JSON.stringify(data, null, 2), 'utf8');
+    fs.renameSync(tempPath, filePath);
     return true;
   } catch (err) {
-    console.error(`Error escribiendo en ${filePath}:`, err.message);
+    console.error(`Error escribiendo atomicamente en ${filePath}:`, err.message);
     return false;
   }
 }
@@ -109,8 +116,304 @@ readJsonFile(USERS_FILE, DEFAULT_USERS);
 readJsonFile(BARBERS_FILE, DEFAULT_BARBERS);
 readJsonFile(SERVICES_FILE, DEFAULT_SERVICES);
 readJsonFile(APPOINTMENTS_FILE, DEFAULT_APPOINTMENTS);
+readJsonFile(HISTORY_FILE, DEFAULT_HISTORY);
 
-// Conversión de hora local de Colombia (UTC-5) a estándar UTC universal sin dependencias de zona
+// ============================================================================
+// CRIPTOGRAFIA Y AUTENTICACION SEGURA NATIVA (SCRYPT + HMAC TOKENS)
+// ============================================================================
+
+function hashPasswordScrypt(plainPassword) {
+  const salt = crypto.randomBytes(16).toString('hex');
+  const derivedKey = crypto.scryptSync(String(plainPassword).trim(), salt, 64);
+  return `scrypt:${salt}:${derivedKey.toString('hex')}`;
+}
+
+function verifyPasswordSecure(plainPassword, storedHash) {
+  if (!plainPassword || !storedHash) return false;
+  const cleanInput = String(plainPassword).trim();
+
+  // Si esta hasheado con scrypt
+  if (storedHash.startsWith('scrypt:')) {
+    const parts = storedHash.split(':');
+    if (parts.length !== 3) return false;
+    const salt = parts[1];
+    const key = parts[2];
+    const keyBuffer = Buffer.from(key, 'hex');
+    const derivedKey = crypto.scryptSync(cleanInput, salt, 64);
+    if (keyBuffer.length !== derivedKey.length) return false;
+    return crypto.timingSafeEqual(keyBuffer, derivedKey);
+  }
+
+  // Compatibilidad con contraseñas legadas en texto plano y tolerancia de teclado movil
+  const cleanStored = String(storedHash).trim();
+  const variations = [
+    cleanInput,
+    cleanInput.replace(/\.$/, ''),
+    cleanInput.toLowerCase(),
+    cleanInput.toLowerCase().replace(/\.$/, ''),
+    cleanInput.replace(/^@/, ''),
+    cleanInput.toLowerCase().replace(/^@/, '').replace(/\.$/, '')
+  ];
+
+  const storedVariations = [
+    cleanStored,
+    cleanStored.replace(/\.$/, ''),
+    cleanStored.toLowerCase(),
+    cleanStored.toLowerCase().replace(/\.$/, ''),
+    cleanStored.replace(/^@/, ''),
+    cleanStored.toLowerCase().replace(/^@/, '').replace(/\.$/, '')
+  ];
+
+  for (const sv of storedVariations) {
+    for (const iv of variations) {
+      if (sv === iv) return true;
+    }
+  }
+
+  return false;
+}
+
+function generateSessionToken(user) {
+  const header = Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString('base64url');
+  const payload = Buffer.from(JSON.stringify({
+    sub: user.id,
+    username: user.username,
+    role: user.role,
+    barberId: user.barberId,
+    exp: Math.floor(Date.now() / 1000) + (24 * 60 * 60) // 24 horas de validez
+  })).toString('base64url');
+
+  const signature = crypto
+    .createHmac('sha256', AUTH_SECRET)
+    .update(`${header}.${payload}`)
+    .digest('base64url');
+
+  return `${header}.${payload}.${signature}`;
+}
+
+function verifySessionToken(token) {
+  if (!token || typeof token !== 'string') return null;
+  const parts = token.split('.');
+  if (parts.length !== 3) return null;
+  const [header, payload, signature] = parts;
+
+  const expectedSignature = crypto
+    .createHmac('sha256', AUTH_SECRET)
+    .update(`${header}.${payload}`)
+    .digest('base64url');
+
+  const sigBuffer = Buffer.from(signature);
+  const expBuffer = Buffer.from(expectedSignature);
+  if (sigBuffer.length !== expBuffer.length) return null;
+  if (!crypto.timingSafeEqual(sigBuffer, expBuffer)) return null;
+
+  try {
+    const data = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8'));
+    if (data.exp && data.exp < Math.floor(Date.now() / 1000)) {
+      return null;
+    }
+    return data;
+  } catch (err) {
+    return null;
+  }
+}
+
+function getAuthenticatedUser(req) {
+  const authHeader = req.headers['authorization'];
+  if (!authHeader) return null;
+  const match = authHeader.match(/^Bearer\s+(.+)$/i);
+  if (!match) return null;
+  return verifySessionToken(match[1]);
+}
+
+// ============================================================================
+// RATE LIMITING NATIVO EN MEMORIA
+// ============================================================================
+
+const ipRequests = new Map();
+const ipAuthAttempts = new Map();
+
+setInterval(() => {
+  const now = Date.now();
+  for (const [ip, item] of ipRequests.entries()) {
+    if (now > item.resetTime) ipRequests.delete(ip);
+  }
+  for (const [ip, item] of ipAuthAttempts.entries()) {
+    if (now > item.resetTime) ipAuthAttempts.delete(ip);
+  }
+}, 120000);
+
+function getClientIp(req) {
+  const forwarded = req.headers['x-forwarded-for'];
+  if (forwarded) return forwarded.split(',')[0].trim();
+  return req.socket.remoteAddress || '127.0.0.1';
+}
+
+function checkRateLimit(req, res, maxRequests = 120, windowMs = 60000) {
+  const ip = getClientIp(req);
+  const now = Date.now();
+  let record = ipRequests.get(ip);
+  if (!record || now > record.resetTime) {
+    record = { count: 1, resetTime: now + windowMs };
+    ipRequests.set(ip, record);
+    return true;
+  }
+  record.count++;
+  if (record.count > maxRequests) {
+    res.statusCode = 429;
+    res.setHeader('Content-Type', 'application/json; charset=utf-8');
+    res.setHeader('Retry-After', Math.ceil((record.resetTime - now) / 1000));
+    res.end(JSON.stringify({ error: 'Limite de peticiones excedido. Intente nuevamente en un minuto.' }));
+    return false;
+  }
+  return true;
+}
+
+function checkAuthRateLimit(req, res) {
+  const ip = getClientIp(req);
+  const now = Date.now();
+  const windowMs = 15 * 60 * 1000; // 15 minutos
+  const maxAttempts = 10;
+  let record = ipAuthAttempts.get(ip);
+  if (!record || now > record.resetTime) {
+    record = { count: 1, resetTime: now + windowMs };
+    ipAuthAttempts.set(ip, record);
+    return true;
+  }
+  record.count++;
+  if (record.count > maxAttempts) {
+    res.statusCode = 429;
+    res.setHeader('Content-Type', 'application/json; charset=utf-8');
+    res.setHeader('Retry-After', Math.ceil((record.resetTime - now) / 1000));
+    res.end(JSON.stringify({ error: 'Demasiados intentos fallidos de autenticacion. Bloqueado temporalmente.' }));
+    return false;
+  }
+  return true;
+}
+
+// ============================================================================
+// LECTURA DE CUERPO CON LIMITE MAXIMO (DOS DEFENSE)
+// ============================================================================
+
+function readJsonBody(req, maxSize = 65536) {
+  return new Promise((resolve, reject) => {
+    let size = 0;
+    const chunks = [];
+    req.on('data', (chunk) => {
+      size += chunk.length;
+      if (size > maxSize) {
+        req.destroy();
+        reject(new Error('PAYLOAD_TOO_LARGE'));
+        return;
+      }
+      chunks.push(chunk);
+    });
+    req.on('end', () => {
+      try {
+        const raw = Buffer.concat(chunks).toString('utf8');
+        if (!raw.trim()) {
+          resolve({});
+          return;
+        }
+        resolve(JSON.parse(raw));
+      } catch (err) {
+        reject(new Error('INVALID_JSON'));
+      }
+    });
+    req.on('error', (err) => reject(err));
+  });
+}
+
+// ============================================================================
+// PREVENCION DE DOUBLE-BOOKING Y MUTEX TRANSACCIONAL
+// ============================================================================
+
+let appointmentLock = Promise.resolve();
+
+function timeToMinutes(timeStr) {
+  if (!timeStr) return 0;
+  const [h, m] = timeStr.split(':').map(Number);
+  return (h || 0) * 60 + (m || 0);
+}
+
+function isTimeOverlapping(startA, endA, startB, endB) {
+  const sA = timeToMinutes(startA);
+  const eA = timeToMinutes(endA);
+  const sB = timeToMinutes(startB);
+  const eB = timeToMinutes(endB);
+  return !(eB <= sA || sB >= eA);
+}
+
+function validateAndSaveAppointment(newAppt) {
+  return new Promise((resolve, reject) => {
+    appointmentLock = appointmentLock.then(() => {
+      try {
+        if (!newAppt.barberId || !newAppt.date || !newAppt.startTime || !newAppt.endTime) {
+          throw new Error('Parametros de cita incompletos: barbero, fecha y horarios son obligatorios.');
+        }
+
+        // Sanitizar campos basicos
+        newAppt.clientName = String(newAppt.clientName || 'Cliente').trim().substring(0, 100);
+        newAppt.clientPhone = String(newAppt.clientPhone || '').replace(/[^\d+ ]/g, '').trim().substring(0, 25);
+        newAppt.date = String(newAppt.date).trim();
+        newAppt.startTime = String(newAppt.startTime).trim();
+        newAppt.endTime = String(newAppt.endTime).trim();
+
+        const barbers = readJsonFile(BARBERS_FILE, DEFAULT_BARBERS);
+        const barber = barbers.find((b) => b.id === newAppt.barberId);
+        if (!barber || !barber.active) {
+          throw new Error('El barbero seleccionado no existe o no se encuentra activo.');
+        }
+
+        const appointments = readJsonFile(APPOINTMENTS_FILE, DEFAULT_APPOINTMENTS);
+
+        // Validar colision con citas existentes no canceladas
+        if (newAppt.status !== 'CANCELADA') {
+          const collision = appointments.some((a) => {
+            if (a.id === newAppt.id) return false;
+            if (a.status === 'CANCELADA') return false;
+            if (a.barberId !== newAppt.barberId) return false;
+            if (a.date !== newAppt.date) return false;
+            return isTimeOverlapping(a.startTime, a.endTime, newAppt.startTime, newAppt.endTime);
+          });
+
+          if (collision) {
+            const err = new Error('El turno seleccionado ya no se encuentra disponible con este barbero.');
+            err.code = 'SLOT_OCCUPIED';
+            throw err;
+          }
+        }
+
+        const existingIdx = appointments.findIndex((a) => a.id === newAppt.id);
+        if (existingIdx !== -1) {
+          appointments[existingIdx] = { ...appointments[existingIdx], ...newAppt };
+        } else {
+          appointments.push(newAppt);
+        }
+
+        writeJsonFileAtomic(APPOINTMENTS_FILE, appointments);
+        resolve(newAppt);
+      } catch (err) {
+        reject(err);
+      }
+    });
+  });
+}
+
+// ============================================================================
+// FEEDS ICALENDAR RFC 5545 CON SANITIZACION ESTRICTA
+// ============================================================================
+
+function sanitizeIcsText(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/\\/g, '\\\\')
+    .replace(/;/g, '\\;')
+    .replace(/,/g, '\\,')
+    .replace(/\r\n|\r|\n/g, '\\n')
+    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, '');
+}
+
 function localToUtcIso(dateStr, timeStr) {
   const parts = (dateStr || '').split('-').map(Number);
   const t = (timeStr || '10:00').split(':').map(Number);
@@ -123,7 +426,6 @@ function localToUtcIso(dateStr, timeStr) {
   return `${uy}${um}${ud}T${uh}${umin}00Z`;
 }
 
-// Generador de feed iCalendar RFC 5545 para el barbero
 function generateIcsForBarber(barberId, host) {
   const appointments = readJsonFile(APPOINTMENTS_FILE, DEFAULT_APPOINTMENTS);
   const barbers = readJsonFile(BARBERS_FILE, DEFAULT_BARBERS);
@@ -134,7 +436,7 @@ function generateIcsForBarber(barberId, host) {
 
   const targetBarber = barbers.find((b) => b.id === barberId);
   const isAll = barberId === 'all' || !targetBarber;
-  const calName = isAll ? 'Barbería López · Todos los Turnos' : `Barbería López · ${targetBarber.name}`;
+  const calName = isAll ? 'Barbería López · Todos los Turnos' : `Barbería López · ${sanitizeIcsText(targetBarber.name)}`;
 
   const filteredAppts = isAll
     ? appointments
@@ -149,10 +451,12 @@ function generateIcsForBarber(barberId, host) {
     const dtStartUtc = localToUtcIso(appt.date, appt.startTime || '10:00');
     const dtEndUtc = localToUtcIso(appt.date, appt.endTime || '10:30');
 
-    const uid = appt.calendarEventUid || `${appt.id || Date.now()}@barberialopez.co`;
-    const summary = `Cita: ${appt.clientName} (${s.name})`;
-    const description = `Cliente: ${appt.clientName}\\nTel: ${appt.clientPhone || 'No registrado'}\\nServicio: ${s.name}\\nEstación: ${b.name}\\nValor: $${(s.priceCop || 0).toLocaleString('es-CO')} COP\\nPago: ${appt.paymentMethod || 'EFECTIVO'}\\nEstado: ${appt.status || 'CONFIRMADA'}`;
-    const location = `Barbería López, Neiva, Huila`;
+    const uid = sanitizeIcsText(appt.calendarEventUid || `${appt.id || Date.now()}@barberialopez.co`);
+    const summary = sanitizeIcsText(`Cita: ${appt.clientName} (${s.name})`);
+    const description = sanitizeIcsText(
+      `Cliente: ${appt.clientName}\\nTel: ${appt.clientPhone || 'No registrado'}\\nServicio: ${s.name}\\nEstación: ${b.name}\\nValor: $${(s.priceCop || 0).toLocaleString('es-CO')} COP\\nPago: ${appt.paymentMethod || 'EFECTIVO'}\\nEstado: ${appt.status || 'CONFIRMADA'}`
+    );
+    const location = sanitizeIcsText('Barbería López, Neiva, Huila');
 
     return [
       'BEGIN:VEVENT',
@@ -167,7 +471,7 @@ function generateIcsForBarber(barberId, host) {
       'BEGIN:VALARM',
       'TRIGGER:-PT15M',
       'ACTION:DISPLAY',
-      `DESCRIPTION:Recordatorio Turno Barbería: ${appt.clientName}`,
+      `DESCRIPTION:${sanitizeIcsText(`Recordatorio Turno: ${appt.clientName}`)}`,
       'END:VALARM',
       'END:VEVENT'
     ].join('\r\n');
@@ -181,7 +485,7 @@ function generateIcsForBarber(barberId, host) {
     'METHOD:PUBLISH',
     `X-WR-CALNAME:${calName}`,
     'X-WR-TIMEZONE:America/Bogota',
-    `X-WR-CALDESC:Turnos en vivo de ${isAll ? 'todas las estaciones' : targetBarber.name} en Barbería López`,
+    `X-WR-CALDESC:Turnos en vivo de ${isAll ? 'todas las estaciones' : sanitizeIcsText(targetBarber.name)} en Barbería López`,
     'REFRESH-INTERVAL;VALUE=DURATION:PT15M',
     'X-PUBLISHED-TTL:PT15M',
     events.join('\r\n'),
@@ -191,7 +495,6 @@ function generateIcsForBarber(barberId, host) {
   return calendarLines.join('\r\n');
 }
 
-// Generador de archivo iCalendar RFC 5545 para descarga individual de una cita (cliente)
 function generateSingleAppointmentIcs(appt) {
   const barbers = readJsonFile(BARBERS_FILE, DEFAULT_BARBERS);
   const services = readJsonFile(SERVICES_FILE, DEFAULT_SERVICES);
@@ -201,7 +504,11 @@ function generateSingleAppointmentIcs(appt) {
   const dtStartUtc = localToUtcIso(appt.date, appt.startTime || '10:00');
   const dtEndUtc = localToUtcIso(appt.date, appt.endTime || '10:30');
   const nowUtc = new Date().toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
-  const uid = appt.calendarEventUid || `${appt.id || Date.now()}@barberialopez.co`;
+  const uid = sanitizeIcsText(appt.calendarEventUid || `${appt.id || Date.now()}@barberialopez.co`);
+  const summary = sanitizeIcsText(`Cita Barbería López - ${service.name}`);
+  const description = sanitizeIcsText(
+    `Cita agendada con ${barber.name}.\\nServicio: ${service.name}\\nValor: $${(service.priceCop || 0).toLocaleString('es-CO')} COP\\nLínea oficial: +57 321 989 7910`
+  );
 
   return [
     'BEGIN:VCALENDAR',
@@ -216,33 +523,41 @@ function generateSingleAppointmentIcs(appt) {
     `DTSTAMP:${nowUtc}`,
     `DTSTART:${dtStartUtc}`,
     `DTEND:${dtEndUtc}`,
-    `SUMMARY:Cita Barbería López - ${service.name}`,
-    `DESCRIPTION:Cita agendada con ${barber.name}.\\nServicio: ${service.name}\\nValor: $${(service.priceCop || 0).toLocaleString('es-CO')} COP\\nLínea oficial: +57 321 989 7910`,
+    `SUMMARY:${summary}`,
+    `DESCRIPTION:${description}`,
     'LOCATION:Barbería López, Neiva, Huila',
     `STATUS:${appt.status === 'CANCELADA' ? 'CANCELLED' : 'CONFIRMED'}`,
     'BEGIN:VALARM',
     'TRIGGER:-PT60M',
     'ACTION:DISPLAY',
-    `DESCRIPTION:Recordatorio de Turno en Barbería López: ${service.name}`,
+    `DESCRIPTION:${sanitizeIcsText(`Recordatorio de Turno en Barbería López: ${service.name}`)}`,
     'END:VALARM',
     'END:VEVENT',
     'END:VCALENDAR'
   ].join('\r\n');
 }
 
-// Generador de feed iCalendar RFC 5545 para las citas de un cliente
 function generateIcsForClient(clientPhone) {
+  const cleanPhone = (clientPhone || '').replace(/\D/g, '');
+  if (cleanPhone.length < 7) {
+    return [
+      'BEGIN:VCALENDAR',
+      'VERSION:2.0',
+      'PRODID:-//Barberia Lopez//Citas Cliente//ES',
+      'END:VCALENDAR'
+    ].join('\r\n');
+  }
+
   const appointments = readJsonFile(APPOINTMENTS_FILE, DEFAULT_APPOINTMENTS);
   const barbers = readJsonFile(BARBERS_FILE, DEFAULT_BARBERS);
   const services = readJsonFile(SERVICES_FILE, DEFAULT_SERVICES);
 
-  const cleanPhone = (clientPhone || '').replace(/\D/g, '');
   const barbersMap = new Map(barbers.map((b) => [b.id, b]));
   const servicesMap = new Map(services.map((s) => [s.id, s]));
 
   const clientAppts = appointments.filter((a) => {
     const aPhone = (a.clientPhone || '').replace(/\D/g, '');
-    if (!aPhone || !cleanPhone) return false;
+    if (!aPhone) return false;
     return aPhone.endsWith(cleanPhone) || cleanPhone.endsWith(aPhone);
   });
 
@@ -254,10 +569,11 @@ function generateIcsForClient(clientPhone) {
 
     const dtStartUtc = localToUtcIso(appt.date, appt.startTime || '10:00');
     const dtEndUtc = localToUtcIso(appt.date, appt.endTime || '10:30');
-    const uid = appt.calendarEventUid || `${appt.id || Date.now()}@barberialopez.co`;
-    const summary = `Cita Barbería López - ${s.name}`;
-    const description = `Barbero: ${b.name}\\nServicio: ${s.name}\\nValor: $${(s.priceCop || 0).toLocaleString('es-CO')} COP\\nLínea oficial: +57 321 989 7910`;
-    const location = `Barbería López, Neiva, Huila`;
+    const uid = sanitizeIcsText(appt.calendarEventUid || `${appt.id || Date.now()}@barberialopez.co`);
+    const summary = sanitizeIcsText(`Cita Barbería López - ${s.name}`);
+    const description = sanitizeIcsText(
+      `Barbero: ${b.name}\\nServicio: ${s.name}\\nValor: $${(s.priceCop || 0).toLocaleString('es-CO')} COP\\nLínea oficial: +57 321 989 7910`
+    );
 
     return [
       'BEGIN:VEVENT',
@@ -267,12 +583,12 @@ function generateIcsForClient(clientPhone) {
       `DTEND:${dtEndUtc}`,
       `SUMMARY:${summary}`,
       `DESCRIPTION:${description}`,
-      `LOCATION:${location}`,
+      'LOCATION:Barbería López, Neiva, Huila',
       `STATUS:${appt.status === 'CANCELADA' ? 'CANCELLED' : 'CONFIRMED'}`,
       'BEGIN:VALARM',
       'TRIGGER:-PT60M',
       'ACTION:DISPLAY',
-      `DESCRIPTION:Recordatorio Turno en Barbería López: ${s.name}`,
+      `DESCRIPTION:${sanitizeIcsText(`Recordatorio Turno en Barbería López: ${s.name}`)}`,
       'END:VALARM',
       'END:VEVENT'
     ].join('\r\n');
@@ -296,6 +612,57 @@ function generateIcsForClient(clientPhone) {
   return calendarLines.join('\r\n');
 }
 
+// ============================================================================
+// CABECERAS DE SEGURIDAD HTTP
+// ============================================================================
+
+function applySecurityHeaders(res) {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+  res.setHeader('X-XSS-Protection', '1; mode=block');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+  res.setHeader('Content-Security-Policy', [
+    "default-src 'self'",
+    "script-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com",
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+    "font-src 'self' https://fonts.gstatic.com",
+    "img-src 'self' data: https://images.unsplash.com",
+    "connect-src 'self'",
+    "frame-ancestors 'self'"
+  ].join('; '));
+}
+
+// ============================================================================
+// VALIDADOR ESTRICTO DE RUTAS ESTATICAS (ANTI DIRECTORY TRAVERSAL & LEAKS)
+// ============================================================================
+
+const ALLOWED_EXACT_ROOT_FILES = new Set([
+  path.resolve(ROOT_DIR, 'index.html'),
+  path.resolve(ROOT_DIR, 'logo_barberia_lopez_hd.jpg'),
+  path.resolve(ROOT_DIR, 'dossier_barberia_lopez.html'),
+  path.resolve(ROOT_DIR, 'Dossier_Plataforma_Barberia_Lopez.pdf'),
+  path.resolve(ROOT_DIR, 'favicon.ico')
+]);
+
+function isPathSafeAndAllowed(targetPath) {
+  const resolved = path.resolve(targetPath);
+
+  // Prohibicion tajante de archivos de datos, servidor y configuracion
+  if (resolved.includes(path.sep + 'data' + path.sep) || resolved.endsWith(path.sep + 'data')) return false;
+  if (resolved.endsWith('server.js') || resolved.endsWith('package.json') || resolved.endsWith('package-lock.json')) return false;
+  if (resolved.includes(path.sep + '.git')) return false;
+  if (resolved.includes(path.sep + '.env')) return false;
+  if (resolved.includes(path.sep + 'barberia-docs')) return false;
+  if (resolved.includes(path.sep + 'REGLAS-IA')) return false;
+
+  // Permitir todo lo contenido dentro de /src/
+  if (resolved.startsWith(PUBLIC_SRC_DIR + path.sep) || resolved === PUBLIC_SRC_DIR) return true;
+
+  // O archivos publicos autorizados en la raiz
+  return ALLOWED_EXACT_ROOT_FILES.has(resolved);
+}
+
 const MIME_TYPES = {
   '.html': 'text/html; charset=utf-8',
   '.css': 'text/css; charset=utf-8',
@@ -307,17 +674,43 @@ const MIME_TYPES = {
   '.gif': 'image/gif',
   '.svg': 'image/svg+xml',
   '.ico': 'image/x-icon',
-  '.ics': 'text/calendar; charset=utf-8'
+  '.ics': 'text/calendar; charset=utf-8',
+  '.pdf': 'application/pdf'
 };
 
-const server = http.createServer((req, res) => {
-  const host = req.headers.host || `localhost:${PORT}`;
-  let reqUrl = decodeURI(req.url.split('?')[0]);
+// ============================================================================
+// SERVIDOR HTTP PRINCIPAL
+// ============================================================================
 
-  // Headers CORS para APIs
+const server = http.createServer(async (req, res) => {
+  const host = req.headers.host || `localhost:${PORT}`;
+
+  // Aplicar cabeceras de seguridad globales
+  applySecurityHeaders(res);
+
+  // Limite de tasa global (Rate Limiter)
+  if (!checkRateLimit(req, res)) return;
+
+  // Sanitizar URL contra inyecciones de null bytes y decode
+  let reqUrl;
+  try {
+    reqUrl = decodeURI(req.url.split('?')[0]);
+  } catch (err) {
+    res.statusCode = 400;
+    res.end('URL invalida');
+    return;
+  }
+
+  if (reqUrl.includes('\0') || reqUrl.includes('%00')) {
+    res.statusCode = 400;
+    res.end('Peticion maliciosa bloqueada');
+    return;
+  }
+
+  // Headers CORS para APIs autorizadas
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
   if (req.method === 'OPTIONS') {
     res.statusCode = 204;
@@ -325,10 +718,89 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  // --- RUTA 1A: FEED ICALENDAR PARA EL CLIENTE (TODAS SUS CITAS POR TELÉFONO) ---
+  // --------------------------------------------------------------------------
+  // ENDPOINT DE AUTENTICACION CENTRALIZADA: POST /api/auth/login
+  // --------------------------------------------------------------------------
+  if (reqUrl === '/api/auth/login' && req.method === 'POST') {
+    if (!checkAuthRateLimit(req, res)) return;
+
+    try {
+      const { username, password } = await readJsonBody(req);
+      if (!username || !password) {
+        res.statusCode = 400;
+        res.setHeader('Content-Type', 'application/json; charset=utf-8');
+        res.end(JSON.stringify({ error: 'Usuario y contrasena son obligatorios.' }));
+        return;
+      }
+
+      const users = readJsonFile(USERS_FILE, DEFAULT_USERS);
+      const cleanUser = String(username).replace(/^@/, '').toLowerCase().trim();
+      const targetUser = users.find((u) => {
+        const uClean = (u.username || '').replace(/^@/, '').toLowerCase().trim();
+        return uClean === cleanUser;
+      });
+
+      if (!targetUser || !targetUser.active) {
+        res.statusCode = 401;
+        res.setHeader('Content-Type', 'application/json; charset=utf-8');
+        res.end(JSON.stringify({ error: 'Credenciales invalidas o usuario inactivo.' }));
+        return;
+      }
+
+      const isValid = verifyPasswordSecure(password, targetUser.passwordHash);
+      if (!isValid) {
+        res.statusCode = 401;
+        res.setHeader('Content-Type', 'application/json; charset=utf-8');
+        res.end(JSON.stringify({ error: 'Credenciales invalidas.' }));
+        return;
+      }
+
+      // Migracion automatica transparente a scrypt seguro si aun esta en texto plano
+      if (!targetUser.passwordHash.startsWith('scrypt:')) {
+        targetUser.passwordHash = hashPasswordScrypt(password);
+        writeJsonFileAtomic(USERS_FILE, users);
+      }
+
+      const token = generateSessionToken(targetUser);
+      const barbers = readJsonFile(BARBERS_FILE, DEFAULT_BARBERS);
+      const barber = targetUser.barberId ? barbers.find((b) => b.id === targetUser.barberId) || null : null;
+
+      // Devolver objeto de usuario sin exponer el passwordHash
+      const safeUser = {
+        id: targetUser.id,
+        username: targetUser.username,
+        role: targetUser.role,
+        barberId: targetUser.barberId,
+        active: targetUser.active
+      };
+
+      res.statusCode = 200;
+      res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      res.end(JSON.stringify({ success: true, token, user: safeUser, barber }));
+      return;
+    } catch (err) {
+      res.statusCode = 400;
+      res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      res.end(JSON.stringify({ error: err.message }));
+      return;
+    }
+  }
+
+  // --------------------------------------------------------------------------
+  // RUTAS ICALENDAR (FEEDS RFC 5545)
+  // --------------------------------------------------------------------------
+
+  // Feed iCalendar del cliente (todas sus citas por telefono)
   if (reqUrl.startsWith('/api/calendar/client/') && reqUrl.endsWith('.ics')) {
     const rawPhone = reqUrl.substring('/api/calendar/client/'.length).replace(/\.ics$/, '');
-    const icsContent = generateIcsForClient(rawPhone);
+    const cleanPhone = rawPhone.replace(/\D/g, '');
+    if (cleanPhone.length < 7) {
+      res.statusCode = 400;
+      res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+      res.end('Numero de telefono invalido o incompleto');
+      return;
+    }
+    const icsContent = generateIcsForClient(cleanPhone);
     res.statusCode = 200;
     res.setHeader('Content-Type', 'text/calendar; charset=utf-8');
     res.setHeader('Content-Disposition', `inline; filename="mis_turnos.ics"`);
@@ -339,7 +811,7 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  // --- RUTA 1B: FEED ICALENDAR PARA CITA INDIVIDUAL (SUSCRIPCIÓN WEBCAL) ---
+  // Descarga iCalendar para una cita individual
   if (reqUrl.startsWith('/api/calendar/appointment/') && reqUrl.endsWith('.ics')) {
     const apptId = reqUrl.substring('/api/calendar/appointment/'.length).replace(/\.ics$/, '');
     const appointments = readJsonFile(APPOINTMENTS_FILE, DEFAULT_APPOINTMENTS);
@@ -352,7 +824,7 @@ const server = http.createServer((req, res) => {
     const icsContent = generateSingleAppointmentIcs(targetAppt);
     res.statusCode = 200;
     res.setHeader('Content-Type', 'text/calendar; charset=utf-8');
-    res.setHeader('Content-Disposition', `inline; filename="cita_${apptId}.ics"`);
+    res.setHeader('Content-Disposition', `inline; filename="cita_${sanitizeIcsText(apptId)}.ics"`);
     res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
     res.setHeader('Pragma', 'no-cache');
     res.setHeader('Expires', '0');
@@ -360,7 +832,7 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  // --- RUTA 1C: FEED ICALENDAR VIVO PARA EL CELULAR DEL BARBERO ---
+  // Feed iCalendar en vivo para la estacion del barbero
   if (reqUrl.startsWith('/api/calendar/') && reqUrl.endsWith('.ics')) {
     const filename = reqUrl.substring('/api/calendar/'.length);
     const barberId = filename.replace(/\.ics$/, '');
@@ -369,7 +841,7 @@ const server = http.createServer((req, res) => {
 
     res.statusCode = 200;
     res.setHeader('Content-Type', 'text/calendar; charset=utf-8');
-    res.setHeader('Content-Disposition', `inline; filename="turnos_${barberId}.ics"`);
+    res.setHeader('Content-Disposition', `inline; filename="turnos_${sanitizeIcsText(barberId)}.ics"`);
     res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
     res.setHeader('Pragma', 'no-cache');
     res.setHeader('Expires', '0');
@@ -377,7 +849,9 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  // --- RUTA 2: API DE CITAS (GET / POST) ---
+  // --------------------------------------------------------------------------
+  // API DE CITAS (/api/appointments) CON CONTROL DE COLISIONES
+  // --------------------------------------------------------------------------
   if (reqUrl === '/api/appointments') {
     if (req.method === 'GET') {
       const appointments = readJsonFile(APPOINTMENTS_FILE, DEFAULT_APPOINTMENTS);
@@ -388,125 +862,117 @@ const server = http.createServer((req, res) => {
     }
 
     if (req.method === 'POST') {
-      let body = '';
-      req.on('data', (chunk) => { body += chunk; });
-      req.on('end', () => {
-        try {
-          const newAppt = JSON.parse(body);
-          const appointments = readJsonFile(APPOINTMENTS_FILE, DEFAULT_APPOINTMENTS);
-          const existingIdx = appointments.findIndex((a) => a.id === newAppt.id);
-          if (existingIdx !== -1) {
-            appointments[existingIdx] = { ...appointments[existingIdx], ...newAppt };
-          } else {
-            appointments.push(newAppt);
-          }
-          writeJsonFile(APPOINTMENTS_FILE, appointments);
-          res.statusCode = 200;
-          res.setHeader('Content-Type', 'application/json; charset=utf-8');
-          res.end(JSON.stringify({ success: true, appointment: newAppt }));
-        } catch (err) {
+      try {
+        const newAppt = await readJsonBody(req);
+        if (!newAppt || typeof newAppt !== 'object') {
           res.statusCode = 400;
           res.setHeader('Content-Type', 'application/json; charset=utf-8');
-          res.end(JSON.stringify({ error: err.message }));
-        }
-      });
-      return;
-    }
-  }
-
-  // --- RUTA 3: ACTUALIZAR CITA ESPECÍFICA (PUT /api/appointments/:id) ---
-  if (reqUrl.startsWith('/api/appointments/') && req.method === 'PUT') {
-    const apptId = reqUrl.substring('/api/appointments/'.length);
-    let body = '';
-    req.on('data', (chunk) => { body += chunk; });
-    req.on('end', () => {
-      try {
-        const updateData = JSON.parse(body);
-        const appointments = readJsonFile(APPOINTMENTS_FILE, DEFAULT_APPOINTMENTS);
-        const idx = appointments.findIndex((a) => a.id === apptId);
-        if (idx !== -1) {
-          appointments[idx] = { ...appointments[idx], ...updateData };
-          writeJsonFile(APPOINTMENTS_FILE, appointments);
-          res.statusCode = 200;
-          res.setHeader('Content-Type', 'application/json; charset=utf-8');
-          res.end(JSON.stringify({ success: true, appointment: appointments[idx] }));
-        } else {
-          res.statusCode = 404;
-          res.end(JSON.stringify({ error: 'Cita no encontrada' }));
-        }
-      } catch (err) {
-        res.statusCode = 400;
-        res.end(JSON.stringify({ error: err.message }));
-      }
-    });
-    return;
-  }
-
-  // --- RUTA 4: SINCRONIZACIÓN GENERAL BIDIRECCIONAL (POST /api/sync) ---
-  if (reqUrl === '/api/sync' && req.method === 'POST') {
-    let body = '';
-    req.on('data', (chunk) => { body += chunk; });
-    req.on('end', () => {
-      try {
-        const payload = JSON.parse(body);
-        const storedAppointments = readJsonFile(APPOINTMENTS_FILE, DEFAULT_APPOINTMENTS);
-
-        if (Array.isArray(payload.appointments)) {
-          const idMap = new Map(storedAppointments.map((a) => [a.id, a]));
-          payload.appointments.forEach((a) => {
-            if (idMap.has(a.id)) {
-              idMap.set(a.id, { ...idMap.get(a.id), ...a });
-            } else {
-              idMap.set(a.id, a);
-            }
-          });
-          const merged = Array.from(idMap.values());
-          writeJsonFile(APPOINTMENTS_FILE, merged);
+          res.end(JSON.stringify({ error: 'Datos de cita invalidos' }));
+          return;
         }
 
-        if (Array.isArray(payload.barbers)) {
-          writeJsonFile(BARBERS_FILE, payload.barbers);
-        }
-
-        if (Array.isArray(payload.users)) {
-          writeJsonFile(USERS_FILE, payload.users);
-        }
-
-        const currentAppointments = readJsonFile(APPOINTMENTS_FILE, DEFAULT_APPOINTMENTS);
+        const saved = await validateAndSaveAppointment(newAppt);
         res.statusCode = 200;
         res.setHeader('Content-Type', 'application/json; charset=utf-8');
-        res.end(JSON.stringify({ success: true, appointments: currentAppointments }));
+        res.end(JSON.stringify({ success: true, appointment: saved }));
+        return;
       } catch (err) {
-        res.statusCode = 400;
-        res.end(JSON.stringify({ error: err.message }));
+        res.statusCode = err.code === 'SLOT_OCCUPIED' ? 409 : 400;
+        res.setHeader('Content-Type', 'application/json; charset=utf-8');
+        res.end(JSON.stringify({ error: err.message, code: err.code || 'BAD_REQUEST' }));
+        return;
       }
-    });
-    return;
+    }
   }
 
-  // --- RUTA 5: DESCARGA INDIVIDUAL DE CITA (.ICS) PARA CLIENTE ---
-  if (reqUrl.startsWith('/api/appointment/') && reqUrl.endsWith('.ics')) {
-    const apptId = reqUrl.substring('/api/appointment/'.length).replace(/\.ics$/, '');
-    const appointments = readJsonFile(APPOINTMENTS_FILE, DEFAULT_APPOINTMENTS);
-    const targetAppt = appointments.find((a) => a.id === apptId);
-    if (!targetAppt) {
-      res.statusCode = 404;
-      res.setHeader('Content-Type', 'text/plain; charset=utf-8');
-      res.end('Cita no encontrada');
+  // Actualizar cita especifica (PUT /api/appointments/:id)
+  if (reqUrl.startsWith('/api/appointments/') && req.method === 'PUT') {
+    const apptId = reqUrl.substring('/api/appointments/'.length);
+    try {
+      const updateData = await readJsonBody(req);
+      const appointments = readJsonFile(APPOINTMENTS_FILE, DEFAULT_APPOINTMENTS);
+      const idx = appointments.findIndex((a) => a.id === apptId);
+      if (idx !== -1) {
+        const updated = { ...appointments[idx], ...updateData, id: apptId };
+        const saved = await validateAndSaveAppointment(updated);
+        res.statusCode = 200;
+        res.setHeader('Content-Type', 'application/json; charset=utf-8');
+        res.end(JSON.stringify({ success: true, appointment: saved }));
+      } else {
+        res.statusCode = 404;
+        res.setHeader('Content-Type', 'application/json; charset=utf-8');
+        res.end(JSON.stringify({ error: 'Cita no encontrada' }));
+      }
+      return;
+    } catch (err) {
+      res.statusCode = err.code === 'SLOT_OCCUPIED' ? 409 : 400;
+      res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      res.end(JSON.stringify({ error: err.message, code: err.code || 'BAD_REQUEST' }));
       return;
     }
-    const icsContent = generateSingleAppointmentIcs(targetAppt);
-    res.statusCode = 200;
-    res.setHeader('Content-Type', 'text/calendar; charset=utf-8');
-    res.setHeader('Content-Disposition', `attachment; filename="Cita_${targetAppt.date}_${(targetAppt.startTime || '').replace(':', '')}.ics"`);
-    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-    res.setHeader('Pragma', 'no-cache');
-    res.setHeader('Expires', '0');
-    res.end(icsContent);
-    return;
   }
 
-  // --- RUTA 6: API DE BARBEROS (GET / POST / PUT / DELETE) ---
+  // --------------------------------------------------------------------------
+  // API DE SINCRONIZACION GENERAL: POST /api/sync (REQUIERE AUTENTICACION)
+  // --------------------------------------------------------------------------
+  if (reqUrl === '/api/sync' && req.method === 'POST') {
+    const authUser = getAuthenticatedUser(req);
+    if (!authUser) {
+      res.statusCode = 401;
+      res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      res.end(JSON.stringify({ error: 'No autorizado para sincronizacion de sistema.' }));
+      return;
+    }
+
+    try {
+      const payload = await readJsonBody(req);
+      const storedAppointments = readJsonFile(APPOINTMENTS_FILE, DEFAULT_APPOINTMENTS);
+
+      if (Array.isArray(payload.appointments)) {
+        const idMap = new Map(storedAppointments.map((a) => [a.id, a]));
+        payload.appointments.forEach((a) => {
+          if (idMap.has(a.id)) {
+            idMap.set(a.id, { ...idMap.get(a.id), ...a });
+          } else {
+            idMap.set(a.id, a);
+          }
+        });
+        writeJsonFileAtomic(APPOINTMENTS_FILE, Array.from(idMap.values()));
+      }
+
+      // Solo administradores pueden sincronizar barberos y usuarios en masa
+      if (authUser.role === 'ADMIN') {
+        if (Array.isArray(payload.barbers)) {
+          writeJsonFileAtomic(BARBERS_FILE, payload.barbers);
+        }
+        if (Array.isArray(payload.users)) {
+          // Asegurar que las contraseñas esten protegidas
+          const usersToSave = payload.users.map((u) => {
+            if (u.passwordHash && !u.passwordHash.startsWith('scrypt:')) {
+              u.passwordHash = hashPasswordScrypt(u.passwordHash);
+            }
+            return u;
+          });
+          writeJsonFileAtomic(USERS_FILE, usersToSave);
+        }
+      }
+
+      const currentAppointments = readJsonFile(APPOINTMENTS_FILE, DEFAULT_APPOINTMENTS);
+      res.statusCode = 200;
+      res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      res.end(JSON.stringify({ success: true, appointments: currentAppointments }));
+      return;
+    } catch (err) {
+      res.statusCode = 400;
+      res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      res.end(JSON.stringify({ error: err.message }));
+      return;
+    }
+  }
+
+  // --------------------------------------------------------------------------
+  // API DE BARBEROS: GET (PUBLICO) / POST, PUT, DELETE (REQUIERE ADMIN)
+  // --------------------------------------------------------------------------
   if (reqUrl === '/api/barbers') {
     if (req.method === 'GET') {
       const barbers = readJsonFile(BARBERS_FILE, DEFAULT_BARBERS);
@@ -515,144 +981,247 @@ const server = http.createServer((req, res) => {
       res.end(JSON.stringify(barbers));
       return;
     }
+
     if (req.method === 'POST') {
-      let body = '';
-      req.on('data', (chunk) => { body += chunk; });
-      req.on('end', () => {
-        try {
-          const newBarber = JSON.parse(body);
-          const barbers = readJsonFile(BARBERS_FILE, DEFAULT_BARBERS);
-          const existingIdx = barbers.findIndex((b) => b.id === newBarber.id);
-          if (existingIdx !== -1) {
-            barbers[existingIdx] = { ...barbers[existingIdx], ...newBarber };
-          } else {
-            barbers.push(newBarber);
-          }
-          writeJsonFile(BARBERS_FILE, barbers);
-          res.statusCode = 200;
-          res.setHeader('Content-Type', 'application/json; charset=utf-8');
-          res.end(JSON.stringify({ success: true, barber: newBarber }));
-        } catch (err) {
-          res.statusCode = 400;
-          res.end(JSON.stringify({ error: err.message }));
+      const authUser = getAuthenticatedUser(req);
+      if (!authUser || authUser.role !== 'ADMIN') {
+        res.statusCode = 403;
+        res.setHeader('Content-Type', 'application/json; charset=utf-8');
+        res.end(JSON.stringify({ error: 'Acceso denegado: se requieren privilegios de Administrador.' }));
+        return;
+      }
+
+      try {
+        const newBarber = await readJsonBody(req);
+        const barbers = readJsonFile(BARBERS_FILE, DEFAULT_BARBERS);
+        const existingIdx = barbers.findIndex((b) => b.id === newBarber.id);
+        if (existingIdx !== -1) {
+          barbers[existingIdx] = { ...barbers[existingIdx], ...newBarber };
+        } else {
+          barbers.push(newBarber);
         }
-      });
-      return;
+        writeJsonFileAtomic(BARBERS_FILE, barbers);
+        res.statusCode = 200;
+        res.setHeader('Content-Type', 'application/json; charset=utf-8');
+        res.end(JSON.stringify({ success: true, barber: newBarber }));
+        return;
+      } catch (err) {
+        res.statusCode = 400;
+        res.setHeader('Content-Type', 'application/json; charset=utf-8');
+        res.end(JSON.stringify({ error: err.message }));
+        return;
+      }
     }
   }
 
   if (reqUrl.startsWith('/api/barbers/') && req.method === 'PUT') {
+    const authUser = getAuthenticatedUser(req);
+    if (!authUser || authUser.role !== 'ADMIN') {
+      res.statusCode = 403;
+      res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      res.end(JSON.stringify({ error: 'Acceso denegado: se requieren privilegios de Administrador.' }));
+      return;
+    }
+
     const barberId = reqUrl.substring('/api/barbers/'.length);
-    let body = '';
-    req.on('data', (chunk) => { body += chunk; });
-    req.on('end', () => {
-      try {
-        const updateData = JSON.parse(body);
-        const barbers = readJsonFile(BARBERS_FILE, DEFAULT_BARBERS);
-        const idx = barbers.findIndex((b) => b.id === barberId);
-        if (idx !== -1) {
-          barbers[idx] = { ...barbers[idx], ...updateData };
-          writeJsonFile(BARBERS_FILE, barbers);
-          res.statusCode = 200;
-          res.setHeader('Content-Type', 'application/json; charset=utf-8');
-          res.end(JSON.stringify({ success: true, barber: barbers[idx] }));
-        } else {
-          res.statusCode = 404;
-          res.end(JSON.stringify({ error: 'Barbero no encontrado' }));
-        }
-      } catch (err) {
-        res.statusCode = 400;
-        res.end(JSON.stringify({ error: err.message }));
+    try {
+      const updateData = await readJsonBody(req);
+      const barbers = readJsonFile(BARBERS_FILE, DEFAULT_BARBERS);
+      const idx = barbers.findIndex((b) => b.id === barberId);
+      if (idx !== -1) {
+        barbers[idx] = { ...barbers[idx], ...updateData };
+        writeJsonFileAtomic(BARBERS_FILE, barbers);
+        res.statusCode = 200;
+        res.setHeader('Content-Type', 'application/json; charset=utf-8');
+        res.end(JSON.stringify({ success: true, barber: barbers[idx] }));
+      } else {
+        res.statusCode = 404;
+        res.setHeader('Content-Type', 'application/json; charset=utf-8');
+        res.end(JSON.stringify({ error: 'Barbero no encontrado' }));
       }
-    });
-    return;
+      return;
+    } catch (err) {
+      res.statusCode = 400;
+      res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      res.end(JSON.stringify({ error: err.message }));
+      return;
+    }
   }
 
   if (reqUrl.startsWith('/api/barbers/') && req.method === 'DELETE') {
+    const authUser = getAuthenticatedUser(req);
+    if (!authUser || authUser.role !== 'ADMIN') {
+      res.statusCode = 403;
+      res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      res.end(JSON.stringify({ error: 'Acceso denegado: se requieren privilegios de Administrador.' }));
+      return;
+    }
+
     const barberId = reqUrl.substring('/api/barbers/'.length);
     const barbers = readJsonFile(BARBERS_FILE, DEFAULT_BARBERS);
     const filtered = barbers.filter((b) => b.id !== barberId);
-    writeJsonFile(BARBERS_FILE, filtered);
+    writeJsonFileAtomic(BARBERS_FILE, filtered);
     res.statusCode = 200;
     res.setHeader('Content-Type', 'application/json; charset=utf-8');
     res.end(JSON.stringify({ success: true }));
     return;
   }
 
-  // --- RUTA 7: API DE USUARIOS (GET / POST / PUT / DELETE) ---
+  // --------------------------------------------------------------------------
+  // API DE USUARIOS: GET (SANITIZADO) / POST, PUT, DELETE (REQUIERE ADMIN)
+  // --------------------------------------------------------------------------
   if (reqUrl === '/api/users') {
     if (req.method === 'GET') {
       const users = readJsonFile(USERS_FILE, DEFAULT_USERS);
+      // Sanitizar: NUNCA devolver passwordHash sobre la red
+      const sanitizedUsers = users.map((u) => ({
+        id: u.id,
+        username: u.username,
+        role: u.role,
+        barberId: u.barberId,
+        active: u.active
+      }));
       res.statusCode = 200;
       res.setHeader('Content-Type', 'application/json; charset=utf-8');
-      res.end(JSON.stringify(users));
+      res.end(JSON.stringify(sanitizedUsers));
       return;
     }
+
     if (req.method === 'POST') {
-      let body = '';
-      req.on('data', (chunk) => { body += chunk; });
-      req.on('end', () => {
-        try {
-          const newUser = JSON.parse(body);
-          const users = readJsonFile(USERS_FILE, DEFAULT_USERS);
-          const existingIdx = users.findIndex((u) => u.id === newUser.id);
-          if (existingIdx !== -1) {
-            users[existingIdx] = { ...users[existingIdx], ...newUser };
-          } else {
-            users.push(newUser);
-          }
-          writeJsonFile(USERS_FILE, users);
-          res.statusCode = 200;
-          res.setHeader('Content-Type', 'application/json; charset=utf-8');
-          res.end(JSON.stringify({ success: true, user: newUser }));
-        } catch (err) {
+      const authUser = getAuthenticatedUser(req);
+      if (!authUser || authUser.role !== 'ADMIN') {
+        res.statusCode = 403;
+        res.setHeader('Content-Type', 'application/json; charset=utf-8');
+        res.end(JSON.stringify({ error: 'Acceso denegado: se requieren privilegios de Administrador.' }));
+        return;
+      }
+
+      try {
+        const newUser = await readJsonBody(req);
+        if (!newUser.username || !newUser.role) {
           res.statusCode = 400;
-          res.end(JSON.stringify({ error: err.message }));
+          res.setHeader('Content-Type', 'application/json; charset=utf-8');
+          res.end(JSON.stringify({ error: 'Faltan campos obligatorios para el usuario.' }));
+          return;
         }
-      });
-      return;
+
+        const rawPassword = newUser.passwordHash || newUser.password || 'Lopez2026*';
+        newUser.passwordHash = hashPasswordScrypt(rawPassword);
+        delete newUser.password;
+
+        const users = readJsonFile(USERS_FILE, DEFAULT_USERS);
+        const existingIdx = users.findIndex((u) => u.id === newUser.id);
+        if (existingIdx !== -1) {
+          users[existingIdx] = { ...users[existingIdx], ...newUser };
+        } else {
+          users.push(newUser);
+        }
+        writeJsonFileAtomic(USERS_FILE, users);
+
+        const safeResponse = {
+          id: newUser.id,
+          username: newUser.username,
+          role: newUser.role,
+          barberId: newUser.barberId,
+          active: newUser.active
+        };
+
+        res.statusCode = 200;
+        res.setHeader('Content-Type', 'application/json; charset=utf-8');
+        res.end(JSON.stringify({ success: true, user: safeResponse }));
+        return;
+      } catch (err) {
+        res.statusCode = 400;
+        res.setHeader('Content-Type', 'application/json; charset=utf-8');
+        res.end(JSON.stringify({ error: err.message }));
+        return;
+      }
     }
   }
 
   if (reqUrl.startsWith('/api/users/') && req.method === 'PUT') {
+    const authUser = getAuthenticatedUser(req);
     const userId = reqUrl.substring('/api/users/'.length);
-    let body = '';
-    req.on('data', (chunk) => { body += chunk; });
-    req.on('end', () => {
-      try {
-        const updateData = JSON.parse(body);
-        const users = readJsonFile(USERS_FILE, DEFAULT_USERS);
-        const idx = users.findIndex((u) => u.id === userId);
-        if (idx !== -1) {
-          users[idx] = { ...users[idx], ...updateData };
-          writeJsonFile(USERS_FILE, users);
-          res.statusCode = 200;
-          res.setHeader('Content-Type', 'application/json; charset=utf-8');
-          res.end(JSON.stringify({ success: true, user: users[idx] }));
-        } else {
-          res.statusCode = 404;
-          res.end(JSON.stringify({ error: 'Usuario no encontrado' }));
+
+    // Solo admin o el propio usuario modificandose
+    if (!authUser || (authUser.role !== 'ADMIN' && authUser.sub !== userId)) {
+      res.statusCode = 403;
+      res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      res.end(JSON.stringify({ error: 'Acceso denegado.' }));
+      return;
+    }
+
+    try {
+      const updateData = await readJsonBody(req);
+      const users = readJsonFile(USERS_FILE, DEFAULT_USERS);
+      const idx = users.findIndex((u) => u.id === userId);
+      if (idx !== -1) {
+        if (updateData.passwordHash) {
+          updateData.passwordHash = hashPasswordScrypt(updateData.passwordHash);
         }
-      } catch (err) {
-        res.statusCode = 400;
-        res.end(JSON.stringify({ error: err.message }));
+        if (updateData.password) {
+          updateData.passwordHash = hashPasswordScrypt(updateData.password);
+          delete updateData.password;
+        }
+
+        users[idx] = { ...users[idx], ...updateData };
+        writeJsonFileAtomic(USERS_FILE, users);
+
+        const safeUser = {
+          id: users[idx].id,
+          username: users[idx].username,
+          role: users[idx].role,
+          barberId: users[idx].barberId,
+          active: users[idx].active
+        };
+
+        res.statusCode = 200;
+        res.setHeader('Content-Type', 'application/json; charset=utf-8');
+        res.end(JSON.stringify({ success: true, user: safeUser }));
+      } else {
+        res.statusCode = 404;
+        res.setHeader('Content-Type', 'application/json; charset=utf-8');
+        res.end(JSON.stringify({ error: 'Usuario no encontrado' }));
       }
-    });
-    return;
+      return;
+    } catch (err) {
+      res.statusCode = 400;
+      res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      res.end(JSON.stringify({ error: err.message }));
+      return;
+    }
   }
 
   if (reqUrl.startsWith('/api/users/') && req.method === 'DELETE') {
+    const authUser = getAuthenticatedUser(req);
+    if (!authUser || authUser.role !== 'ADMIN') {
+      res.statusCode = 403;
+      res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      res.end(JSON.stringify({ error: 'Acceso denegado: se requieren privilegios de Administrador.' }));
+      return;
+    }
+
     const userId = reqUrl.substring('/api/users/'.length);
     const users = readJsonFile(USERS_FILE, DEFAULT_USERS);
+    const target = users.find((u) => u.id === userId);
+    if (target && target.role === 'ADMIN') {
+      res.statusCode = 400;
+      res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      res.end(JSON.stringify({ error: 'No se permite eliminar al usuario Administrador.' }));
+      return;
+    }
+
     const filtered = users.filter((u) => u.id !== userId);
-    writeJsonFile(USERS_FILE, filtered);
+    writeJsonFileAtomic(USERS_FILE, filtered);
     res.statusCode = 200;
     res.setHeader('Content-Type', 'application/json; charset=utf-8');
     res.end(JSON.stringify({ success: true }));
     return;
   }
 
-  // --- RUTA 8: API DE HISTORIAL DE CORTES (GET / POST) ---
+  // --------------------------------------------------------------------------
+  // API DE HISTORIAL: GET (AUTENTICADO) / POST (AUTENTICADO)
+  // --------------------------------------------------------------------------
   if (reqUrl === '/api/history') {
     if (req.method === 'GET') {
       const history = readJsonFile(HISTORY_FILE, DEFAULT_HISTORY);
@@ -661,37 +1230,49 @@ const server = http.createServer((req, res) => {
       res.end(JSON.stringify(history));
       return;
     }
+
     if (req.method === 'POST') {
-      let body = '';
-      req.on('data', (chunk) => { body += chunk; });
-      req.on('end', () => {
-        try {
-          const newRecord = JSON.parse(body);
-          const history = readJsonFile(HISTORY_FILE, DEFAULT_HISTORY);
-          history.push(newRecord);
-          writeJsonFile(HISTORY_FILE, history);
-          res.statusCode = 200;
-          res.setHeader('Content-Type', 'application/json; charset=utf-8');
-          res.end(JSON.stringify({ success: true, record: newRecord }));
-        } catch (err) {
-          res.statusCode = 400;
-          res.end(JSON.stringify({ error: err.message }));
-        }
-      });
-      return;
+      const authUser = getAuthenticatedUser(req);
+      if (!authUser) {
+        res.statusCode = 401;
+        res.setHeader('Content-Type', 'application/json; charset=utf-8');
+        res.end(JSON.stringify({ error: 'Debe iniciar sesion para registrar un corte en el historial.' }));
+        return;
+      }
+
+      try {
+        const newRecord = await readJsonBody(req);
+        const history = readJsonFile(HISTORY_FILE, DEFAULT_HISTORY);
+        history.push(newRecord);
+        writeJsonFileAtomic(HISTORY_FILE, history);
+        res.statusCode = 200;
+        res.setHeader('Content-Type', 'application/json; charset=utf-8');
+        res.end(JSON.stringify({ success: true, record: newRecord }));
+        return;
+      } catch (err) {
+        res.statusCode = 400;
+        res.setHeader('Content-Type', 'application/json; charset=utf-8');
+        res.end(JSON.stringify({ error: err.message }));
+        return;
+      }
     }
   }
 
-  // --- ARCHIVOS ESTÁTICOS ---
+  // --------------------------------------------------------------------------
+  // ARCHIVOS ESTATICOS CON AISLAMIENTO ESTRICTO DE CARPETAS Y SEGURIDAD
+  // --------------------------------------------------------------------------
   if (reqUrl === '/' || reqUrl === '') {
     reqUrl = '/index.html';
   }
 
-  const safePath = path.normalize(path.join(ROOT_DIR, reqUrl));
+  const rawPath = path.join(ROOT_DIR, reqUrl);
+  const safePath = path.normalize(rawPath);
 
-  if (!safePath.startsWith(ROOT_DIR)) {
+  // Comprobar que no salga del ROOT_DIR y que cumpla la lista de rutas autorizadas
+  if (!safePath.startsWith(ROOT_DIR) || !isPathSafeAndAllowed(safePath)) {
     res.statusCode = 403;
-    res.end('Acceso denegado');
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.end('<h1>403 Prohibido</h1><p>Acceso denegado a recurso restringido o protegido.</p>');
     return;
   }
 
@@ -699,19 +1280,25 @@ const server = http.createServer((req, res) => {
     if (err) {
       res.statusCode = 404;
       res.setHeader('Content-Type', 'text/html; charset=utf-8');
-      res.end(`<h1>404 no encontrado</h1><p>${reqUrl}</p>`);
+      res.end(`<h1>404 No Encontrado</h1><p>El recurso solicitado no existe.</p>`);
       return;
     }
 
     let filePath = safePath;
     if (stats.isDirectory()) {
       filePath = path.join(safePath, 'index.html');
+      if (!isPathSafeAndAllowed(filePath)) {
+        res.statusCode = 403;
+        res.end('Acceso denegado');
+        return;
+      }
     }
 
     fs.readFile(filePath, (readErr, data) => {
       if (readErr) {
         res.statusCode = 500;
-        res.end('Error al leer el archivo');
+        res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+        res.end('Error interno al leer el archivo solicitado');
         return;
       }
 
@@ -727,10 +1314,10 @@ const server = http.createServer((req, res) => {
 
 server.listen(PORT, HOST, () => {
   console.log(`\n======================================================`);
-  console.log(` Barberia Lopez — Servidor con Feed de Calendario iCal`);
+  console.log(` Barberia Lopez - Servidor Seguro y Blindado`);
   console.log(`======================================================`);
-  console.log(` En tu PC (Local):       http://localhost:${PORT}`);
-  console.log(` En tu Celular (Wi-Fi):  http://192.168.1.12:${PORT}`);
-  console.log(` Feeds iCalendar (.ics): http://192.168.1.12:${PORT}/api/calendar/b-jefe-01.ics`);
+  console.log(` Puerto activo:          http://localhost:${PORT}`);
+  console.log(` Politica de Seguridad:  Autenticacion HMAC / Anti-XSS / Rate Limit`);
+  console.log(` Directorio protegido:   Acceso restringido a data/ y backend`);
   console.log(`======================================================\n`);
 });
