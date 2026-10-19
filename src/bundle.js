@@ -250,7 +250,7 @@
       id: 's-02',
       name: 'Combo 1',
       category: 'Corte + Barba',
-      durationMinutes: 45,
+      durationMinutes: 30,
       priceCop: 25000,
       description: 'Corte de cabello completo + perfilado de barba sencilla con vapor y aftershave.',
       active: true
@@ -259,7 +259,7 @@
       id: 's-03',
       name: 'Combo 2',
       category: 'Corte + Barba + Cejas',
-      durationMinutes: 50,
+      durationMinutes: 30,
       priceCop: 35000,
       description: 'Corte de cabello + ritual de barba con toalla caliente + perfilado de cejas.',
       active: true
@@ -268,7 +268,7 @@
       id: 's-04',
       name: 'Combo 3',
       category: 'Ritual Facial',
-      durationMinutes: 60,
+      durationMinutes: 30,
       priceCop: 40000,
       description: 'Corte + barba completa + limpieza facial con mascarilla de carbón activado.',
       active: true
@@ -277,7 +277,7 @@
       id: 's-05',
       name: 'Combi Completa VIP',
       category: 'Experiencia Integral',
-      durationMinutes: 75,
+      durationMinutes: 30,
       priceCop: 65000,
       description: 'Servicio integral VIP: corte + barba spa + mascarilla hidratante + pigmentación.',
       active: true
@@ -295,7 +295,7 @@
       id: 's-07',
       name: 'Pigmentación Manual',
       category: 'Acabado Artesanal',
-      durationMinutes: 35,
+      durationMinutes: 30,
       priceCop: 22000,
       description: 'Pigmentación artesanal detallada para mayor densidad y fijación en barba o contornos.',
       active: true
@@ -375,13 +375,11 @@
     }
 
     _initializeStorage() {
-      // Limpieza automática de datos de prueba previos para despliegue en producción
-      const CLEAN_DEPLOY_VERSION = 'v1_production_clean';
+      // Actualización automática del catálogo de servicios (30 min) para producción
+      const CLEAN_DEPLOY_VERSION = 'v2_production_30min';
       try {
         if (localStorage.getItem('blopez_clean_version') !== CLEAN_DEPLOY_VERSION) {
-          localStorage.removeItem('blopez_appointments');
-          localStorage.removeItem('blopez_history');
-          localStorage.removeItem('blopez_last_phone');
+          localStorage.setItem('blopez_services', JSON.stringify(SEED_SERVICES));
           localStorage.setItem('blopez_clean_version', CLEAN_DEPLOY_VERSION);
         }
       } catch (e) {}
@@ -397,11 +395,17 @@
 
     _ensureKey(key, seed) {
       try {
-        if (!localStorage.getItem(key)) {
+        const raw = localStorage.getItem(key);
+        let parsed = null;
+        if (raw) {
+          try { parsed = JSON.parse(raw); } catch (e) { parsed = null; }
+        }
+        const needsSeed = !Array.isArray(parsed) || (seed.length > 0 && parsed.length === 0);
+        if (needsSeed) {
           localStorage.setItem(key, JSON.stringify(seed));
         }
       } catch (e) {
-        if (!this.memStore[key]) {
+        if (!this.memStore[key] || (seed.length > 0 && this.memStore[key].length === 0)) {
           this.memStore[key] = JSON.parse(JSON.stringify(seed));
         }
       }
@@ -644,8 +648,33 @@
       return true;
     }
 
-    async findServiceById(id) { return this._get('blopez_services').find((s) => s.id === id) || null; }
-    async findAllServices() { return this._get('blopez_services'); }
+    async findServiceById(id) {
+      const list = await this.findAllServices();
+      if (id) {
+        const found = list.find((s) => s.id === id);
+        if (found) return found;
+      }
+      return list[0] || SEED_SERVICES[0] || null;
+    }
+
+    async findAllServices() {
+      try {
+        const res = await fetch('/api/services');
+        if (res.ok) {
+          const serverServices = await res.json();
+          if (Array.isArray(serverServices) && serverServices.length > 0) {
+            this._set('blopez_services', serverServices);
+            return serverServices;
+          }
+        }
+      } catch (e) {}
+      const cached = this._get('blopez_services');
+      if (Array.isArray(cached) && cached.length > 0) {
+        return cached;
+      }
+      this._set('blopez_services', SEED_SERVICES);
+      return SEED_SERVICES;
+    }
     async findAppointmentById(id) { return this._get('blopez_appointments').find((a) => a.id === id) || null; }
     async findAppointmentsByDate(date) {
       const all = await this.findAllAppointments();
@@ -1169,8 +1198,10 @@
 
   // --- HELPERS PARA CALENDARIO INTERACTIVO (JOSH WARNER STYLE) ---
   const TIME_SLOTS = [
-    '09:00', '09:45', '10:30', '11:15', '12:00',
-    '14:00', '14:45', '15:30', '16:15', '17:00', '17:45', '18:30'
+    '08:00', '08:30', '09:00', '09:30', '10:00', '10:30', '11:00', '11:30',
+    '12:00', '12:30', '13:00', '13:30', '14:00', '14:30', '15:00', '15:30',
+    '16:00', '16:30', '17:00', '17:30', '18:00', '18:30', '19:00', '19:30',
+    '20:00', '20:30', '21:00', '21:30'
   ];
 
   const MONTH_NAMES = [
@@ -1632,7 +1663,7 @@
               </div>
               <div class="flex items-center justify-between pt-4 mt-4 border-t border-[#d4af37]/20">
                 <span class="font-mono-tech text-[20px] font-bold text-[#d4af37]">$25.000 COP</span>
-                <span class="font-sans-ui text-xs text-[#a39578]">45 MINUTOS</span>
+                <span class="font-sans-ui text-xs text-[#a39578]">30 MINUTOS</span>
               </div>
             </div>
 
@@ -1647,7 +1678,7 @@
               </div>
               <div class="flex items-center justify-between pt-4 mt-4 border-t border-[#d4af37]/20">
                 <span class="font-mono-tech text-[20px] font-bold text-[#d4af37]">$18.000 COP</span>
-                <span class="font-sans-ui text-xs text-[#a39578]">35 MINUTOS</span>
+                <span class="font-sans-ui text-xs text-[#a39578]">30 MINUTOS</span>
               </div>
             </div>
 
@@ -1662,7 +1693,7 @@
               </div>
               <div class="flex items-center justify-between pt-4 mt-4 border-t border-[#d4af37]/20">
                 <span class="font-mono-tech text-[20px] font-bold text-[#d4af37]">$40.000 COP</span>
-                <span class="font-sans-ui text-xs text-[#a39578]">75 MINUTOS</span>
+                <span class="font-sans-ui text-xs text-[#a39578]">30 MINUTOS</span>
               </div>
             </div>
 
@@ -2926,8 +2957,8 @@
             <div>
               <label class="block font-sans-ui text-xs font-semibold uppercase tracking-wider text-[#d4af37] mb-2">2. Selecciona el Corte o Combo</label>
               <div id="service-modal-list" class="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-56 overflow-y-auto pr-1">
-                ${services.map((s) => {
-                  const isSelected = state.bookingForm.serviceId === s.id;
+                ${(Array.isArray(services) && services.length > 0 ? services : SEED_SERVICES).map((s, idx) => {
+                  const isSelected = state.bookingForm.serviceId ? state.bookingForm.serviceId === s.id : idx === 0;
                   return `
                     <div 
                       data-modal-service-id="${s.id}" 
@@ -3379,14 +3410,11 @@
         state.bookingForm.barberId = barberId;
         document.querySelectorAll('.barber-modal-choice').forEach((c) => {
           const isSelected = c.dataset.modalBarberId === barberId;
-          c.classList.toggle('border-[#d97757]', isSelected);
-          c.classList.toggle('bg-[#f5e3c7]', isSelected);
-          c.classList.toggle('border-[#cccbc8]', !isSelected);
-          c.classList.toggle('bg-[#faf9f5]', !isSelected);
+          c.className = `barber-modal-choice p-3.5 rounded-[12px] border cursor-pointer flex items-center gap-3 transition-all ${isSelected ? 'border-[#d4af37] bg-[rgba(212,175,55,0.14)] shadow-[0_0_15px_rgba(212,175,55,0.2)]' : 'border-[rgba(212,175,55,0.22)] bg-[#161a22] hover:border-[#d4af37]'}`;
           const indicator = c.querySelector('span.w-4');
           if (indicator) {
-            indicator.className = `w-4 h-4 rounded-full border flex items-center justify-center ${isSelected ? 'border-[#d97757] bg-[#d97757]' : 'border-[#cccbc8]'}`;
-            indicator.innerHTML = isSelected ? '<span class="w-1.5 h-1.5 rounded-full bg-white"></span>' : '';
+            indicator.className = `w-4 h-4 rounded-full border flex items-center justify-center ${isSelected ? 'border-[#d4af37] bg-[#d4af37]' : 'border-[rgba(212,175,55,0.35)]'}`;
+            indicator.innerHTML = isSelected ? '<span class="w-1.5 h-1.5 rounded-full bg-[#0a0b0d]"></span>' : '';
           }
         });
       };
@@ -3399,10 +3427,7 @@
         state.bookingForm.serviceId = serviceId;
         document.querySelectorAll('.service-modal-choice').forEach((c) => {
           const isSelected = c.dataset.modalServiceId === serviceId;
-          c.classList.toggle('border-[#d97757]', isSelected);
-          c.classList.toggle('bg-[#f5e3c7]', isSelected);
-          c.classList.toggle('border-[#cccbc8]', !isSelected);
-          c.classList.toggle('bg-[#faf9f5]', !isSelected);
+          c.className = `service-modal-choice p-3.5 rounded-[12px] border cursor-pointer flex flex-col justify-between transition-all ${isSelected ? 'border-[#d4af37] bg-[rgba(212,175,55,0.14)] shadow-[0_0_15px_rgba(212,175,55,0.2)]' : 'border-[rgba(212,175,55,0.22)] bg-[#161a22] hover:border-[#d4af37]'}`;
         });
       };
     });

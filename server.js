@@ -76,12 +76,12 @@ const DEFAULT_BARBERS = [
 
 const DEFAULT_SERVICES = [
   { id: 's-01', name: 'Corte Básico', category: 'Tradicional', durationMinutes: 30, priceCop: 20000, description: 'Corte clásico o degradado a máquina y tijera.', active: true },
-  { id: 's-02', name: 'Combo 1', category: 'Corte + Barba', durationMinutes: 45, priceCop: 25000, description: 'Corte de cabello completo + perfilado de barba.', active: true },
-  { id: 's-03', name: 'Combo 2', category: 'Corte + Barba + Cejas', durationMinutes: 50, priceCop: 35000, description: 'Corte + ritual de toalla caliente + cejas.', active: true },
-  { id: 's-04', name: 'Combo 3', category: 'Ritual Facial', durationMinutes: 60, priceCop: 40000, description: 'Corte + barba + limpieza con mascarilla negra.', active: true },
-  { id: 's-05', name: 'Combi Completa VIP', category: 'Experiencia Integral', durationMinutes: 75, priceCop: 65000, description: 'Servicio VIP integral con pigmentación.', active: true },
+  { id: 's-02', name: 'Combo 1', category: 'Corte + Barba', durationMinutes: 30, priceCop: 25000, description: 'Corte de cabello completo + perfilado de barba.', active: true },
+  { id: 's-03', name: 'Combo 2', category: 'Corte + Barba + Cejas', durationMinutes: 30, priceCop: 35000, description: 'Corte + ritual de toalla caliente + cejas.', active: true },
+  { id: 's-04', name: 'Combo 3', category: 'Ritual Facial', durationMinutes: 30, priceCop: 40000, description: 'Corte + barba + limpieza con mascarilla negra.', active: true },
+  { id: 's-05', name: 'Combi Completa VIP', category: 'Experiencia Integral', durationMinutes: 30, priceCop: 65000, description: 'Servicio VIP integral con pigmentación.', active: true },
   { id: 's-06', name: 'Pigmentación Aerógrafo', category: 'Acabado Capilar', durationMinutes: 30, priceCop: 18000, description: 'Definición de contornos con aerógrafo.', active: true },
-  { id: 's-07', name: 'Pigmentación Manual', category: 'Acabado Artesanal', durationMinutes: 35, priceCop: 22000, description: 'Pigmentación artesanal para densidad capilar.', active: true }
+  { id: 's-07', name: 'Pigmentación Manual', category: 'Acabado Artesanal', durationMinutes: 30, priceCop: 22000, description: 'Pigmentación artesanal para densidad capilar.', active: true }
 ];
 
 const DEFAULT_PRODUCTS = [
@@ -692,11 +692,11 @@ function applySecurityHeaders(res) {
   res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
   res.setHeader('Content-Security-Policy', [
     "default-src 'self'",
-    "script-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com",
+    "script-src 'self' 'unsafe-inline' 'unsafe-eval' blob: https://cdn.tailwindcss.com",
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-    "font-src 'self' https://fonts.gstatic.com",
-    "img-src 'self' data: https://images.unsplash.com",
-    "connect-src 'self'",
+    "font-src 'self' data: https://fonts.gstatic.com",
+    "img-src 'self' data: blob: https://images.unsplash.com https:",
+    "connect-src 'self' https://fonts.googleapis.com https://fonts.gstatic.com",
     "frame-ancestors 'self'"
   ].join('; '));
 }
@@ -1326,6 +1326,14 @@ const server = http.createServer(async (req, res) => {
     }
   }
 
+  if (reqUrl === '/api/services' && req.method === 'GET') {
+    const services = readJsonFile(SERVICES_FILE, DEFAULT_SERVICES);
+    res.statusCode = 200;
+    res.setHeader('Content-Type', 'application/json; charset=utf-8');
+    res.end(JSON.stringify(services));
+    return;
+  }
+
   // --------------------------------------------------------------------------
   // API DE TIENDA E INVENTARIO DE PRODUCTOS (/api/products y /api/store/orders)
   // --------------------------------------------------------------------------
@@ -1674,7 +1682,15 @@ const server = http.createServer(async (req, res) => {
   // ARCHIVOS ESTATICOS CON AISLAMIENTO ESTRICTO DE CARPETAS Y SEGURIDAD
   // --------------------------------------------------------------------------
   if (reqUrl === '/' || reqUrl === '') {
-    reqUrl = '/index.html';
+    reqUrl = '/src/index.html';
+  } else if (reqUrl.startsWith('/ui/')) {
+    reqUrl = `/src${reqUrl}`;
+  } else if (reqUrl === '/theme.css' || reqUrl === '/animations.css') {
+    reqUrl = `/src/ui/styles${reqUrl}`;
+  } else if (reqUrl === '/bundle.js') {
+    reqUrl = '/src/bundle.js';
+  } else if (reqUrl === '/logo_barberia_lopez_hd.jpg') {
+    reqUrl = '/src/logo_barberia_lopez_hd.jpg';
   }
 
   const rawPath = path.join(ROOT_DIR, reqUrl);
