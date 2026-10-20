@@ -104,15 +104,17 @@
   }
 
   class CutHistory {
-    constructor({ id, appointmentId = null, barberId, clientName, date, time, priceCop, createdAt = new Date() }) {
+    constructor({ id, appointmentId = null, barberId, clientName, date, executionDate, appointmentDate, time, priceCop, createdAt = new Date() }) {
       this.id = id || generateId();
       this.appointmentId = appointmentId;
       this.barberId = barberId;
       this.clientName = (clientName || '').trim();
       this.date = date;
+      this.executionDate = executionDate || date;
+      this.appointmentDate = appointmentDate || date;
       this.time = time;
       this.priceCop = Number(priceCop) || 0;
-      this.createdAt = createdAt;
+      this.createdAt = createdAt instanceof Date ? createdAt.toISOString() : (createdAt || new Date().toISOString());
     }
   }
 
@@ -144,17 +146,29 @@
 
   class CashCalculatorService {
     static calculateDailyCash(historyList, dateStr) {
-      const dayRecords = historyList.filter((r) => r.date === dateStr);
+      const dayRecords = (historyList || []).filter((r) => {
+        if (!r) return false;
+        if (r.executionDate) {
+          return r.executionDate === dateStr;
+        }
+        const createdDate = r.createdAt
+          ? (typeof r.createdAt === 'string'
+              ? r.createdAt.substring(0, 10)
+              : getLocalDateString(new Date(r.createdAt)))
+          : null;
+        return r.date === dateStr || createdDate === dateStr;
+      });
       let totalConsolidated = 0;
       const byBarber = {};
 
       for (const record of dayRecords) {
-        totalConsolidated += record.priceCop;
+        const price = Number(record.priceCop) || 0;
+        totalConsolidated += price;
         if (!byBarber[record.barberId]) {
           byBarber[record.barberId] = { count: 0, total: 0 };
         }
         byBarber[record.barberId].count += 1;
-        byBarber[record.barberId].total += record.priceCop;
+        byBarber[record.barberId].total += price;
       }
 
       return {
@@ -699,8 +713,11 @@
 
     async saveCutHistory(rec) {
       const list = this._get('blopez_history');
-      list.push(rec);
-      this._set('blopez_history', list);
+      const alreadyInList = rec.appointmentId && list.some((h) => h.appointmentId === rec.appointmentId);
+      if (!alreadyInList) {
+        list.push(rec);
+        this._set('blopez_history', list);
+      }
       try {
         const res = await fetch('/api/history', {
           method: 'POST',
@@ -983,22 +1000,33 @@
         throw new Error("No tienes autorización para modificar citas de otra estación.");
       }
 
+      const historyList = await this.repo.findAllCutHistory();
+      const existingRecord = historyList.find((h) => h.appointmentId === appointmentId);
+
       const service = await this.repo.findServiceById(appointment.serviceId);
       const priceCop = appointment.totalPriceCop || (service ? service.priceCop : 0);
 
       appointment.status = AppointmentStatus.COMPLETADA;
       await this.repo.updateAppointment(appointment);
 
+      if (existingRecord) {
+        return { appointment, cutRecord: existingRecord, duplicatePrevented: true };
+      }
+
       const now = new Date();
       const currentTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+      const todayDateStr = getLocalDateString(now);
 
       const cutRecord = new CutHistory({
         appointmentId: appointment.id,
         barberId: appointment.barberId,
         clientName: appointment.clientName,
-        date: appointment.date,
+        date: todayDateStr,
+        executionDate: todayDateStr,
+        appointmentDate: appointment.date,
         time: currentTime,
-        priceCop: priceCop
+        priceCop: priceCop,
+        createdAt: now.toISOString()
       });
 
       await this.repo.saveCutHistory(cutRecord);
@@ -1966,7 +1994,7 @@
                     ` : `
                       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                         ${bAppts.map((appt) => {
-                          const isCompleted = appt.status === 'COMPLETADA';
+                          const isCompleted = appt.status === 'COMPLETADA' || (state.history && state.history.some((h) => h.appointmentId === appt.id));
                           const serviceObj = services.find((s) => s.id === appt.serviceId);
                           const serviceName = serviceObj ? serviceObj.name : 'Corte Tradicional';
                           const servicePrice = serviceObj ? serviceObj.priceCop : 0;
@@ -2019,8 +2047,9 @@
                                   Cancelar / Eliminar turno de prueba
                                 </button>
                               ` : `
-                                <div class="text-xs font-semibold text-[#d4af37] py-2 text-center bg-[#181c24] border border-[rgba(212,175,55,0.3)] rounded-[8px]">
-                                  Corte registrado en base de datos
+                                <div class="text-xs font-semibold text-[#d4af37] py-2.5 px-3 text-center bg-[#181c24] border border-[rgba(212,175,55,0.3)] rounded-[8px] flex items-center justify-center gap-2">
+                                  <span class="w-2 h-2 rounded-full bg-[#d4af37]"></span>
+                                  <span>Corte finalizado y registrado en caja</span>
                                 </div>
                                 <button data-delete-appt-id="${appt.id}" class="btn-delete-appt btn-stone-outline w-full py-1.5 px-3 text-xs text-red-400 hover:text-red-300 hover:border-red-500 justify-center cursor-pointer mt-2">
                                   Eliminar registro de turno
@@ -2219,7 +2248,10 @@
                               ${bCuts.map((h) => `
                                 <tr class="history-cut-row hover:bg-[#181c24] transition-colors">
                                   <td class="p-3.5 pl-4 text-[#ffffff] font-semibold">${escapeHtml(h.clientName)}</td>
-                                  <td class="p-3.5 text-[#c5c0b6] text-xs sm:text-sm">${formatDateFriendly(h.date)}</td>
+                                  <td class="p-3.5 text-[#c5c0b6] text-xs sm:text-sm">
+                                    ${formatDateFriendly(h.date)}
+                                    ${h.appointmentDate && h.appointmentDate !== h.date ? `<span class="block text-[10px] text-[#8a8275]">Turno: ${h.appointmentDate}</span>` : ''}
+                                  </td>
                                   <td class="p-3.5 text-[#f3e5ab] font-mono-tech text-xs">${h.time}</td>
                                   <td class="p-3.5 pr-4 text-right text-[#d4af37] font-bold font-mono-tech text-sm">${h.priceCop.toLocaleString('es-CO')} COP</td>
                                   ${isJefe ? `
@@ -3027,13 +3059,20 @@
 
     document.querySelectorAll('.btn-complete-cut').forEach((btn) => {
       btn.onclick = async () => {
+        if (btn.disabled) return;
+        btn.disabled = true;
+        btn.style.opacity = '0.6';
+        btn.textContent = 'Guardando corte en caja...';
         try {
           await completeCutUseCase.execute({
             appointmentId: btn.dataset.apptId,
             user: state.currentUser
           });
-          renderApp();
+          await renderApp();
         } catch (err) {
+          btn.disabled = false;
+          btn.style.opacity = '';
+          btn.textContent = 'Finalizar corte y guardar en historial ->';
           alert(err.message);
         }
       };
