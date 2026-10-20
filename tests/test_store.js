@@ -45,11 +45,16 @@ async function runTests() {
   console.log('--- INICIANDO PRUEBAS INTEGRALES DEL MODULO DE TIENDA E INVENTARIO ---');
   const originalOrders = fs.existsSync(ORDERS_FILE) ? fs.readFileSync(ORDERS_FILE, 'utf8') : '[]';
 
+  let testProd = null;
+  let tempUserId = null;
+  let tempBarberId = null;
+  let authToken = null;
+
   try {
     // 1. Obtener productos publicos
     const resProds = await request('GET', '/api/products');
     if (resProds.status !== 200 || !Array.isArray(resProds.data) || resProds.data.length < 6) {
-      throw new Error('Fallo al obtener el catalogo publico de productos.');
+      throw new Error('Fallo al obtener el catalogo publico de productos: ' + JSON.stringify(resProds));
     }
     console.log('[OK] 1. Catalogo publico de productos disponible (' + resProds.data.length + ' productos).');
 
@@ -70,9 +75,9 @@ async function runTests() {
       password: 'admin2026'
     });
     if (loginRes.status !== 200 || !loginRes.data.token) {
-      throw new Error('Fallo al autenticar cuenta autorizada.');
+      throw new Error('Fallo al autenticar cuenta autorizada: ' + JSON.stringify(loginRes));
     }
-    const authToken = loginRes.data.token;
+    authToken = loginRes.data.token;
     console.log('[OK] 3. Autenticacion HMAC verificada para gestion de inventario.');
 
     // 4. Agregar un nuevo producto a la tienda
@@ -89,9 +94,9 @@ async function runTests() {
       authToken
     );
     if (createProdRes.status !== 200 || !createProdRes.data.product) {
-      throw new Error('Fallo al crear nuevo producto.');
+      throw new Error('Fallo al crear nuevo producto: ' + JSON.stringify(createProdRes));
     }
-    const testProd = createProdRes.data.product;
+    testProd = createProdRes.data.product;
     console.log('[OK] 4. Producto creado en inventario: ' + testProd.name + ' (Stock: ' + testProd.stock + ').');
 
     // 5. Cliente realiza compra en efectivo de 2 unidades -> genera referencia REF-BL-XXXX y descuenta stock a 3
@@ -159,8 +164,8 @@ async function runTests() {
     if (createBarberRes.status !== 201 || !createBarberRes.data.barber) {
       throw new Error('Fallo al crear barbero temporal para prueba de turnos.');
     }
-    const tempBarberId = createBarberRes.data.barber.id;
-    const tempUserId = createBarberRes.data.user.id;
+    tempBarberId = createBarberRes.data.barber.id;
+    tempUserId = createBarberRes.data.user.id;
 
     const juniorLogin = await request('POST', '/api/auth/login', {
       username: tempUsername,
@@ -247,13 +252,18 @@ async function runTests() {
     }
     console.log('[OK] 9. Barbero EN TURNO confirma entregas y registra Ventas Directas con trazabilidad exacta de caja por estacion.');
 
-    // 10. Limpiar barbero y producto de prueba
-    await request('DELETE', `/api/users/${tempUserId}`, null, authToken);
-    await request('DELETE', `/api/barbers/${tempBarberId}`, null, authToken);
-    await request('DELETE', `/api/products/${testProd.id}`, null, authToken);
     console.log('[OK] 10. Eliminacion de datos temporales verificada.');
     console.log('--- TODAS LAS PRUEBAS DEL MODULO DE TIENDA Y ESCENARIOS PASARON EXITOSAMENTE (10/10) ---');
   } finally {
+    if (tempUserId && authToken) {
+      try { await request('DELETE', `/api/users/${tempUserId}`, null, authToken); } catch (_) {}
+    }
+    if (tempBarberId && authToken) {
+      try { await request('DELETE', `/api/barbers/${tempBarberId}`, null, authToken); } catch (_) {}
+    }
+    if (testProd && authToken) {
+      try { await request('DELETE', `/api/products/${testProd.id}`, null, authToken); } catch (_) {}
+    }
     fs.writeFileSync(ORDERS_FILE, originalOrders, 'utf8');
   }
 }
