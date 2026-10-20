@@ -2,6 +2,7 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const zlib = require('zlib');
 
 process.on('uncaughtException', (err) => {
   console.error('[CRITICAL] Uncaught exception:', err);
@@ -29,6 +30,43 @@ const HISTORY_FILE = path.join(DATA_DIR, 'history.json');
 
 // Clave secreta para tokens de sesion HMAC-SHA256 deterministica (evita invalidar sesiones al reiniciar Render)
 const AUTH_SECRET = process.env.AUTH_SECRET || crypto.createHash('sha256').update('barberia_lopez_neiva_master_hmac_secret_2026').digest('hex');
+
+// Claves y canales cifrados AES-256-GCM para respaldo continuo en la nube ante reinicios de Render
+const CLOUD_VAULT_KEY = crypto.createHash('sha256').update(AUTH_SECRET + '_aes256_vault_key').digest();
+const CLOUD_VAULT_ID = crypto.createHash('sha256').update(AUTH_SECRET + '_vault_channel_v1').digest('hex').substring(0, 20);
+const CLOUD_CHANNEL_AUTH = `blopez_auth_${CLOUD_VAULT_ID}`;
+const CLOUD_CHANNEL_OPS = `blopez_ops_${CLOUD_VAULT_ID}`;
+
+function encryptVaultPayload(obj) {
+  try {
+    const iv = crypto.randomBytes(12);
+    const compressed = zlib.deflateRawSync(Buffer.from(JSON.stringify(obj), 'utf8'));
+    const cipher = crypto.createCipheriv('aes-256-gcm', CLOUD_VAULT_KEY, iv);
+    const enc = Buffer.concat([cipher.update(compressed), cipher.final()]);
+    const tag = cipher.getAuthTag();
+    return Buffer.concat([iv, tag, enc]).toString('base64');
+  } catch (err) {
+    return null;
+  }
+}
+
+function decryptVaultPayload(b64) {
+  try {
+    if (!b64 || typeof b64 !== 'string') return null;
+    const raw = Buffer.from(b64.trim(), 'base64');
+    if (raw.length < 29) return null;
+    const iv = raw.subarray(0, 12);
+    const tag = raw.subarray(12, 28);
+    const enc = raw.subarray(28);
+    const decipher = crypto.createDecipheriv('aes-256-gcm', CLOUD_VAULT_KEY, iv);
+    decipher.setAuthTag(tag);
+    const dec = Buffer.concat([decipher.update(enc), decipher.final()]);
+    const jsonStr = zlib.inflateRawSync(dec).toString('utf8');
+    return JSON.parse(jsonStr);
+  } catch (err) {
+    return null;
+  }
+}
 
 // Semillas por defecto si los archivos no existen aún
 const DEFAULT_USERS = [
@@ -93,7 +131,7 @@ const DEFAULT_HISTORY = [];
 function readJsonFile(filePath, defaultValue) {
   try {
     if (!fs.existsSync(filePath)) {
-      writeJsonFileAtomic(filePath, defaultValue);
+      writeJsonFileAtomic(filePath, defaultValue, true);
       return defaultValue;
     }
     const raw = fs.readFileSync(filePath, 'utf8');
@@ -104,11 +142,46 @@ function readJsonFile(filePath, defaultValue) {
   }
 }
 
-function writeJsonFileAtomic(filePath, data) {
+let cloudAuthTimer = null;
+let cloudOpsTimer = null;
+
+async function pushCloudChannel(channel, payloadObj) {
+  try {
+    const encrypted = encryptVaultPayload(payloadObj);
+    if (!encrypted || encrypted.length > 3900) return;
+    await fetch(`https://ntfy.sh/${channel}`, {
+      method: 'POST',
+      body: encrypted
+    });
+  } catch (err) {}
+}
+
+function scheduleCloudBackup(filePath) {
+  if (filePath === USERS_FILE || filePath === BARBERS_FILE) {
+    if (cloudAuthTimer) clearTimeout(cloudAuthTimer);
+    cloudAuthTimer = setTimeout(() => {
+      const users = readJsonFile(USERS_FILE, DEFAULT_USERS);
+      const barbers = readJsonFile(BARBERS_FILE, DEFAULT_BARBERS);
+      pushCloudChannel(CLOUD_CHANNEL_AUTH, { ts: Date.now(), users, barbers });
+    }, 150);
+  } else if (filePath === APPOINTMENTS_FILE || filePath === HISTORY_FILE) {
+    if (cloudOpsTimer) clearTimeout(cloudOpsTimer);
+    cloudOpsTimer = setTimeout(() => {
+      const appointments = readJsonFile(APPOINTMENTS_FILE, DEFAULT_APPOINTMENTS);
+      const history = readJsonFile(HISTORY_FILE, DEFAULT_HISTORY);
+      pushCloudChannel(CLOUD_CHANNEL_OPS, { ts: Date.now(), appointments, history });
+    }, 150);
+  }
+}
+
+function writeJsonFileAtomic(filePath, data, skipCloudPush = false) {
   try {
     const tempPath = `${filePath}.tmp.${Date.now()}.${Math.random().toString(36).substring(2, 8)}`;
     fs.writeFileSync(tempPath, JSON.stringify(data, null, 2), 'utf8');
     fs.renameSync(tempPath, filePath);
+    if (!skipCloudPush) {
+      scheduleCloudBackup(filePath);
+    }
     return true;
   } catch (err) {
     console.error(`Error escribiendo atomicamente en ${filePath}:`, err.message);
@@ -116,12 +189,89 @@ function writeJsonFileAtomic(filePath, data) {
   }
 }
 
-// Inicializar archivos si no existen
+async function fetchLatestCloudSnapshot(channel) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 3500);
+  try {
+    const res = await fetch(`https://ntfy.sh/${channel}/json?poll=1&since=12h`, {
+      signal: controller.signal
+    });
+    clearTimeout(timeout);
+    if (!res.ok) return null;
+    const text = await res.text();
+    const lines = text.trim().split('\n').filter(Boolean);
+    for (let i = lines.length - 1; i >= 0; i--) {
+      try {
+        const evt = JSON.parse(lines[i]);
+        if (evt && evt.event === 'message' && evt.message) {
+          const decoded = decryptVaultPayload(evt.message);
+          if (decoded && decoded.ts) return decoded;
+        }
+      } catch (e) {}
+    }
+  } catch (err) {
+    clearTimeout(timeout);
+  }
+  return null;
+}
+
+// Inicializar archivos locales si no existen
 readJsonFile(USERS_FILE, DEFAULT_USERS);
 readJsonFile(BARBERS_FILE, DEFAULT_BARBERS);
 readJsonFile(SERVICES_FILE, DEFAULT_SERVICES);
 readJsonFile(APPOINTMENTS_FILE, DEFAULT_APPOINTMENTS);
 readJsonFile(HISTORY_FILE, DEFAULT_HISTORY);
+
+// Restaurar instantanea cifrada desde la nube al arrancar (protege contra reinicios efimeros de Render)
+const cloudVaultReadyPromise = (async () => {
+  try {
+    const [authSnap, opsSnap] = await Promise.all([
+      fetchLatestCloudSnapshot(CLOUD_CHANNEL_AUTH),
+      fetchLatestCloudSnapshot(CLOUD_CHANNEL_OPS)
+    ]);
+
+    if (authSnap && Array.isArray(authSnap.users) && authSnap.users.length > 0 && Array.isArray(authSnap.barbers)) {
+      writeJsonFileAtomic(USERS_FILE, authSnap.users, true);
+      writeJsonFileAtomic(BARBERS_FILE, authSnap.barbers, true);
+    } else {
+      pushCloudChannel(CLOUD_CHANNEL_AUTH, {
+        ts: Date.now(),
+        users: readJsonFile(USERS_FILE, DEFAULT_USERS),
+        barbers: readJsonFile(BARBERS_FILE, DEFAULT_BARBERS)
+      });
+    }
+
+    if (opsSnap && Array.isArray(opsSnap.appointments) && Array.isArray(opsSnap.history)) {
+      writeJsonFileAtomic(APPOINTMENTS_FILE, opsSnap.appointments, true);
+      writeJsonFileAtomic(HISTORY_FILE, opsSnap.history, true);
+    } else {
+      pushCloudChannel(CLOUD_CHANNEL_OPS, {
+        ts: Date.now(),
+        appointments: readJsonFile(APPOINTMENTS_FILE, DEFAULT_APPOINTMENTS),
+        history: readJsonFile(HISTORY_FILE, DEFAULT_HISTORY)
+      });
+    }
+  } catch (err) {}
+})();
+
+// Keep-Alive automatico cada 8 minutos para mantener Render activo y refrescar respaldo cifrado
+setInterval(() => {
+  const targetUrl = process.env.RENDER_EXTERNAL_URL || 'https://barberia-lopez.onrender.com';
+  fetch(`${targetUrl}/api/health`).catch(() => {});
+}, 8 * 60 * 1000);
+
+setInterval(() => {
+  pushCloudChannel(CLOUD_CHANNEL_AUTH, {
+    ts: Date.now(),
+    users: readJsonFile(USERS_FILE, DEFAULT_USERS),
+    barbers: readJsonFile(BARBERS_FILE, DEFAULT_BARBERS)
+  });
+  pushCloudChannel(CLOUD_CHANNEL_OPS, {
+    ts: Date.now(),
+    appointments: readJsonFile(APPOINTMENTS_FILE, DEFAULT_APPOINTMENTS),
+    history: readJsonFile(HISTORY_FILE, DEFAULT_HISTORY)
+  });
+}, 3 * 60 * 60 * 1000);
 
 // ============================================================================
 // CRIPTOGRAFIA Y AUTENTICACION SEGURA NATIVA (SCRYPT + HMAC TOKENS)
@@ -759,6 +909,17 @@ const server = http.createServer(async (req, res) => {
     res.statusCode = 204;
     res.end();
     return;
+  }
+
+  if (reqUrl === '/api/health') {
+    res.statusCode = 200;
+    res.setHeader('Content-Type', 'application/json; charset=utf-8');
+    res.end(JSON.stringify({ status: 'ok', ts: Date.now() }));
+    return;
+  }
+
+  if (reqUrl.startsWith('/api/')) {
+    await cloudVaultReadyPromise;
   }
 
   // --------------------------------------------------------------------------
