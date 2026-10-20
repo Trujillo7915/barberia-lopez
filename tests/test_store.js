@@ -99,7 +99,7 @@ async function runTests() {
     testProd = createProdRes.data.product;
     console.log('[OK] 4. Producto creado en inventario por ADMIN: ' + testProd.name + ' (Stock: ' + testProd.stock + ').');
 
-    // 4b. Verificacion de Roles RBAC: Barbero Jefe NO puede crear ni eliminar productos, solo editar precio y stock
+    // 4b. Verificacion de Roles RBAC: Barbero Jefe (JEFE) tiene autonomia completa sobre el catalogo de productos
     const loginJefe = await request('POST', '/api/auth/login', {
       username: 'david.barber',
       password: 'david2026'
@@ -109,21 +109,18 @@ async function runTests() {
     }
     const jefeToken = loginJefe.data.token;
 
-    // Intento de creacion por Barbero Jefe -> Bloqueado con HTTP 403
+    // Creacion de producto por Barbero Jefe -> Permitido con HTTP 200
     const jefeCreateRes = await request('POST', '/api/products', {
-      name: 'Producto Ilegal Por Barbero Jefe',
-      priceCop: 15000,
-      stock: 10
+      name: 'Gel Fijador Extremo Por Jefe',
+      category: 'Fijacion',
+      priceCop: 22000,
+      stock: 12,
+      description: 'Creado autonomamente por el Barbero Jefe'
     }, jefeToken);
-    if (jefeCreateRes.status !== 403) {
-      throw new Error('Fallo RBAC: Barbero Jefe no debe poder agregar productos al catalogo (se esperaba 403).');
+    if (jefeCreateRes.status !== 200 || !jefeCreateRes.data.product) {
+      throw new Error('Fallo RBAC: Barbero Jefe debe poder agregar productos al catalogo (HTTP 200). ' + JSON.stringify(jefeCreateRes));
     }
-
-    // Intento de eliminacion por Barbero Jefe -> Bloqueado con HTTP 403
-    const jefeDeleteRes = await request('DELETE', `/api/products/${testProd.id}`, null, jefeToken);
-    if (jefeDeleteRes.status !== 403) {
-      throw new Error('Fallo RBAC: Barbero Jefe no debe poder eliminar productos del catalogo (se esperaba 403).');
-    }
+    const jefeCreatedProd = jefeCreateRes.data.product;
 
     // Edicion de stock y precio por Barbero Jefe -> Permitido con HTTP 200
     const jefeEditRes = await request('PUT', `/api/products/${testProd.id}`, {
@@ -135,7 +132,35 @@ async function runTests() {
     }
     // Restaurar stock a 5 para el flujo posterior de pedidos
     await request('PUT', `/api/products/${testProd.id}`, { priceCop: 28000, stock: 5 }, authToken);
-    console.log('[OK] 4b. RBAC de Catalogo verificado: Barbero Jefe restringido a precio/stock; creacion y eliminacion reservadas al ADMIN.');
+
+    // Eliminacion de producto por Barbero Jefe -> Permitido con HTTP 200
+    const jefeDeleteRes = await request('DELETE', `/api/products/${jefeCreatedProd.id}`, null, jefeToken);
+    if (jefeDeleteRes.status !== 200) {
+      throw new Error('Fallo RBAC: Barbero Jefe debe poder eliminar productos del catalogo (HTTP 200). ' + JSON.stringify(jefeDeleteRes));
+    }
+
+    // Verificacion de que un BARBERO estandar (matta.barber) sigue bloqueado con HTTP 403
+    const loginBarbero = await request('POST', '/api/auth/login', {
+      username: 'matta.barber',
+      password: 'matta2026'
+    });
+    if (loginBarbero.status === 200 && loginBarbero.data.token) {
+      const barberoToken = loginBarbero.data.token;
+      const barberoCreateRes = await request('POST', '/api/products', {
+        name: 'Producto No Autorizado',
+        priceCop: 10000,
+        stock: 1
+      }, barberoToken);
+      if (barberoCreateRes.status !== 403) {
+        throw new Error('Fallo RBAC: Barbero estandar no debe poder crear productos (se esperaba 403).');
+      }
+
+      const barberoDeleteRes = await request('DELETE', `/api/products/${testProd.id}`, null, barberoToken);
+      if (barberoDeleteRes.status !== 403) {
+        throw new Error('Fallo RBAC: Barbero estandar no debe poder eliminar productos (se esperaba 403).');
+      }
+    }
+    console.log('[OK] 4b. RBAC de Catalogo verificado: Barbero Jefe tiene autonomia total (crear, editar, eliminar); Barbero estandar bloqueado (403).');
 
     // 5. Cliente realiza compra en efectivo de 2 unidades -> genera referencia REF-BL-XXXX y descuenta stock a 3
     const orderRes = await request('POST', '/api/store/orders', {

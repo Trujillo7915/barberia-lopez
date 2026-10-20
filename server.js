@@ -1745,10 +1745,10 @@ const server = http.createServer(async (req, res) => {
 
     if (req.method === 'POST') {
       const authUser = getAuthenticatedUser(req);
-      if (!authUser || authUser.role !== 'ADMIN') {
+      if (!authUser || (authUser.role !== 'ADMIN' && authUser.role !== 'JEFE')) {
         res.statusCode = 403;
         res.setHeader('Content-Type', 'application/json; charset=utf-8');
-        res.end(JSON.stringify({ error: 'Acceso denegado: solo el Administrador puede agregar nuevos productos al catálogo.' }));
+        res.end(JSON.stringify({ error: 'Acceso denegado: solo el Barbero Jefe o Administrador pueden agregar nuevos productos al catálogo.' }));
         return;
       }
 
@@ -1915,10 +1915,10 @@ const server = http.createServer(async (req, res) => {
 
   if (reqUrl.startsWith('/api/products/') && req.method === 'DELETE') {
     const authUser = getAuthenticatedUser(req);
-    if (!authUser || authUser.role !== 'ADMIN') {
+    if (!authUser || (authUser.role !== 'ADMIN' && authUser.role !== 'JEFE')) {
       res.statusCode = 403;
       res.setHeader('Content-Type', 'application/json; charset=utf-8');
-      res.end(JSON.stringify({ error: 'Acceso denegado: solo el Administrador puede eliminar productos del catálogo.' }));
+      res.end(JSON.stringify({ error: 'Acceso denegado: solo el Barbero Jefe o Administrador pueden eliminar productos del catálogo.' }));
       return;
     }
 

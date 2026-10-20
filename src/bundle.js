@@ -226,7 +226,7 @@
 
     static canManageCatalog(user) {
       if (!user) return false;
-      return user.role === Roles.ADMIN;
+      return user.role === Roles.ADMIN || user.role === Roles.JEFE;
     }
 
     static canEditStockAndPrices(user) {
@@ -2833,53 +2833,49 @@ async findAllProducts() {
                 </div>
               </div>
 
-              <div class="${isAdmin ? 'grid grid-cols-1 lg:grid-cols-3 gap-6' : 'w-full'}">
-                ${isAdmin ? `
-                  <!-- FORMULARIO PARA AGREGAR NUEVO PRODUCTO (EXCLUSIVO ADMIN) -->
-                  <div class="anthropic-card p-6">
-                    <h4 class="font-serif-editorial text-lg text-[#ffffff] mb-1">Agregar nuevo producto</h4>
-                    <p class="text-xs text-[#c5c0b6] mb-4">Publica un artículo inmediatamente en el apartado TIENDA.</p>
-                    <form id="form-create-product" class="space-y-3.5">
+              <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- FORMULARIO PARA AGREGAR NUEVO PRODUCTO (ADMIN O BARBERO JEFE) -->
+                <div class="anthropic-card p-6">
+                  <h4 class="font-serif-editorial text-lg text-[#ffffff] mb-1">Agregar nuevo producto</h4>
+                  <p class="text-xs text-[#c5c0b6] mb-4">Publica un artículo inmediatamente en el apartado TIENDA.</p>
+                  <form id="form-create-product" class="space-y-3.5">
+                    <div>
+                      <label class="block text-xs font-semibold text-[#c5c0b6] mb-1">Nombre del producto *</label>
+                      <input type="text" id="new-prod-name" required placeholder="Ej. Cera Mate Imperial 120g" class="input-parchment text-xs">
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
                       <div>
-                        <label class="block text-xs font-semibold text-[#c5c0b6] mb-1">Nombre del producto *</label>
-                        <input type="text" id="new-prod-name" required placeholder="Ej. Cera Mate Imperial 120g" class="input-parchment text-xs">
-                      </div>
-                      <div class="grid grid-cols-2 gap-3">
-                        <div>
-                          <label class="block text-xs font-semibold text-[#c5c0b6] mb-1">Categoría</label>
-                          <input type="text" id="new-prod-category" placeholder="Ej. Cuidado Capilar" value="Cuidado Capilar" class="input-parchment text-xs">
-                        </div>
-                        <div>
-                          <label class="block text-xs font-semibold text-[#c5c0b6] mb-1">Stock inicial *</label>
-                          <input type="number" id="new-prod-stock" required min="0" value="10" class="input-parchment text-xs font-mono-tech">
-                        </div>
+                        <label class="block text-xs font-semibold text-[#c5c0b6] mb-1">Categoría</label>
+                        <input type="text" id="new-prod-category" placeholder="Ej. Cuidado Capilar" value="Cuidado Capilar" class="input-parchment text-xs">
                       </div>
                       <div>
-                        <label class="block text-xs font-semibold text-[#c5c0b6] mb-1">Precio en Efectivo (COP) *</label>
-                        <input type="number" id="new-prod-price" required min="1000" step="500" placeholder="Ej. 32000" class="input-parchment text-xs font-mono-tech">
+                        <label class="block text-xs font-semibold text-[#c5c0b6] mb-1">Stock inicial *</label>
+                        <input type="number" id="new-prod-stock" required min="0" value="10" class="input-parchment text-xs font-mono-tech">
                       </div>
-                      <div>
-                        <label class="block text-xs font-semibold text-[#c5c0b6] mb-1">URL de Imagen (opcional)</label>
-                        <input type="url" id="new-prod-image" placeholder="https://..." class="input-parchment text-xs">
-                      </div>
-                      <div>
-                        <label class="block text-xs font-semibold text-[#c5c0b6] mb-1">Descripción breve</label>
-                        <textarea id="new-prod-desc" rows="2" placeholder="Beneficios y características del producto..." class="input-parchment text-xs"></textarea>
-                      </div>
-                      <button type="submit" class="btn-clay w-full py-2.5 justify-center text-xs font-semibold cursor-pointer">
-                        Publicar producto en Tienda →
-                      </button>
-                    </form>
-                  </div>
-                ` : ''}
+                    </div>
+                    <div>
+                      <label class="block text-xs font-semibold text-[#c5c0b6] mb-1">Precio en Efectivo (COP) *</label>
+                      <input type="number" id="new-prod-price" required min="1000" step="500" placeholder="Ej. 32000" class="input-parchment text-xs font-mono-tech">
+                    </div>
+                    <div>
+                      <label class="block text-xs font-semibold text-[#c5c0b6] mb-1">URL de Imagen (opcional)</label>
+                      <input type="url" id="new-prod-image" placeholder="https://..." class="input-parchment text-xs">
+                    </div>
+                    <div>
+                      <label class="block text-xs font-semibold text-[#c5c0b6] mb-1">Descripción breve</label>
+                      <textarea id="new-prod-desc" rows="2" placeholder="Beneficios y características del producto..." class="input-parchment text-xs"></textarea>
+                    </div>
+                    <button type="submit" class="btn-clay w-full py-2.5 justify-center text-xs font-semibold cursor-pointer">
+                      Publicar producto en Tienda →
+                    </button>
+                  </form>
+                </div>
 
                 <!-- TABLA DE INVENTARIO ACTUAL -->
-                <div class="${isAdmin ? 'lg:col-span-2' : 'w-full'} anthropic-card p-6">
+                <div class="lg:col-span-2 anthropic-card p-6">
                   <h4 class="font-serif-editorial text-lg text-[#ffffff] mb-1">Inventario activo en tienda (${products.length})</h4>
                   <p class="text-xs text-[#c5c0b6] mb-4">
-                    ${isAdmin 
-                      ? 'Usa los botones rápidos para sumar/restar stock, cambiar precio o eliminar un producto.' 
-                      : 'Usa los botones rápidos para sumar o restar existencias en stock (+ / -) y edita los precios en COP.'}
+                    Usa los botones rápidos para sumar/restar stock, cambiar precio, actualizar foto o eliminar un producto.
                   </p>
                   <div class="overflow-x-auto">
                     <table class="w-full text-left border-collapse font-sans-ui">
@@ -2888,7 +2884,7 @@ async findAllProducts() {
                           <th class="p-3">Producto</th>
                           <th class="p-3">Precio (COP)</th>
                           <th class="p-3">Stock Disponible</th>
-                          <th class="p-3 text-right">${isAdmin ? 'Acciones de Admin' : 'Acciones de Jefe'}</th>
+                          <th class="p-3 text-right">Acciones</th>
                         </tr>
                       </thead>
                       <tbody class="divide-y divide-[rgba(212,175,55,0.14)] text-xs">
@@ -2912,11 +2908,9 @@ async findAllProducts() {
                               <button type="button" data-edit-prod-id="${escapeHtml(p.id)}" class="btn-edit-product btn-stone-outline py-1 px-2.5 text-[11px] cursor-pointer">
                                 Editar precio / foto / stock
                               </button>
-                              ${isAdmin ? `
-                                <button type="button" data-delete-prod-id="${escapeHtml(p.id)}" data-delete-prod-name="${escapeHtml(p.name)}" class="btn-delete-product btn-stone-outline py-1 px-2.5 text-[11px] text-red-400 hover:text-red-300 hover:border-red-500 cursor-pointer">
-                                  Quitar
-                                </button>
-                              ` : ''}
+                              <button type="button" data-delete-prod-id="${escapeHtml(p.id)}" data-delete-prod-name="${escapeHtml(p.name)}" class="btn-delete-product btn-stone-outline py-1 px-2.5 text-[11px] text-red-400 hover:text-red-300 hover:border-red-500 cursor-pointer">
+                                Quitar
+                              </button>
                             </td>
                           </tr>
                         `).join('')}
@@ -4355,13 +4349,13 @@ async findAllProducts() {
       };
     });
 
-    // Crear nuevo producto (Exclusivo Administrador)
+    // Crear nuevo producto (Administrador o Barbero Jefe)
     const formCreateProduct = document.getElementById('form-create-product');
     if (formCreateProduct) {
       formCreateProduct.onsubmit = async (e) => {
         e.preventDefault();
-        if (!state.currentUser || state.currentUser.role !== Roles.ADMIN) {
-          alert('Acceso denegado: solo el Administrador puede agregar nuevos productos al catálogo.');
+        if (!state.currentUser || (state.currentUser.role !== Roles.ADMIN && state.currentUser.role !== Roles.JEFE)) {
+          alert('Acceso denegado: solo el Administrador o el Barbero Jefe pueden agregar nuevos productos al catálogo.');
           return;
         }
         try {
@@ -4601,11 +4595,11 @@ async findAllProducts() {
       };
     });
 
-    // Eliminar producto del catálogo (Exclusivo Administrador)
+    // Eliminar producto del catálogo (Administrador o Barbero Jefe)
     document.querySelectorAll('.btn-delete-product').forEach((btn) => {
       btn.onclick = async () => {
-        if (!state.currentUser || state.currentUser.role !== Roles.ADMIN) {
-          alert('Acceso denegado: solo el Administrador puede eliminar productos del catálogo.');
+        if (!state.currentUser || (state.currentUser.role !== Roles.ADMIN && state.currentUser.role !== Roles.JEFE)) {
+          alert('Acceso denegado: solo el Administrador o el Barbero Jefe pueden eliminar productos del catálogo.');
           return;
         }
         const prodId = btn.dataset.deleteProdId;
