@@ -20,8 +20,25 @@ const SERVICES_FILE = path.join(DATA_DIR, 'services.json');
 const USERS_FILE = path.join(DATA_DIR, 'users.json');
 const HISTORY_FILE = path.join(DATA_DIR, 'history.json');
 
-// Clave secreta para tokens de sesion HMAC-SHA256
-const AUTH_SECRET = process.env.AUTH_SECRET || crypto.randomBytes(32).toString('hex');
+// Clave secreta para tokens de sesion HMAC-SHA256 persistente
+const AUTH_SECRET_FILE = path.join(DATA_DIR, '.auth_secret');
+let AUTH_SECRET = process.env.AUTH_SECRET;
+if (!AUTH_SECRET) {
+  if (fs.existsSync(AUTH_SECRET_FILE)) {
+    try {
+      const savedSecret = fs.readFileSync(AUTH_SECRET_FILE, 'utf8').trim();
+      if (savedSecret && savedSecret.length >= 32) {
+        AUTH_SECRET = savedSecret;
+      }
+    } catch (e) {}
+  }
+  if (!AUTH_SECRET) {
+    AUTH_SECRET = crypto.randomBytes(32).toString('hex');
+    try {
+      fs.writeFileSync(AUTH_SECRET_FILE, AUTH_SECRET, { encoding: 'utf8' });
+    } catch (e) {}
+  }
+}
 
 // Semillas por defecto si los archivos no existen aún
 const DEFAULT_USERS = [
@@ -367,6 +384,24 @@ function validateAndSaveAppointment(newAppt) {
 
         // Validar colision con citas existentes no canceladas
         if (newAppt.status !== 'CANCELADA') {
+          // Deteccion idempotente de reenvio/doble-tap del mismo cliente
+          const duplicateSameClient = appointments.find((a) => {
+            if (a.status === 'CANCELADA') return false;
+            if (a.barberId !== newAppt.barberId) return false;
+            if (a.date !== newAppt.date) return false;
+            if (a.startTime !== newAppt.startTime) return false;
+            const cleanPhoneA = String(a.clientPhone || '').replace(/\D/g, '');
+            const cleanPhoneNew = String(newAppt.clientPhone || '').replace(/\D/g, '');
+            const phoneMatch = cleanPhoneA && cleanPhoneNew && (cleanPhoneA === cleanPhoneNew);
+            const nameMatch = a.clientName && newAppt.clientName && (String(a.clientName).trim().toLowerCase() === String(newAppt.clientName).trim().toLowerCase());
+            return phoneMatch || nameMatch;
+          });
+
+          if (duplicateSameClient) {
+            resolve(duplicateSameClient);
+            return;
+          }
+
           const collision = appointments.some((a) => {
             if (a.id === newAppt.id) return false;
             if (a.status === 'CANCELADA') return false;
@@ -460,6 +495,7 @@ function generateIcsForBarber(barberId, host) {
       'BEGIN:VEVENT',
       `UID:${uid}`,
       `DTSTAMP:${nowUtc}`,
+      `SEQUENCE:0`,
       `DTSTART:${dtStartUtc}`,
       `DTEND:${dtEndUtc}`,
       `SUMMARY:${summary}`,
@@ -577,6 +613,7 @@ function generateIcsForClient(clientPhone) {
       'BEGIN:VEVENT',
       `UID:${uid}`,
       `DTSTAMP:${nowUtc}`,
+      `SEQUENCE:0`,
       `DTSTART:${dtStartUtc}`,
       `DTEND:${dtEndUtc}`,
       `SUMMARY:${summary}`,
@@ -809,9 +846,9 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  // Descarga iCalendar para una cita individual
-  if (reqUrl.startsWith('/api/calendar/appointment/') && reqUrl.endsWith('.ics')) {
-    const apptId = reqUrl.substring('/api/calendar/appointment/'.length).replace(/\.ics$/, '');
+  // Descarga iCalendar para una cita individual (soporta ambas rutas)
+  if ((reqUrl.startsWith('/api/calendar/appointment/') || reqUrl.startsWith('/api/appointment/')) && reqUrl.endsWith('.ics')) {
+    const apptId = reqUrl.replace('/api/calendar/appointment/', '').replace('/api/appointment/', '').replace(/\.ics$/, '');
     const appointments = readJsonFile(APPOINTMENTS_FILE, DEFAULT_APPOINTMENTS);
     const targetAppt = appointments.find((a) => a.id === apptId);
     if (!targetAppt) {
@@ -938,8 +975,8 @@ const server = http.createServer(async (req, res) => {
         writeJsonFileAtomic(APPOINTMENTS_FILE, Array.from(idMap.values()));
       }
 
-      // Solo administradores pueden sincronizar barberos y usuarios en masa
-      if (authUser.role === 'ADMIN') {
+      // Administradores y Barberos Jefes pueden sincronizar barberos y usuarios en masa
+      if (authUser.role === 'ADMIN' || authUser.role === 'JEFE') {
         if (Array.isArray(payload.barbers)) {
           writeJsonFileAtomic(BARBERS_FILE, payload.barbers);
         }
@@ -969,7 +1006,93 @@ const server = http.createServer(async (req, res) => {
   }
 
   // --------------------------------------------------------------------------
-  // API DE BARBEROS: GET (PUBLICO) / POST, PUT, DELETE (REQUIERE ADMIN)
+  // API ATOMICA: CREAR BARBERO Y USUARIO EN UNA SOLA TRANSACCION
+  // --------------------------------------------------------------------------
+  if (reqUrl === '/api/barbers/with-user' && req.method === 'POST') {
+    const authUser = getAuthenticatedUser(req);
+    if (!authUser || (authUser.role !== 'ADMIN' && authUser.role !== 'JEFE')) {
+      res.statusCode = 403;
+      res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      res.end(JSON.stringify({ error: 'Acceso denegado: se requieren permisos administrativos.' }));
+      return;
+    }
+
+    try {
+      const payload = await readJsonBody(req);
+      const { barberData, userData } = payload || {};
+      if (!barberData || !userData || !userData.username || !userData.password) {
+        res.statusCode = 400;
+        res.setHeader('Content-Type', 'application/json; charset=utf-8');
+        res.end(JSON.stringify({ error: 'Faltan datos obligatorios para crear el barbero y sus credenciales.' }));
+        return;
+      }
+
+      const users = readJsonFile(USERS_FILE, DEFAULT_USERS);
+      const cleanUsername = String(userData.username).replace(/^@/, '').toLowerCase().trim();
+      const existingUser = users.find((u) => (u.username || '').replace(/^@/, '').toLowerCase().trim() === cleanUsername);
+      if (existingUser) {
+        res.statusCode = 400;
+        res.setHeader('Content-Type', 'application/json; charset=utf-8');
+        res.end(JSON.stringify({ error: `El usuario '@${cleanUsername}' ya existe.` }));
+        return;
+      }
+
+      const barbers = readJsonFile(BARBERS_FILE, DEFAULT_BARBERS);
+      const barberId = barberData.id || crypto.randomUUID();
+      const userId = userData.id || crypto.randomUUID();
+
+      const newBarber = {
+        id: barberId,
+        userId: userId,
+        name: String(barberData.name || 'Barbero').trim(),
+        specialty: String(barberData.specialty || 'Barbero Profesional').trim(),
+        phone: String(barberData.phone || '+57 321 989 7910').trim(),
+        avatar: barberData.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=600&q=80',
+        active: barberData.active !== false
+      };
+
+      const passwordHash = hashPasswordScrypt(userData.password);
+      const targetRole = (authUser.role === 'JEFE' && userData.role === 'ADMIN') ? 'BARBERO' : (userData.role || 'BARBERO');
+      const newUser = {
+        id: userId,
+        username: cleanUsername,
+        passwordHash: passwordHash,
+        role: targetRole,
+        barberId: barberId,
+        active: true,
+        createdAt: new Date().toISOString()
+      };
+
+      barbers.push(newBarber);
+      users.push(newUser);
+
+      writeJsonFileAtomic(BARBERS_FILE, barbers);
+      writeJsonFileAtomic(USERS_FILE, users);
+
+      res.statusCode = 201;
+      res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      res.end(JSON.stringify({
+        success: true,
+        barber: newBarber,
+        user: {
+          id: newUser.id,
+          username: newUser.username,
+          role: newUser.role,
+          barberId: newUser.barberId,
+          active: newUser.active
+        }
+      }));
+      return;
+    } catch (err) {
+      res.statusCode = 500;
+      res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      res.end(JSON.stringify({ error: 'Error interno al registrar barbero y usuario: ' + err.message }));
+      return;
+    }
+  }
+
+  // --------------------------------------------------------------------------
+  // API DE BARBEROS: GET (PUBLICO) / POST, PUT, DELETE (REQUIERE ADMIN O JEFE)
   // --------------------------------------------------------------------------
   if (reqUrl === '/api/barbers') {
     if (req.method === 'GET') {
@@ -1014,10 +1137,10 @@ const server = http.createServer(async (req, res) => {
 
   if (reqUrl.startsWith('/api/barbers/') && req.method === 'PUT') {
     const authUser = getAuthenticatedUser(req);
-    if (!authUser || authUser.role !== 'ADMIN') {
+    if (!authUser || (authUser.role !== 'ADMIN' && authUser.role !== 'JEFE')) {
       res.statusCode = 403;
       res.setHeader('Content-Type', 'application/json; charset=utf-8');
-      res.end(JSON.stringify({ error: 'Acceso denegado: se requieren privilegios de Administrador.' }));
+      res.end(JSON.stringify({ error: 'Acceso denegado: se requieren permisos administrativos.' }));
       return;
     }
 
@@ -1048,10 +1171,10 @@ const server = http.createServer(async (req, res) => {
 
   if (reqUrl.startsWith('/api/barbers/') && req.method === 'DELETE') {
     const authUser = getAuthenticatedUser(req);
-    if (!authUser || authUser.role !== 'ADMIN') {
+    if (!authUser || (authUser.role !== 'ADMIN' && authUser.role !== 'JEFE')) {
       res.statusCode = 403;
       res.setHeader('Content-Type', 'application/json; charset=utf-8');
-      res.end(JSON.stringify({ error: 'Acceso denegado: se requieren privilegios de Administrador.' }));
+      res.end(JSON.stringify({ error: 'Acceso denegado: se requieren permisos administrativos.' }));
       return;
     }
 
@@ -1087,10 +1210,10 @@ const server = http.createServer(async (req, res) => {
 
     if (req.method === 'POST') {
       const authUser = getAuthenticatedUser(req);
-      if (!authUser || authUser.role !== 'ADMIN') {
+      if (!authUser || (authUser.role !== 'ADMIN' && authUser.role !== 'JEFE')) {
         res.statusCode = 403;
         res.setHeader('Content-Type', 'application/json; charset=utf-8');
-        res.end(JSON.stringify({ error: 'Acceso denegado: se requieren privilegios de Administrador.' }));
+        res.end(JSON.stringify({ error: 'Acceso denegado: se requieren permisos administrativos.' }));
         return;
       }
 
@@ -1100,6 +1223,13 @@ const server = http.createServer(async (req, res) => {
           res.statusCode = 400;
           res.setHeader('Content-Type', 'application/json; charset=utf-8');
           res.end(JSON.stringify({ error: 'Faltan campos obligatorios para el usuario.' }));
+          return;
+        }
+
+        if (authUser.role === 'JEFE' && newUser.role === 'ADMIN') {
+          res.statusCode = 403;
+          res.setHeader('Content-Type', 'application/json; charset=utf-8');
+          res.end(JSON.stringify({ error: 'Un Barbero Jefe no puede crear usuarios Administradores.' }));
           return;
         }
 
@@ -1141,8 +1271,8 @@ const server = http.createServer(async (req, res) => {
     const authUser = getAuthenticatedUser(req);
     const userId = reqUrl.substring('/api/users/'.length);
 
-    // Solo admin o el propio usuario modificandose
-    if (!authUser || (authUser.role !== 'ADMIN' && authUser.sub !== userId)) {
+    // Solo admin, jefe o el propio usuario modificandose
+    if (!authUser || (authUser.role !== 'ADMIN' && authUser.role !== 'JEFE' && authUser.sub !== userId)) {
       res.statusCode = 403;
       res.setHeader('Content-Type', 'application/json; charset=utf-8');
       res.end(JSON.stringify({ error: 'Acceso denegado.' }));
@@ -1192,10 +1322,10 @@ const server = http.createServer(async (req, res) => {
 
   if (reqUrl.startsWith('/api/users/') && req.method === 'DELETE') {
     const authUser = getAuthenticatedUser(req);
-    if (!authUser || authUser.role !== 'ADMIN') {
+    if (!authUser || (authUser.role !== 'ADMIN' && authUser.role !== 'JEFE')) {
       res.statusCode = 403;
       res.setHeader('Content-Type', 'application/json; charset=utf-8');
-      res.end(JSON.stringify({ error: 'Acceso denegado: se requieren privilegios de Administrador.' }));
+      res.end(JSON.stringify({ error: 'Acceso denegado: se requieren permisos administrativos.' }));
       return;
     }
 

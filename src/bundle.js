@@ -174,7 +174,7 @@
 
     static canManageCredentials(user) {
       if (!user) return false;
-      return user.role === Roles.ADMIN;
+      return user.role === Roles.ADMIN || user.role === Roles.JEFE;
     }
 
     static filterPublicBarbers(barbersList, usersList) {
@@ -420,9 +420,6 @@
     }
 
     async saveUser(user) {
-      const list = this._get('blopez_users');
-      list.push(user);
-      this._set('blopez_users', list);
       try {
         const res = await fetch('/api/users', {
           method: 'POST',
@@ -433,19 +430,23 @@
           const errData = await res.json().catch(() => ({}));
           throw new Error(errData.error || 'No fue posible crear el usuario en el servidor.');
         }
+        const data = await res.json().catch(() => ({}));
+        const savedUser = data.user || user;
+        const list = this._get('blopez_users');
+        const existingIdx = list.findIndex((u) => u.id === savedUser.id);
+        if (existingIdx !== -1) {
+          list[existingIdx] = savedUser;
+        } else {
+          list.push(savedUser);
+        }
+        this._set('blopez_users', list);
+        return savedUser;
       } catch (e) {
         throw e;
       }
-      return user;
     }
 
     async updateUser(user) {
-      const list = this._get('blopez_users');
-      const idx = list.findIndex((u) => u.id === user.id);
-      if (idx !== -1) {
-        list[idx] = { ...list[idx], ...user };
-        this._set('blopez_users', list);
-      }
       try {
         const res = await fetch(`/api/users/${user.id}`, {
           method: 'PUT',
@@ -456,10 +457,18 @@
           const errData = await res.json().catch(() => ({}));
           throw new Error(errData.error || 'No fue posible actualizar el usuario.');
         }
+        const data = await res.json().catch(() => ({}));
+        const savedUser = data.user || user;
+        const list = this._get('blopez_users');
+        const idx = list.findIndex((u) => u.id === savedUser.id);
+        if (idx !== -1) {
+          list[idx] = { ...list[idx], ...savedUser };
+          this._set('blopez_users', list);
+        }
+        return savedUser;
       } catch (e) {
         throw e;
       }
-      return user;
     }
 
     async findAllUsers() {
@@ -467,7 +476,7 @@
         const res = await fetch('/api/users');
         if (res.ok) {
           const serverUsers = await res.json();
-          if (Array.isArray(serverUsers) && serverUsers.length > 0) {
+          if (Array.isArray(serverUsers)) {
             this._set('blopez_users', serverUsers);
             return serverUsers;
           }
@@ -477,9 +486,6 @@
     }
 
     async deleteUser(userId) {
-      let list = this._get('blopez_users');
-      list = list.filter((u) => u.id !== userId);
-      this._set('blopez_users', list);
       try {
         const res = await fetch(`/api/users/${userId}`, {
           method: 'DELETE',
@@ -489,10 +495,13 @@
           const errData = await res.json().catch(() => ({}));
           throw new Error(errData.error || 'No fue posible eliminar el usuario.');
         }
+        let list = this._get('blopez_users');
+        list = list.filter((u) => u.id !== userId);
+        this._set('blopez_users', list);
+        return true;
       } catch (e) {
         throw e;
       }
-      return true;
     }
 
     async findBarberById(id) {
@@ -505,7 +514,7 @@
         const res = await fetch('/api/barbers');
         if (res.ok) {
           const serverBarbers = await res.json();
-          if (Array.isArray(serverBarbers) && serverBarbers.length > 0) {
+          if (Array.isArray(serverBarbers)) {
             this._set('blopez_barbers', serverBarbers);
             return serverBarbers;
           }
@@ -515,9 +524,6 @@
     }
 
     async saveBarber(barber) {
-      const list = this._get('blopez_barbers');
-      list.push(barber);
-      this._set('blopez_barbers', list);
       try {
         const res = await fetch('/api/barbers', {
           method: 'POST',
@@ -528,19 +534,23 @@
           const errData = await res.json().catch(() => ({}));
           throw new Error(errData.error || 'No fue posible registrar el barbero.');
         }
+        const data = await res.json().catch(() => ({}));
+        const savedBarber = data.barber || barber;
+        const list = this._get('blopez_barbers');
+        const existingIdx = list.findIndex((b) => b.id === savedBarber.id);
+        if (existingIdx !== -1) {
+          list[existingIdx] = savedBarber;
+        } else {
+          list.push(savedBarber);
+        }
+        this._set('blopez_barbers', list);
+        return savedBarber;
       } catch (e) {
         throw e;
       }
-      return barber;
     }
 
     async updateBarber(barber) {
-      const list = this._get('blopez_barbers');
-      const idx = list.findIndex((b) => b.id === barber.id);
-      if (idx !== -1) {
-        list[idx] = { ...list[idx], ...barber };
-        this._set('blopez_barbers', list);
-      }
       try {
         const res = await fetch(`/api/barbers/${barber.id}`, {
           method: 'PUT',
@@ -551,16 +561,21 @@
           const errData = await res.json().catch(() => ({}));
           throw new Error(errData.error || 'No fue posible actualizar el barbero.');
         }
+        const data = await res.json().catch(() => ({}));
+        const savedBarber = data.barber || barber;
+        const list = this._get('blopez_barbers');
+        const idx = list.findIndex((b) => b.id === savedBarber.id);
+        if (idx !== -1) {
+          list[idx] = { ...list[idx], ...savedBarber };
+          this._set('blopez_barbers', list);
+        }
+        return savedBarber;
       } catch (e) {
         throw e;
       }
-      return barber;
     }
 
     async deleteBarber(barberId) {
-      let list = this._get('blopez_barbers');
-      list = list.filter((b) => b.id !== barberId);
-      this._set('blopez_barbers', list);
       try {
         const res = await fetch(`/api/barbers/${barberId}`, {
           method: 'DELETE',
@@ -570,10 +585,13 @@
           const errData = await res.json().catch(() => ({}));
           throw new Error(errData.error || 'No fue posible eliminar el barbero.');
         }
+        let list = this._get('blopez_barbers');
+        list = list.filter((b) => b.id !== barberId);
+        this._set('blopez_barbers', list);
+        return true;
       } catch (e) {
         throw e;
       }
-      return true;
     }
 
     async findServiceById(id) {
@@ -751,7 +769,7 @@
         `Cita agendada con ${barberName}.\nServicio: ${serviceName}\nValor: $${priceCop.toLocaleString('es-CO')} COP\nLínea oficial: +57 321 989 7910`
       );
       const location = encodeURIComponent('Barbería Lopez, Neiva, Huila');
-      const googleUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${text}&dates=${dates}&details=${details}&location=${location}`;
+      const googleUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${text}&dates=${dates}&details=${details}&location=${location}&ctz=America/Bogota`;
 
       const waText = encodeURIComponent(
         `Hola Barbería Lopez, confirmo mi turno agendado en la web:\nBarbero: ${barberName}\nServicio: ${serviceName}\nFecha: ${appointment.date}\nHora: ${appointment.startTime}`
@@ -763,7 +781,7 @@
         ? `webcal://${host}/api/calendar/client/${cleanPhone}.ics` 
         : `webcal://${host}/api/calendar/appointment/${appointment.id}.ics`;
       const appointmentWebcalUrl = `webcal://${host}/api/calendar/appointment/${appointment.id}.ics`;
-      const icsDownloadUrl = `/api/appointment/${appointment.id}.ics`;
+      const icsDownloadUrl = `/api/calendar/appointment/${appointment.id}.ics`;
       const icsDataUri = 'data:text/calendar;charset=utf8,' + encodeURIComponent(icsString);
 
       return {
@@ -959,11 +977,46 @@
     constructor({ repo }) { this.repo = repo; }
     async createBarber({ adminUser, name, specialty, phone, username, password, role }) {
       if (!AccessControlService.canManageCredentials(adminUser)) {
-        throw new Error("Acceso denegado: solo el Administrador puede crear barberos.");
+        throw new Error("Acceso denegado: se requieren permisos administrativos.");
       }
       const existing = await this.repo.findUserByUsername(username);
       if (existing) throw new Error(`El usuario '@${username}' ya existe.`);
 
+      // Intento de creacion atomica integral en el servidor
+      try {
+        const res = await fetch('/api/barbers/with-user', {
+          method: 'POST',
+          headers: this.repo._getAuthHeaders(),
+          body: JSON.stringify({
+            barberData: { name, specialty, phone },
+            userData: { username, password, role }
+          })
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          if (data.barber && data.user) {
+            const barbers = this.repo._get('blopez_barbers');
+            barbers.push(data.barber);
+            this.repo._set('blopez_barbers', barbers);
+
+            const users = this.repo._get('blopez_users');
+            users.push(data.user);
+            this.repo._set('blopez_users', users);
+
+            return { user: data.user, barber: data.barber };
+          }
+        } else {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.error || 'No fue posible registrar el barbero en el servidor.');
+        }
+      } catch (err) {
+        if (err.message && (err.message.includes('servidor') || err.message.includes('ya existe') || err.message.includes('denegado'))) {
+          throw err;
+        }
+      }
+
+      // Fallback transaccional seguro
       const barber = new Barber({
         name,
         specialty,
@@ -2352,17 +2405,29 @@
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 ${publicBarbers.map((b) => {
                   const isSelected = state.bookingForm.barberId === b.id;
+                  const slotEnd = computeEndTime(state.bookingForm.startTime, 30);
+                  const isBarberBusy = !AvailabilityService.isSlotAvailable(
+                    state.appointments || [],
+                    b.id,
+                    state.bookingForm.date,
+                    state.bookingForm.startTime,
+                    slotEnd
+                  );
                   return `
                     <div 
                       data-modal-barber-id="${b.id}" 
-                      class="barber-modal-choice p-3.5 rounded-[12px] border cursor-pointer flex items-center gap-3 transition-all ${isSelected ? 'selected border-[#d4af37] bg-[rgba(212,175,55,0.14)] shadow-[0_0_15px_rgba(212,175,55,0.2)]' : 'border-[rgba(212,175,55,0.22)] bg-[#161a22] hover:border-[#d4af37]'}">
-                      <img src="${b.avatar || './logo_barberia_lopez_hd.jpg'}" alt="${b.name}" class="w-11 h-11 rounded-full object-cover border border-[rgba(212,175,55,0.35)]">
+                      data-busy="${isBarberBusy ? 'true' : 'false'}"
+                      class="barber-modal-choice p-3.5 rounded-[12px] border cursor-pointer flex items-center gap-3 transition-all ${isBarberBusy ? 'opacity-50 border-red-500/30 bg-[#12151b]' : (isSelected ? 'selected border-[#d4af37] bg-[rgba(212,175,55,0.14)] shadow-[0_0_15px_rgba(212,175,55,0.2)]' : 'border-[rgba(212,175,55,0.22)] bg-[#161a22] hover:border-[#d4af37]')}">
+                      <img src="${b.avatar || './logo_barberia_lopez_hd.jpg'}" alt="${escapeHtml(b.name)}" class="w-11 h-11 rounded-full object-cover border border-[rgba(212,175,55,0.35)]">
                       <div class="flex-1">
-                        <div class="font-sans-ui font-semibold text-[#ffffff] text-[14px]">${b.name}</div>
-                        <div class="font-sans-ui text-[#c5c0b6] text-[11px] mt-0.5">${b.specialty}</div>
+                        <div class="font-sans-ui font-semibold text-[#ffffff] text-[14px] flex items-center justify-between">
+                          <span>${escapeHtml(b.name)}</span>
+                          ${isBarberBusy ? '<span class="text-[10px] text-red-400 font-mono-tech font-bold uppercase tracking-wider">Ocupado a esta hora</span>' : ''}
+                        </div>
+                        <div class="font-sans-ui text-[#c5c0b6] text-[11px] mt-0.5">${escapeHtml(b.specialty)}</div>
                       </div>
-                      <span class="w-4 h-4 rounded-full border flex items-center justify-center ${isSelected ? 'border-[#d4af37] bg-[#d4af37]' : 'border-[rgba(212,175,55,0.35)]'}">
-                        ${isSelected ? '<span class="w-1.5 h-1.5 rounded-full bg-[#0a0b0d]"></span>' : ''}
+                      <span class="w-4 h-4 rounded-full border flex items-center justify-center ${isSelected && !isBarberBusy ? 'border-[#d4af37] bg-[#d4af37]' : 'border-[rgba(212,175,55,0.35)]'}">
+                        ${isSelected && !isBarberBusy ? '<span class="w-1.5 h-1.5 rounded-full bg-[#0a0b0d]"></span>' : ''}
                       </span>
                     </div>
                   `;
@@ -2441,7 +2506,7 @@
                           <div class="font-mono-tech text-[11px] font-bold text-[#d4af37]">+$ ${extra.priceCop.toLocaleString('es-CO')}</div>
                         </div>
                         <span class="w-4 h-4 rounded border flex items-center justify-center ${isChecked ? 'border-[#d4af37] bg-[#d4af37]' : 'border-[rgba(212,175,55,0.35)]'}">
-                          ${isChecked ? '<span class="text-[#0a0b0d] font-bold text-xs leading-none">✓</span>' : ''}
+                          ${isChecked ? '<span class="text-[#0a0b0d] font-bold text-xs leading-none">V</span>' : ''}
                         </span>
                       </div>
                     `;
@@ -2714,6 +2779,10 @@
     // Selección de barbero en el modal (in-place sin resetear scroll)
     document.querySelectorAll('.barber-modal-choice').forEach((card) => {
       card.onclick = () => {
+        if (card.dataset.busy === 'true') {
+          alert('Este barbero ya tiene una reserva en esta franja horaria. Por favor selecciona otro barbero o escoge otra hora en la agenda.');
+          return;
+        }
         const barberId = card.dataset.modalBarberId;
         state.bookingForm.barberId = barberId;
         document.querySelectorAll('.barber-modal-choice').forEach((c) => {
@@ -2773,7 +2842,7 @@
         const checkBadge = card.querySelector('span.w-4');
         if (checkBadge) {
           checkBadge.className = `w-4 h-4 rounded border flex items-center justify-center ${isChecked ? 'border-[#d4af37] bg-[#d4af37]' : 'border-[rgba(212,175,55,0.35)]'}`;
-          checkBadge.innerHTML = isChecked ? '<span class="text-[#0a0b0d] font-bold text-xs leading-none">✓</span>' : '';
+          checkBadge.innerHTML = isChecked ? '<span class="text-[#0a0b0d] font-bold text-xs leading-none">V</span>' : '';
         }
         updateLivePriceSummary();
       };
@@ -2816,10 +2885,23 @@
       };
     }
 
+    let isSubmittingBooking = false;
     const formClientBooking = document.getElementById('form-client-booking');
     if (formClientBooking) {
       formClientBooking.onsubmit = async (e) => {
         e.preventDefault();
+        if (isSubmittingBooking) return;
+
+        const btnSubmit = formClientBooking.querySelector('button[type="submit"]');
+        const originalBtnText = btnSubmit ? btnSubmit.textContent : '';
+        if (btnSubmit) {
+          btnSubmit.disabled = true;
+          btnSubmit.textContent = 'Agendando turno...';
+          btnSubmit.style.opacity = '0.7';
+          btnSubmit.style.cursor = 'not-allowed';
+        }
+        isSubmittingBooking = true;
+
         const clientName = document.getElementById('client-booking-name').value;
         const clientPhone = document.getElementById('client-booking-phone').value;
         const clientEmail = document.getElementById('client-booking-email')?.value || '';
@@ -2852,6 +2934,14 @@
           await repo.findAllAppointments();
           await renderApp();
           alert(err.message);
+        } finally {
+          isSubmittingBooking = false;
+          if (btnSubmit) {
+            btnSubmit.disabled = false;
+            btnSubmit.textContent = originalBtnText;
+            btnSubmit.style.opacity = '';
+            btnSubmit.style.cursor = '';
+          }
         }
       };
     }
