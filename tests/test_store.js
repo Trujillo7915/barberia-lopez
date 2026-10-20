@@ -2,8 +2,9 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 
+const ROOT_DIR = path.resolve(__dirname, '..');
 const BASE_URL = 'http://localhost:3000';
-const ORDERS_FILE = path.join(__dirname, 'data', 'store_orders.json');
+const ORDERS_FILE = path.join(ROOT_DIR, 'data', 'store_orders.json');
 
 function request(method, pathUrl, body = null, token = null) {
   return new Promise((resolve, reject) => {

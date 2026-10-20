@@ -202,6 +202,7 @@ async function runTests() {
   }
 
   console.log(`\nRESULTADOS: ${passed} pruebas superadas, ${failed} fallos.`);
+  if (failed > 0) process.exit(1);
 }
 
 runTests();

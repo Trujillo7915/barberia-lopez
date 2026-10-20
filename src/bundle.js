@@ -1,6 +1,17 @@
 /**
- * Barbería Lopez — Bundle Transaccional Arquitectura Onion
- * Estilo Visual: Josh Warner — Black Void Gallery Wall (#0f0f0f, #f0f0f0, #b8b8b8, #08ff00, Inter 400)
+ * Barberia Lopez — SPA Cliente Arquitectura Onion Consolidada
+ * Estilo Visual: Josh Warner — Black Void Gallery Wall (#0a0b0d, #14161a, #d4af37)
+ * Indice Quirurgico de Capas (Consulte CODEMAP.md para detalles):
+ * - Capa 1: Domain Types & Models (Roles, User, Barber, Product, Order): L40 - L140
+ * - Capa 2: Domain Services (AccessControl, Availability, CashCalculator): L141 - L245
+ * - Capa 4: Infrastructure (LocalStorageRepository, HMAC Sync, Offline Queue): L246 - L1200
+ * - Capa 3: Application Use Cases (Book, Complete, Login, Users, Cash): L1220 - L1460
+ * - Grillas de Calendario y Franjas Horarias (30 min continuos): L1465 - L1670
+ * - Capa 4: UI State (appState): L1671 - L1730
+ * - Renderizado Principal renderApp() (Navbar, Hero, Booking, Tienda): L1731 - L3730
+ * - Modales de Interfaz (Auth, Checkout, Referencia, Venta Directa): L3731 - L3990
+ * - Manejadores de Eventos setupEventListeners(): L3991 - L5015
+ * - Preloader dismissPreloader() e Inicializacion: L5016 - L5150
  */
 (() => {
   'use strict';

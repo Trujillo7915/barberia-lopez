@@ -3,6 +3,7 @@ const { spawn } = require('child_process');
 const path = require('path');
 const fs = require('fs');
 
+const ROOT_DIR = path.resolve(__dirname, '..');
 const PORT = 3000;
 const HOST = 'localhost';
 
@@ -95,23 +96,34 @@ function getLocalDateString(date = new Date()) {
   return `${y}-${m}-${d}`;
 }
 
+async function isServerRunning() {
+  try {
+    const res = await makeRequest({ path: '/api/barbers' });
+    return res.statusCode === 200;
+  } catch (_) {
+    return false;
+  }
+}
+
 async function run() {
   console.log('--- INICIO DE PRUEBAS DE FINALIZACION DE CORTE, IDEMPOTENCIA Y CAJA ---');
   let passed = 0;
   let failed = 0;
 
-  // 1. Iniciar servidor Node.js
-  const serverProcess = spawn('node', ['server.js'], {
-    cwd: __dirname,
-    stdio: 'pipe'
-  });
-
-  serverProcess.stdout.on('data', () => {});
-  serverProcess.stderr.on('data', (d) => {
-    console.error('[SERVER ERROR]', d.toString());
-  });
-
-  await wait(1500);
+  // 1. Verificar si el servidor ya esta corriendo; si no, iniciarlo
+  let serverProcess = null;
+  const running = await isServerRunning();
+  if (!running) {
+    serverProcess = spawn('node', ['server.js'], {
+      cwd: ROOT_DIR,
+      stdio: 'pipe'
+    });
+    serverProcess.stdout.on('data', () => {});
+    serverProcess.stderr.on('data', (d) => {
+      console.error('[SERVER ERROR]', d.toString());
+    });
+    await wait(1500);
+  }
 
   try {
     // 2. Iniciar sesion como ADMIN
@@ -287,11 +299,13 @@ async function run() {
     console.error('[ERROR]', err);
     failed++;
   } finally {
-    serverProcess.kill();
+    if (serverProcess) {
+      serverProcess.kill();
+    }
     console.log(`\n======================================================`);
     console.log(` RESULTADOS FINALES: ${passed} pruebas superadas, ${failed} fallos.`);
     console.log(`======================================================\n`);
-    process.exit(failed === 0 ? 0 : 1);
+    if (failed > 0) process.exit(1);
   }
 }
 

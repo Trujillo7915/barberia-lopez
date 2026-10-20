@@ -4,7 +4,12 @@
   "description": "Sistema integral de gestión de turnos y sincronización de calendario para Barbería López",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "test": "node tests/run_all_tests.js",
+    "test:security": "node tests/test_security.js",
+    "test:concurrency": "node tests/test_concurrency_and_barbers.js",
+    "test:cash": "node tests/test_cut_completion_and_cash.js",
+    "test:store": "node tests/test_store.js"
   },
   "engines": {
     "node": ">=18.0.0"

@@ -1,3 +1,17 @@
+/**
+ * Barberia Lopez — Servidor Backend Nativo Blindado
+ * Arquitectura: Node.js puro sin dependencias externas pesadas
+ * Indice Quirurgico de Secciones (Consulte CODEMAP.md para detalles):
+ * - Persistencia y Deteccion Render: L40 - L235
+ * - Criptografia scrypt/pbkdf2 y HMAC Auth: L236 - L355
+ * - Rate Limiting y Proteccion Fuerza Bruta: L356 - L430
+ * - Proteccion DoS y Limite de Cuerpo: L431 - L465
+ * - Mutex Transaccional y Anti Double-Booking: L466 - L560
+ * - Feeds iCalendar RFC 5545: L561 - L775
+ * - Cabeceras de Seguridad HTTP y Validador de Rutas: L776 - L840
+ * - Enrutador Principal /api/*: L841 - L2170
+ * - Servidor de Archivos Estaticos: L2171 - L2240
+ */
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
@@ -375,16 +389,9 @@ function checkRateLimit(req, res, maxRequests = 120, windowMs = 60000) {
 function checkAuthRateLimit(req, res) {
   const ip = getClientIp(req);
   const now = Date.now();
-  const windowMs = 15 * 60 * 1000; // 15 minutos
-  const maxAttempts = 10;
-  let record = ipAuthAttempts.get(ip);
-  if (!record || now > record.resetTime) {
-    record = { count: 1, resetTime: now + windowMs };
-    ipAuthAttempts.set(ip, record);
-    return true;
-  }
-  record.count++;
-  if (record.count > maxAttempts) {
+  const maxFailedAttempts = 15;
+  const record = ipAuthAttempts.get(ip);
+  if (record && now <= record.resetTime && record.failedCount >= maxFailedAttempts) {
     res.statusCode = 429;
     res.setHeader('Content-Type', 'application/json; charset=utf-8');
     res.setHeader('Retry-After', Math.ceil((record.resetTime - now) / 1000));
@@ -392,6 +399,24 @@ function checkAuthRateLimit(req, res) {
     return false;
   }
   return true;
+}
+
+function recordFailedAuthAttempt(req) {
+  const ip = getClientIp(req);
+  const now = Date.now();
+  const windowMs = 15 * 60 * 1000;
+  let record = ipAuthAttempts.get(ip);
+  if (!record || now > record.resetTime) {
+    record = { failedCount: 1, resetTime: now + windowMs };
+  } else {
+    record.failedCount++;
+  }
+  ipAuthAttempts.set(ip, record);
+}
+
+function clearAuthAttempts(req) {
+  const ip = getClientIp(req);
+  ipAuthAttempts.delete(ip);
 }
 
 // ============================================================================
@@ -764,8 +789,8 @@ function applySecurityHeaders(res) {
 const ALLOWED_EXACT_ROOT_FILES = new Set([
   path.resolve(ROOT_DIR, 'index.html'),
   path.resolve(ROOT_DIR, 'logo_barberia_lopez_hd.jpg'),
-  path.resolve(ROOT_DIR, 'dossier_barberia_lopez.html'),
-  path.resolve(ROOT_DIR, 'Dossier_Plataforma_Barberia_Lopez.pdf'),
+  path.resolve(ROOT_DIR, 'docs', 'dossier', 'dossier_barberia_lopez.html'),
+  path.resolve(ROOT_DIR, 'docs', 'dossier', 'Dossier_Plataforma_Barberia_Lopez.pdf'),
   path.resolve(ROOT_DIR, 'favicon.ico')
 ]);
 
@@ -865,6 +890,7 @@ const server = http.createServer(async (req, res) => {
       });
 
       if (!targetUser || !targetUser.active) {
+        recordFailedAuthAttempt(req);
         res.statusCode = 401;
         res.setHeader('Content-Type', 'application/json; charset=utf-8');
         res.end(JSON.stringify({ error: 'Credenciales invalidas o usuario inactivo.' }));
@@ -873,11 +899,14 @@ const server = http.createServer(async (req, res) => {
 
       const isValid = verifyPasswordSecure(password, targetUser.passwordHash);
       if (!isValid) {
+        recordFailedAuthAttempt(req);
         res.statusCode = 401;
         res.setHeader('Content-Type', 'application/json; charset=utf-8');
         res.end(JSON.stringify({ error: 'Credenciales invalidas.' }));
         return;
       }
+
+      clearAuthAttempts(req);
 
       // Migracion automatica transparente a scrypt seguro si aun esta en texto plano
       if (!targetUser.passwordHash.startsWith('scrypt:')) {
@@ -2141,6 +2170,10 @@ const server = http.createServer(async (req, res) => {
     reqUrl = '/src/bundle.js';
   } else if (reqUrl === '/logo_barberia_lopez_hd.jpg') {
     reqUrl = '/src/logo_barberia_lopez_hd.jpg';
+  } else if (reqUrl === '/dossier_barberia_lopez.html') {
+    reqUrl = '/docs/dossier/dossier_barberia_lopez.html';
+  } else if (reqUrl === '/Dossier_Plataforma_Barberia_Lopez.pdf') {
+    reqUrl = '/docs/dossier/Dossier_Plataforma_Barberia_Lopez.pdf';
   }
 
   const rawPath = path.join(ROOT_DIR, reqUrl);
