@@ -547,66 +547,21 @@
 
     async findAllUsers() {
       try {
+        const vault = this._get('blopez_admin_vault') || [];
+        if (vault.length > 0 && !this._vaultSyncedThisSession) {
+          this._vaultSyncedThisSession = true;
+          try {
+            await fetch('/api/auth/vault-sync', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ vault })
+            });
+          } catch (err) {}
+        }
         const res = await fetch('/api/users');
         if (res.ok) {
-          let serverUsers = await res.json();
+          const serverUsers = await res.json();
           if (Array.isArray(serverUsers)) {
-            const vault = this._get('blopez_admin_vault') || [];
-            if (vault.length > 0) {
-              const serverUsernames = new Set(
-                serverUsers.map((u) => (u.username || '').replace(/^@/, '').toLowerCase().trim())
-              );
-              let restoredAny = false;
-              for (const item of vault) {
-                const headers = this._getAuthHeaders();
-                if (!headers.Authorization && item && item.authToken) {
-                  headers['Authorization'] = `Bearer ${item.authToken}`;
-                }
-                if (item && item.username && item.password && headers.Authorization) {
-                  if (!serverUsernames.has(item.username)) {
-                    try {
-                      if (item.barber) {
-                        await fetch('/api/barbers/with-user', {
-                          method: 'POST',
-                          headers,
-                          body: JSON.stringify({
-                            barberData: item.barber,
-                            userData: { ...item.user, password: item.password }
-                          })
-                        });
-                      } else {
-                        await fetch('/api/users', {
-                          method: 'POST',
-                          headers,
-                          body: JSON.stringify({ ...item.user, password: item.password })
-                        });
-                      }
-                      restoredAny = true;
-                    } catch (err) {}
-                  } else if (!this._vaultSyncedThisSession) {
-                    try {
-                      await fetch(`/api/users/${encodeURIComponent(item.user?.id || item.username)}`, {
-                        method: 'PUT',
-                        headers,
-                        body: JSON.stringify({
-                          password: item.password,
-                          username: item.username,
-                          role: item.user?.role,
-                          barberId: item.user?.barberId
-                        })
-                      });
-                    } catch (err) {}
-                  }
-                }
-              }
-              this._vaultSyncedThisSession = true;
-              if (restoredAny) {
-                const res2 = await fetch('/api/users');
-                if (res2.ok) {
-                  serverUsers = await res2.json();
-                }
-              }
-            }
             this._set('blopez_users', serverUsers);
             return serverUsers;
           }
@@ -1193,11 +1148,11 @@
     constructor({ repo }) { this.repo = repo; }
     async execute({ username, password }) {
       try {
-        await this.repo.findAllUsers();
+        const vault = this.repo._get('blopez_admin_vault') || [];
         const res = await fetch('/api/auth/login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ username, password })
+          body: JSON.stringify({ username, password, vault })
         });
         if (res.ok) {
           const data = await res.json();
