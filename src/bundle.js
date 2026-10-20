@@ -1766,32 +1766,68 @@ async findAllProducts() {
 
     if (state.activeView === 'home') {
       mainContent = `
-        <!-- HERO & PILLARS WITH BARBERÍA LOPEZ LOGO BACKGROUND (Dentro del recuadro rojo) -->
-        <section id="hero" class="relative overflow-hidden bg-[#0a0b0d] pt-6 pb-16 border-b border-[#d4af37]/20">
+        <!-- SECTION 1: PORTADA MAJESTUOSA DEL LOGO (FULL VIEWPORT COVER) -->
+        <section id="hero" class="relative min-h-[85vh] sm:min-h-[88vh] flex flex-col items-center justify-center overflow-hidden bg-[#0a0b0d] px-6 text-center border-b border-[#d4af37]/20 select-none">
           
-          <!-- LOGO WATERMARK / HERO BACKDROP (Proporción exacta 1:1 preservada, nitidez HD sin pixelado) -->
-          <div class="absolute inset-0 pointer-events-none select-none flex items-center justify-center overflow-hidden z-0">
-            <!-- Aura luminosa ambiental en oro cálido -->
-            <div class="absolute w-[500px] md:w-[750px] h-[500px] md:h-[750px] rounded-full bg-[#d4af37]/10 blur-[130px] -translate-y-6"></div>
+          <!-- Halo de luz ambiental dorada en el centro -->
+          <div class="absolute w-[360px] sm:w-[580px] md:w-[720px] h-[360px] sm:h-[580px] md:h-[720px] rounded-full bg-[#d4af37]/12 blur-[120px] pointer-events-none -translate-y-4"></div>
+          
+          <!-- Contenedor central del Logo con doble anillo orbital y halo de lujo -->
+          <div class="relative z-10 flex flex-col items-center justify-center max-w-xl mx-auto py-8">
             
-            <!-- Logotipo oficial HD renderizado en proporción nativa perfecta (no se deforma ni se pixela) -->
-            <img 
-              src="./logo_barberia_lopez_hd.jpg" 
-              alt="Barbería Lopez Fondo" 
-              class="w-[480px] sm:w-[600px] md:w-[700px] lg:w-[800px] max-w-[92vw] h-auto object-contain opacity-35 md:opacity-40 mix-blend-screen filter drop-shadow-[0_0_35px_rgba(212,175,55,0.2)]"
-              loading="eager"
-            >
+            <div class="relative flex items-center justify-center mb-6">
+              <!-- Doble anillo orbital dorado sutil -->
+              <div class="absolute -inset-4 sm:-inset-6 rounded-full border border-[#d4af37]/25 animate-[spin_24s_linear_infinite] pointer-events-none"></div>
+              <div class="absolute -inset-8 sm:-inset-10 rounded-full border border-dashed border-[#d4af37]/15 animate-[spin_36s_linear_infinite_reverse] pointer-events-none"></div>
+              
+              <!-- Imagen oficial del Logo en HD -->
+              <img 
+                src="./logo_barberia_lopez_hd.jpg" 
+                alt="Barbería López" 
+                class="w-[200px] h-[200px] sm:w-[280px] sm:h-[280px] md:w-[320px] md:h-[320px] rounded-full object-cover border-2 border-[#d4af37]/60 shadow-[0_0_50px_rgba(212,175,55,0.25),0_0_80px_rgba(0,0,0,0.9)]"
+                loading="eager"
+                onerror="this.src='./logo_barberia_lopez.png'"
+              >
+            </div>
 
-            <!-- Máscaras de gradiente radial y lineal: los bordes se funden en #0a0b0d y el texto es 100% legible -->
-            <div class="absolute inset-0 bg-gradient-to-t from-[#0a0b0d] via-transparent to-[#0a0b0d]/85"></div>
-            <div class="absolute inset-0 bg-gradient-to-r from-[#0a0b0d]/90 via-transparent to-[#0a0b0d]/90"></div>
-            <div class="absolute inset-0 [background:radial-gradient(ellipse_at_center,transparent_25%,#0a0b0d_82%)]"></div>
+            <!-- Titular de la Marca y Ubicación -->
+            <h1 class="font-serif-editorial text-2xl sm:text-4xl md:text-5xl font-normal tracking-[0.22em] text-[#ffffff] uppercase drop-shadow-[0_4px_16px_rgba(0,0,0,0.8)]">
+              Barbería López
+            </h1>
+            <p class="font-sans-ui text-xs sm:text-sm text-[#d4af37] tracking-[0.3em] uppercase font-semibold mt-2.5">
+              Estudio Tradicional · Neiva, Huila
+            </p>
+            <p class="font-serif-editorial text-[#c5c0b6] italic text-sm sm:text-base mt-2 max-w-md">
+              "Somos los arquitectos de tu imagen"
+            </p>
+
+            <!-- Indicador animado para invitar al cliente a scrolear / bajar -->
+            <a href="#informacion" class="mt-8 sm:mt-10 inline-flex flex-col items-center gap-2 text-[#c5c0b6] hover:text-[#d4af37] transition-all no-underline group cursor-pointer">
+              <span class="font-sans-ui text-[11px] font-medium tracking-[0.22em] uppercase text-[#9e9587] group-hover:text-[#d4af37] transition-colors">
+                Desliza para ver la información
+              </span>
+              <div class="w-6 h-10 rounded-full border-2 border-[#d4af37]/45 flex items-start justify-center p-1 group-hover:border-[#d4af37] transition-colors">
+                <div class="w-1.5 h-2.5 bg-[#d4af37] rounded-full animate-bounce"></div>
+              </div>
+            </a>
+          </div>
+
+          <!-- Degradado de desvanecimiento hacia la siguiente sección -->
+          <div class="absolute bottom-0 inset-x-0 h-16 bg-gradient-to-t from-[#0a0b0d] to-transparent pointer-events-none"></div>
+        </section>
+
+        <!-- SECTION 1.5: INFORMACION DE LA BARBERIA (Aparece al hacer scroll o bajar) -->
+        <section id="informacion" class="relative overflow-hidden bg-[#0a0b0d] py-16 sm:py-20 border-b border-[#d4af37]/20">
+          
+          <!-- Fondo ambiental sutil -->
+          <div class="absolute inset-0 pointer-events-none select-none flex items-center justify-center overflow-hidden z-0">
+            <div class="absolute w-[600px] h-[600px] rounded-full bg-[#d4af37]/6 blur-[140px]"></div>
           </div>
 
           <div class="relative z-10 max-w-[1240px] mx-auto px-6 md:px-12">
             
-            <!-- Layout Hero Centrado y Majestuoso sobre el Logo de Fondo -->
-            <div class="max-w-3xl mx-auto text-center flex flex-col items-center justify-center min-h-[52vh] py-10">
+            <!-- Layout Centrado con Titular, Subtitulo y Botones -->
+            <div class="max-w-3xl mx-auto text-center flex flex-col items-center justify-center py-4 sm:py-6">
               
               <div class="inline-flex items-center gap-2 mb-6 px-3.5 py-1 rounded-full bg-[#d4af37]/15 text-[#f3e5ab] border border-[#d4af37]/35 text-xs font-sans-ui font-semibold tracking-wide w-fit backdrop-blur-sm">
                 <span class="w-2 h-2 rounded-full bg-[#d4af37] shadow-[0_0_8px_#d4af37]"></span>
@@ -1799,10 +1835,10 @@ async findAllProducts() {
               </div>
 
               <!-- Titular Display en blanco cálido y oro metálico -->
-              <h1 class="type-display-editorial mb-6 text-[#ffffff] tracking-tight">
+              <h2 class="type-display-editorial mb-6 text-[#ffffff] tracking-tight text-[36px] sm:text-[48px] md:text-[54px] leading-[1.08]">
                 Arquitectos de tu imagen.<br>
                 <span class="text-[#d4af37] italic font-normal">Precisión en cada corte.</span>
-              </h1>
+              </h2>
 
               <!-- Subtítulo descriptivo -->
               <p class="font-serif-editorial text-[#c5c0b6] max-w-xl mx-auto text-[18px] sm:text-[20px] mb-8 font-normal leading-relaxed">
@@ -1827,7 +1863,7 @@ async findAllProducts() {
             </div>
 
             <!-- TRES PILARES / ESTÁNDARES EN ORO & OBSIDIANA -->
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 pt-10">
               <div class="bg-[#12151b]/85 backdrop-blur-md border border-[#d4af37]/25 rounded-[22px] p-7 flex flex-col justify-between shadow-lg hover:border-[#d4af37]/50 transition-all">
                 <div class="font-serif-editorial text-[44px] sm:text-[52px] font-normal leading-none text-[#d4af37] mb-3">100%</div>
                 <p class="font-sans-ui text-[14px] text-[#c5c0b6] leading-snug">Cero esperas en sala. Tu turno reservado en agenda es atendido al minuto exacto.</p>
