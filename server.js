@@ -1015,6 +1015,27 @@ const server = http.createServer(async (req, res) => {
     }
   }
 
+  // Eliminar o cancelar cita (DELETE /api/appointments/:id)
+  if (reqUrl.startsWith('/api/appointments/') && req.method === 'DELETE') {
+    const authUser = getAuthenticatedUser(req);
+    if (!authUser) {
+      res.statusCode = 401;
+      res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      res.end(JSON.stringify({ error: 'Debes iniciar sesion para gestionar o eliminar citas.' }));
+      return;
+    }
+
+    const apptId = reqUrl.substring('/api/appointments/'.length);
+    const appointments = readJsonFile(APPOINTMENTS_FILE, DEFAULT_APPOINTMENTS);
+    const filtered = appointments.filter((a) => a.id !== apptId);
+    writeJsonFileAtomic(APPOINTMENTS_FILE, filtered);
+
+    res.statusCode = 200;
+    res.setHeader('Content-Type', 'application/json; charset=utf-8');
+    res.end(JSON.stringify({ success: true, message: 'Turno eliminado correctamente.' }));
+    return;
+  }
+
   // --------------------------------------------------------------------------
   // API DE SINCRONIZACION GENERAL: POST /api/sync (REQUIERE AUTENTICACION)
   // --------------------------------------------------------------------------
@@ -1416,7 +1437,7 @@ const server = http.createServer(async (req, res) => {
   }
 
   // --------------------------------------------------------------------------
-  // API DE HISTORIAL: GET (AUTENTICADO) / POST (AUTENTICADO)
+  // API DE HISTORIAL: GET (AUTENTICADO) / POST (AUTENTICADO) / DELETE (ADMIN O JEFE)
   // --------------------------------------------------------------------------
   if (reqUrl === '/api/history') {
     if (req.method === 'GET') {
@@ -1452,6 +1473,52 @@ const server = http.createServer(async (req, res) => {
         return;
       }
     }
+  }
+
+  if (reqUrl.startsWith('/api/history/') && req.method === 'DELETE') {
+    const authUser = getAuthenticatedUser(req);
+    if (!authUser || (authUser.role !== 'ADMIN' && authUser.role !== 'JEFE')) {
+      res.statusCode = 403;
+      res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      res.end(JSON.stringify({ error: 'Acceso denegado: se requieren permisos administrativos para eliminar del historial.' }));
+      return;
+    }
+
+    const historyId = reqUrl.substring('/api/history/'.length);
+    const history = readJsonFile(HISTORY_FILE, DEFAULT_HISTORY);
+    const filtered = history.filter((h) => h.id !== historyId);
+    writeJsonFileAtomic(HISTORY_FILE, filtered);
+
+    res.statusCode = 200;
+    res.setHeader('Content-Type', 'application/json; charset=utf-8');
+    res.end(JSON.stringify({ success: true, message: 'Registro de corte eliminado del historial.' }));
+    return;
+  }
+
+  // --------------------------------------------------------------------------
+  // API DE CONTROL: VACIAR CITAS E HISTORIAL DE PRUEBA
+  // --------------------------------------------------------------------------
+  if (reqUrl === '/api/control/clear-tests' && req.method === 'POST') {
+    const authUser = getAuthenticatedUser(req);
+    if (!authUser || (authUser.role !== 'ADMIN' && authUser.role !== 'JEFE')) {
+      res.statusCode = 403;
+      res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      res.end(JSON.stringify({ error: 'Acceso denegado: se requieren privilegios administrativos.' }));
+      return;
+    }
+
+    writeJsonFileAtomic(APPOINTMENTS_FILE, []);
+    writeJsonFileAtomic(HISTORY_FILE, []);
+
+    res.statusCode = 200;
+    res.setHeader('Content-Type', 'application/json; charset=utf-8');
+    res.end(JSON.stringify({
+      success: true,
+      message: 'Historial de control y citas de prueba eliminadas correctamente del servidor.',
+      appointments: [],
+      history: []
+    }));
+    return;
   }
 
   if (reqUrl === '/api/services' && req.method === 'GET') {

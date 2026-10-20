@@ -376,11 +376,13 @@
     }
 
     _initializeStorage() {
-      // Actualización automática del catálogo de servicios (30 min) para producción
-      const CLEAN_DEPLOY_VERSION = 'v3_production_opcionales';
+      // Actualización automática: vaciar historial y turnos de prueba de versiones anteriores
+      const CLEAN_DEPLOY_VERSION = 'v4_clean_test_history';
       try {
         if (localStorage.getItem('blopez_clean_version') !== CLEAN_DEPLOY_VERSION) {
           localStorage.setItem('blopez_services', JSON.stringify(SEED_SERVICES));
+          localStorage.setItem('blopez_appointments', JSON.stringify([]));
+          localStorage.setItem('blopez_history', JSON.stringify([]));
           localStorage.setItem('blopez_clean_version', CLEAN_DEPLOY_VERSION);
         }
       } catch (e) {}
@@ -802,7 +804,8 @@
       return this._get('blopez_history');
     }
 
-    async findAllProducts() {
+
+async findAllProducts() {
       try {
         const res = await fetch('/api/products');
         if (res.ok) {
@@ -927,6 +930,62 @@
         this._set('blopez_products', data.products);
       }
       return data.order;
+
+async deleteAppointment(id) {
+      try {
+        const res = await fetch(`/api/appointments/${id}`, {
+          method: 'DELETE',
+          headers: this._getAuthHeaders()
+        });
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.error || 'No fue posible eliminar la cita.');
+        }
+      } catch (e) {
+        throw e;
+      }
+      let list = this._get('blopez_appointments');
+      list = list.filter((a) => a.id !== id);
+      this._set('blopez_appointments', list);
+      return true;
+    }
+
+    async deleteCutHistory(id) {
+      try {
+        const res = await fetch(`/api/history/${id}`, {
+          method: 'DELETE',
+          headers: this._getAuthHeaders()
+        });
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.error || 'No fue posible eliminar el registro del historial.');
+        }
+      } catch (e) {
+        throw e;
+      }
+      let list = this._get('blopez_history');
+      list = list.filter((h) => h.id !== id);
+      this._set('blopez_history', list);
+      return true;
+    }
+
+    async clearControlTests() {
+      try {
+        const res = await fetch('/api/control/clear-tests', {
+          method: 'POST',
+          headers: this._getAuthHeaders()
+        });
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.error || 'No fue posible vaciar el historial en el servidor.');
+        }
+      } catch (e) {
+        throw e;
+      }
+      this._set('blopez_appointments', []);
+      this._set('blopez_history', []);
+      return true;
+
     }
   }
 
@@ -2083,9 +2142,16 @@
                 ${isJefe ? 'Supervisión de cortes, caja consolidada en COP y agenda de turnos organizada por sectores de estación.' : 'Turnos asignados a tu estación e historial personal de cortes.'}
               </p>
             </div>
-            <button id="btn-dashboard-back-home" class="btn-stone-outline text-xs font-medium py-2 px-4">
-              ← Volver al inicio
-            </button>
+            <div class="flex items-center gap-2">
+              ${isJefe ? `
+                <button id="btn-clear-control-tests" class="btn-stone-outline text-xs text-red-400 hover:text-red-300 hover:border-red-500 font-medium py-2 px-3">
+                  Limpiar solicitudes de prueba
+                </button>
+              ` : ''}
+              <button id="btn-dashboard-back-home" class="btn-stone-outline text-xs font-medium py-2 px-4">
+                ← Volver al inicio
+              </button>
+            </div>
           </div>
 
           ${isJefe ? `
@@ -2572,10 +2638,16 @@
                                 <button data-appt-id="${appt.id}" class="btn-complete-cut btn-clay w-full py-2.5 px-4 text-xs font-semibold justify-center">
                                   Finalizar corte y guardar en historial →
                                 </button>
+                                <button data-delete-appt-id="${appt.id}" class="btn-delete-appt btn-stone-outline w-full py-1.5 px-3 text-xs text-red-400 hover:text-red-300 hover:border-red-500 justify-center cursor-pointer mt-2">
+                                  Cancelar / Eliminar turno de prueba
+                                </button>
                               ` : `
                                 <div class="text-xs font-semibold text-[#d4af37] py-2 text-center bg-[#181c24] border border-[rgba(212,175,55,0.3)] rounded-[8px]">
                                   Corte registrado en base de datos
                                 </div>
+                                <button data-delete-appt-id="${appt.id}" class="btn-delete-appt btn-stone-outline w-full py-1.5 px-3 text-xs text-red-400 hover:text-red-300 hover:border-red-500 justify-center cursor-pointer mt-2">
+                                  Eliminar registro de turno
+                                </button>
                               `}
                             </div>
                           `;
@@ -2763,6 +2835,7 @@
                                 <th class="p-3.5">Fecha</th>
                                 <th class="p-3.5">Hora</th>
                                 <th class="p-3.5 text-right pr-4">Valor cobrado</th>
+                                ${isJefe ? '<th class="p-3.5 text-right pr-4">Accion</th>' : ''}
                               </tr>
                             </thead>
                             <tbody class="divide-y divide-[rgba(212,175,55,0.12)] text-sm">
@@ -2771,7 +2844,14 @@
                                   <td class="p-3.5 pl-4 text-[#ffffff] font-semibold">${escapeHtml(h.clientName)}</td>
                                   <td class="p-3.5 text-[#c5c0b6] text-xs sm:text-sm">${formatDateFriendly(h.date)}</td>
                                   <td class="p-3.5 text-[#f3e5ab] font-mono-tech text-xs">${h.time}</td>
-                                  <td class="p-3.5 pr-4 text-right text-[#d4af37] font-bold font-mono-tech text-sm">$${h.priceCop.toLocaleString('es-CO')} COP</td>
+                                  <td class="p-3.5 pr-4 text-right text-[#d4af37] font-bold font-mono-tech text-sm">${h.priceCop.toLocaleString('es-CO')} COP</td>
+                                  ${isJefe ? `
+                                    <td class="p-3.5 pr-4 text-right">
+                                      <button data-delete-history-id="${h.id}" class="btn-delete-history-item text-xs text-red-400 hover:text-red-300 hover:underline cursor-pointer">
+                                        Eliminar
+                                      </button>
+                                    </td>
+                                  ` : ''}
                                 </tr>
                               `).join('')}
                             </tbody>
@@ -3814,6 +3894,54 @@
         showSyncModal(btn.dataset.syncBarberId, btn.dataset.syncBarberName);
       };
     });
+
+    // Eliminar cita individual desde el Dashboard
+    document.querySelectorAll('.btn-delete-appt').forEach((btn) => {
+      btn.onclick = async () => {
+        const apptId = btn.dataset.deleteApptId;
+        const ok = confirm('¿Deseas cancelar y eliminar este turno de la agenda y del panel de control?');
+        if (!ok) return;
+        try {
+          await repo.deleteAppointment(apptId);
+          await renderApp();
+        } catch (err) {
+          alert('Error al eliminar el turno: ' + err.message);
+        }
+      };
+    });
+
+    // Eliminar registro individual del historial de cortes
+    document.querySelectorAll('.btn-delete-history-item').forEach((btn) => {
+      btn.onclick = async () => {
+        const histId = btn.dataset.deleteHistoryId;
+        const ok = confirm('¿Deseas eliminar este registro del historial de cortes?');
+        if (!ok) return;
+        try {
+          await repo.deleteCutHistory(histId);
+          await renderApp();
+        } catch (err) {
+          alert('Error al eliminar del historial: ' + err.message);
+        }
+      };
+    });
+
+    // Vaciar todas las solicitudes de prueba del historial de control
+    const btnClearTests = document.getElementById('btn-clear-control-tests');
+    if (btnClearTests) {
+      btnClearTests.onclick = async () => {
+        const ok = confirm('¿Deseas eliminar todas las solicitudes y citas de prueba registradas en el historial de control? Esta acción dejará los turnos e historial en cero.');
+        if (!ok) return;
+        try {
+          await repo.clearControlTests();
+          state.appointments = [];
+          state.history = [];
+          await renderApp();
+          alert('Historial de control y solicitudes de prueba eliminadas exitosamente.');
+        } catch (err) {
+          alert('Error al limpiar solicitudes: ' + err.message);
+        }
+      };
+    }
 
     // Filtro por estación en el Historial de cortes
     document.querySelectorAll('.btn-history-barber').forEach((btn) => {
