@@ -1699,17 +1699,30 @@ async findAllProducts() {
   const loginUseCase = new LoginUseCase({ repo });
   const manageUsersUseCase = new ManageUsersUseCase({ repo });
 
-  // Desvanecimiento suave del cargado inicial con logo oficial
+  // Desvanecimiento suave del cargado inicial con logo oficial (minimo 2 segundos en pantalla)
+  const MIN_PRELOADER_DISPLAY_MS = 2200;
+  let preloaderDismissScheduled = false;
+
   function dismissPreloader() {
+    if (preloaderDismissScheduled) return;
     const pl = document.getElementById('page-preloader');
-    if (pl && !pl.classList.contains('preloader-hidden')) {
-      pl.classList.add('preloader-hidden');
-      setTimeout(() => {
-        if (pl && pl.parentNode) {
-          pl.parentNode.removeChild(pl);
-        }
-      }, 650);
-    }
+    if (!pl) return;
+
+    preloaderDismissScheduled = true;
+    const startTime = (typeof window !== 'undefined' && window.__preloaderStartTime) || Date.now();
+    const elapsed = Date.now() - startTime;
+    const remainingTime = Math.max(0, MIN_PRELOADER_DISPLAY_MS - elapsed);
+
+    setTimeout(() => {
+      if (!pl.classList.contains('preloader-hidden')) {
+        pl.classList.add('preloader-hidden');
+        setTimeout(() => {
+          if (pl && pl.parentNode) {
+            pl.parentNode.removeChild(pl);
+          }
+        }, 650);
+      }
+    }, remainingTime);
   }
   window.dismissPagePreloader = dismissPreloader;
 

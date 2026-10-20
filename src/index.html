@@ -5,6 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Barbería Lopez — Arquitectos de tu imagen</title>
   <link rel="icon" type="image/jpeg" href="./logo_barberia_lopez_hd.jpg">
+  <script>
+    window.__preloaderStartTime = Date.now();
+  </script>
 
   <!-- Tipografías Oficiales: Anthropic System (Editorial Serif + UI Sans + Technical Mono) -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -118,7 +121,7 @@
       border-radius: 9999px;
       background: linear-gradient(90deg, #b38f28 0%, #ffd700 50%, #b38f28 100%);
       box-shadow: 0 0 10px rgba(212, 175, 55, 0.7);
-      animation: preloaderSlide 1.6s ease-in-out infinite;
+      animation: preloaderSlide 2s ease-in-out infinite;
     }
     @keyframes preloaderSpin {
       from { transform: rotate(0deg); }
@@ -183,9 +186,9 @@
       var pl = document.getElementById('page-preloader');
       if (pl && !pl.classList.contains('preloader-hidden')) {
         pl.classList.add('preloader-hidden');
-        setTimeout(function() { if (pl && pl.parentNode) pl.parentNode.removeChild(pl); }, 600);
+        setTimeout(function() { if (pl && pl.parentNode) pl.parentNode.removeChild(pl); }, 650);
       }
-    }, 4000);
+    }, 6000);
   </script>
 
   <!-- Bundle Transaccional Autonomo -->
