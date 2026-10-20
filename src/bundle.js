@@ -224,6 +224,16 @@
       return user.role === Roles.ADMIN || user.role === Roles.JEFE;
     }
 
+    static canManageCatalog(user) {
+      if (!user) return false;
+      return user.role === Roles.ADMIN;
+    }
+
+    static canEditStockAndPrices(user) {
+      if (!user) return false;
+      return user.role === Roles.ADMIN || user.role === Roles.JEFE;
+    }
+
     static filterPublicBarbers(barbersList, usersList) {
       const adminUserIds = new Set(
         usersList.filter((u) => u.role === Roles.ADMIN).map((u) => u.id)
@@ -2291,6 +2301,7 @@ async findAllProducts() {
       const todayStr = getLocalDateString();
       const cashData = CashCalculatorService.calculateDailyCash(state.history, todayStr, state.storeOrders);
       const isJefe = state.currentUser.role === Roles.JEFE || state.currentUser.role === Roles.ADMIN;
+      const isAdmin = state.currentUser.role === Roles.ADMIN;
 
       const visibleAppointments = isJefe
         ? appointments
@@ -2770,65 +2781,73 @@ async findAllProducts() {
           </div>
 
           ${isJefe ? `
-            <!-- GESTIÓN DE INVENTARIO Y PRODUCTOS DE TIENDA (EXCLUSIVO BARBERO JEFE / ADMIN) -->
+            <!-- GESTIÓN DE STOCK Y PRECIOS DE PRODUCTOS (BARBERO JEFE Y ADMIN) -->
             <div class="mb-12">
               <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5 pb-4 border-b border-[rgba(212,175,55,0.22)]">
                 <div>
                   <div class="inline-flex items-center gap-2 mb-1 px-2.5 py-0.5 rounded-full bg-[#181c24] border border-[rgba(212,175,55,0.3)] text-[#f3e5ab] text-[11px] font-semibold">
                     <span class="w-1.5 h-1.5 rounded-full bg-[#d4af37]"></span>
-                    <span>ADMINISTRACIÓN DE BOUTIQUE · ${myBarber ? escapeHtml(myBarber.name).toUpperCase() : 'CONTROL GENERAL'}</span>
+                    <span>${isAdmin ? 'ADMINISTRACIÓN GENERAL DE BOUTIQUE' : 'CONTROL DE STOCK Y PRECIOS DE ESTACIÓN'}</span>
                   </div>
                   <h3 class="font-serif-editorial text-xl sm:text-2xl font-normal text-[#ffffff] tracking-tight">
-                    Control de Inventario y Catálogo de Productos
+                    ${isAdmin ? 'Control de Inventario y Catálogo de Productos' : 'Control de Stock y Precios de Productos'}
                   </h3>
                   <p class="font-sans-ui text-xs sm:text-sm text-[#c5c0b6] mt-0.5">
-                    Agrega nuevos productos a la tienda, ajusta precios en COP, recarga unidades de stock o elimina referencias.
+                    ${isAdmin 
+                      ? 'Agrega nuevos productos a la tienda, ajusta precios en COP, recarga unidades de stock o elimina referencias.' 
+                      : 'Ajusta las existencias en stock (+ / -) y edita los precios en COP. El catálogo de productos es gestionado exclusivamente por el Administrador.'}
                   </p>
                 </div>
               </div>
 
-              <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <!-- FORMULARIO PARA AGREGAR NUEVO PRODUCTO -->
-                <div class="anthropic-card p-6">
-                  <h4 class="font-serif-editorial text-lg text-[#ffffff] mb-1">Agregar nuevo producto</h4>
-                  <p class="text-xs text-[#c5c0b6] mb-4">Publica un artículo inmediatamente en el apartado TIENDA.</p>
-                  <form id="form-create-product" class="space-y-3.5">
-                    <div>
-                      <label class="block text-xs font-semibold text-[#c5c0b6] mb-1">Nombre del producto *</label>
-                      <input type="text" id="new-prod-name" required placeholder="Ej. Cera Mate Imperial 120g" class="input-parchment text-xs">
-                    </div>
-                    <div class="grid grid-cols-2 gap-3">
+              <div class="${isAdmin ? 'grid grid-cols-1 lg:grid-cols-3 gap-6' : 'w-full'}">
+                ${isAdmin ? `
+                  <!-- FORMULARIO PARA AGREGAR NUEVO PRODUCTO (EXCLUSIVO ADMIN) -->
+                  <div class="anthropic-card p-6">
+                    <h4 class="font-serif-editorial text-lg text-[#ffffff] mb-1">Agregar nuevo producto</h4>
+                    <p class="text-xs text-[#c5c0b6] mb-4">Publica un artículo inmediatamente en el apartado TIENDA.</p>
+                    <form id="form-create-product" class="space-y-3.5">
                       <div>
-                        <label class="block text-xs font-semibold text-[#c5c0b6] mb-1">Categoría</label>
-                        <input type="text" id="new-prod-category" placeholder="Ej. Cuidado Capilar" value="Cuidado Capilar" class="input-parchment text-xs">
+                        <label class="block text-xs font-semibold text-[#c5c0b6] mb-1">Nombre del producto *</label>
+                        <input type="text" id="new-prod-name" required placeholder="Ej. Cera Mate Imperial 120g" class="input-parchment text-xs">
+                      </div>
+                      <div class="grid grid-cols-2 gap-3">
+                        <div>
+                          <label class="block text-xs font-semibold text-[#c5c0b6] mb-1">Categoría</label>
+                          <input type="text" id="new-prod-category" placeholder="Ej. Cuidado Capilar" value="Cuidado Capilar" class="input-parchment text-xs">
+                        </div>
+                        <div>
+                          <label class="block text-xs font-semibold text-[#c5c0b6] mb-1">Stock inicial *</label>
+                          <input type="number" id="new-prod-stock" required min="0" value="10" class="input-parchment text-xs font-mono-tech">
+                        </div>
                       </div>
                       <div>
-                        <label class="block text-xs font-semibold text-[#c5c0b6] mb-1">Stock inicial *</label>
-                        <input type="number" id="new-prod-stock" required min="0" value="10" class="input-parchment text-xs font-mono-tech">
+                        <label class="block text-xs font-semibold text-[#c5c0b6] mb-1">Precio en Efectivo (COP) *</label>
+                        <input type="number" id="new-prod-price" required min="1000" step="500" placeholder="Ej. 32000" class="input-parchment text-xs font-mono-tech">
                       </div>
-                    </div>
-                    <div>
-                      <label class="block text-xs font-semibold text-[#c5c0b6] mb-1">Precio en Efectivo (COP) *</label>
-                      <input type="number" id="new-prod-price" required min="1000" step="500" placeholder="Ej. 32000" class="input-parchment text-xs font-mono-tech">
-                    </div>
-                    <div>
-                      <label class="block text-xs font-semibold text-[#c5c0b6] mb-1">URL de Imagen (opcional)</label>
-                      <input type="url" id="new-prod-image" placeholder="https://..." class="input-parchment text-xs">
-                    </div>
-                    <div>
-                      <label class="block text-xs font-semibold text-[#c5c0b6] mb-1">Descripción breve</label>
-                      <textarea id="new-prod-desc" rows="2" placeholder="Beneficios y características del producto..." class="input-parchment text-xs"></textarea>
-                    </div>
-                    <button type="submit" class="btn-clay w-full py-2.5 justify-center text-xs font-semibold cursor-pointer">
-                      Publicar producto en Tienda →
-                    </button>
-                  </form>
-                </div>
+                      <div>
+                        <label class="block text-xs font-semibold text-[#c5c0b6] mb-1">URL de Imagen (opcional)</label>
+                        <input type="url" id="new-prod-image" placeholder="https://..." class="input-parchment text-xs">
+                      </div>
+                      <div>
+                        <label class="block text-xs font-semibold text-[#c5c0b6] mb-1">Descripción breve</label>
+                        <textarea id="new-prod-desc" rows="2" placeholder="Beneficios y características del producto..." class="input-parchment text-xs"></textarea>
+                      </div>
+                      <button type="submit" class="btn-clay w-full py-2.5 justify-center text-xs font-semibold cursor-pointer">
+                        Publicar producto en Tienda →
+                      </button>
+                    </form>
+                  </div>
+                ` : ''}
 
                 <!-- TABLA DE INVENTARIO ACTUAL -->
-                <div class="lg:col-span-2 anthropic-card p-6">
+                <div class="${isAdmin ? 'lg:col-span-2' : 'w-full'} anthropic-card p-6">
                   <h4 class="font-serif-editorial text-lg text-[#ffffff] mb-1">Inventario activo en tienda (${products.length})</h4>
-                  <p class="text-xs text-[#c5c0b6] mb-4">Usa los botones rápidos para sumar/restar stock, cambiar precio o eliminar un producto.</p>
+                  <p class="text-xs text-[#c5c0b6] mb-4">
+                    ${isAdmin 
+                      ? 'Usa los botones rápidos para sumar/restar stock, cambiar precio o eliminar un producto.' 
+                      : 'Usa los botones rápidos para sumar o restar existencias en stock (+ / -) y edita los precios en COP.'}
+                  </p>
                   <div class="overflow-x-auto">
                     <table class="w-full text-left border-collapse font-sans-ui">
                       <thead class="border-b border-[rgba(212,175,55,0.22)] bg-[#161a22] text-[11px] font-semibold text-[#c5c0b6] uppercase tracking-wider">
@@ -2836,7 +2855,7 @@ async findAllProducts() {
                           <th class="p-3">Producto</th>
                           <th class="p-3">Precio (COP)</th>
                           <th class="p-3">Stock Disponible</th>
-                          <th class="p-3 text-right">Acciones de Jefe</th>
+                          <th class="p-3 text-right">${isAdmin ? 'Acciones de Admin' : 'Acciones de Jefe'}</th>
                         </tr>
                       </thead>
                       <tbody class="divide-y divide-[rgba(212,175,55,0.14)] text-xs">
@@ -2860,9 +2879,11 @@ async findAllProducts() {
                               <button type="button" data-edit-prod-id="${escapeHtml(p.id)}" class="btn-edit-product btn-stone-outline py-1 px-2.5 text-[11px] cursor-pointer">
                                 Editar precio/stock
                               </button>
-                              <button type="button" data-delete-prod-id="${escapeHtml(p.id)}" data-delete-prod-name="${escapeHtml(p.name)}" class="btn-delete-product btn-stone-outline py-1 px-2.5 text-[11px] text-red-400 hover:text-red-300 hover:border-red-500 cursor-pointer">
-                                Quitar
-                              </button>
+                              ${isAdmin ? `
+                                <button type="button" data-delete-prod-id="${escapeHtml(p.id)}" data-delete-prod-name="${escapeHtml(p.name)}" class="btn-delete-product btn-stone-outline py-1 px-2.5 text-[11px] text-red-400 hover:text-red-300 hover:border-red-500 cursor-pointer">
+                                  Quitar
+                                </button>
+                              ` : ''}
                             </td>
                           </tr>
                         `).join('')}
@@ -3415,6 +3436,109 @@ async findAllProducts() {
               </div>
             </div>
           </div>
+
+          <!-- CONTROL DE CATÁLOGO E INVENTARIO DE PRODUCTOS (EXCLUSIVO SUPERADMINISTRADOR) -->
+          <div class="mb-12">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5 pb-4 border-b border-[rgba(212,175,55,0.22)]">
+              <div>
+                <div class="inline-flex items-center gap-2 mb-1 px-2.5 py-0.5 rounded-full bg-[#181c24] border border-[rgba(212,175,55,0.3)] text-[#f3e5ab] text-[11px] font-semibold">
+                  <span class="w-1.5 h-1.5 rounded-full bg-[#d4af37]"></span>
+                  <span>CATÁLOGO Y BOUTIQUE · SUPERADMINISTRADOR</span>
+                </div>
+                <h3 class="font-serif-editorial text-xl sm:text-2xl font-normal text-[#ffffff] tracking-tight">
+                  Control de Catálogo y Productos de la Tienda
+                </h3>
+                <p class="font-sans-ui text-xs sm:text-sm text-[#c5c0b6] mt-0.5">
+                  Agrega nuevos productos al catálogo oficial, ajusta precios en COP, recarga unidades de stock o elimina referencias de forma permanente.
+                </p>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <!-- FORMULARIO PARA AGREGAR NUEVO PRODUCTO -->
+              <div class="anthropic-card p-6">
+                <h4 class="font-serif-editorial text-lg text-[#ffffff] mb-1">Agregar nuevo producto</h4>
+                <p class="text-xs text-[#c5c0b6] mb-4">Publica un artículo inmediatamente en el apartado TIENDA.</p>
+                <form id="form-create-product" class="space-y-3.5">
+                  <div>
+                    <label class="block text-xs font-semibold text-[#c5c0b6] mb-1">Nombre del producto *</label>
+                    <input type="text" id="new-prod-name" required placeholder="Ej. Cera Mate Imperial 120g" class="input-parchment text-xs">
+                  </div>
+                  <div class="grid grid-cols-2 gap-3">
+                    <div>
+                      <label class="block text-xs font-semibold text-[#c5c0b6] mb-1">Categoría</label>
+                      <input type="text" id="new-prod-category" placeholder="Ej. Cuidado Capilar" value="Cuidado Capilar" class="input-parchment text-xs">
+                    </div>
+                    <div>
+                      <label class="block text-xs font-semibold text-[#c5c0b6] mb-1">Stock inicial *</label>
+                      <input type="number" id="new-prod-stock" required min="0" value="10" class="input-parchment text-xs font-mono-tech">
+                    </div>
+                  </div>
+                  <div>
+                    <label class="block text-xs font-semibold text-[#c5c0b6] mb-1">Precio en Efectivo (COP) *</label>
+                    <input type="number" id="new-prod-price" required min="1000" step="500" placeholder="Ej. 32000" class="input-parchment text-xs font-mono-tech">
+                  </div>
+                  <div>
+                    <label class="block text-xs font-semibold text-[#c5c0b6] mb-1">URL de Imagen (opcional)</label>
+                    <input type="url" id="new-prod-image" placeholder="https://..." class="input-parchment text-xs">
+                  </div>
+                  <div>
+                    <label class="block text-xs font-semibold text-[#c5c0b6] mb-1">Descripción breve</label>
+                    <textarea id="new-prod-desc" rows="2" placeholder="Beneficios y características del producto..." class="input-parchment text-xs"></textarea>
+                  </div>
+                  <button type="submit" class="btn-clay w-full py-2.5 justify-center text-xs font-semibold cursor-pointer">
+                    Publicar producto en Tienda →
+                  </button>
+                </form>
+              </div>
+
+              <!-- TABLA DE INVENTARIO ACTUAL -->
+              <div class="lg:col-span-2 anthropic-card p-6">
+                <h4 class="font-serif-editorial text-lg text-[#ffffff] mb-1">Inventario activo en tienda (${products.length})</h4>
+                <p class="text-xs text-[#c5c0b6] mb-4">Usa los botones rápidos para sumar/restar stock, cambiar precio o eliminar referencias del catálogo.</p>
+                <div class="overflow-x-auto">
+                  <table class="w-full text-left border-collapse font-sans-ui">
+                    <thead class="border-b border-[rgba(212,175,55,0.22)] bg-[#161a22] text-[11px] font-semibold text-[#c5c0b6] uppercase tracking-wider">
+                      <tr>
+                        <th class="p-3">Producto</th>
+                        <th class="p-3">Precio (COP)</th>
+                        <th class="p-3">Stock Disponible</th>
+                        <th class="p-3 text-right">Acciones de Admin</th>
+                      </tr>
+                    </thead>
+                    <tbody class="divide-y divide-[rgba(212,175,55,0.14)] text-xs">
+                      ${products.map((p) => `
+                        <tr class="hover:bg-[#181c24] transition-colors">
+                          <td class="p-3">
+                            <div class="font-semibold text-[#ffffff]">${escapeHtml(p.name)}</div>
+                            <div class="text-[11px] text-[#8a8275]">${escapeHtml(p.category || 'General')}</div>
+                          </td>
+                          <td class="p-3 font-mono-tech font-bold text-[#d4af37]">
+                            $${Number(p.priceCop || 0).toLocaleString('es-CO')}
+                          </td>
+                          <td class="p-3">
+                            <div class="inline-flex items-center gap-2">
+                              <button type="button" data-stock-prod-id="${escapeHtml(p.id)}" data-stock-delta="-1" class="btn-adjust-stock px-2 py-0.5 rounded bg-[#161a22] border border-[rgba(212,175,55,0.3)] text-[#f3e5ab] hover:border-[#d4af37] font-mono-tech font-bold cursor-pointer">-</button>
+                              <span class="font-mono-tech font-bold text-sm ${p.stock <= 2 ? 'text-red-400' : 'text-[#ffffff]'} min-w-[28px] text-center">${p.stock}</span>
+                              <button type="button" data-stock-prod-id="${escapeHtml(p.id)}" data-stock-delta="1" class="btn-adjust-stock px-2 py-0.5 rounded bg-[#161a22] border border-[rgba(212,175,55,0.3)] text-[#f3e5ab] hover:border-[#d4af37] font-mono-tech font-bold cursor-pointer">+</button>
+                            </div>
+                          </td>
+                          <td class="p-3 text-right space-x-1.5 whitespace-nowrap">
+                            <button type="button" data-edit-prod-id="${escapeHtml(p.id)}" class="btn-edit-product btn-stone-outline py-1 px-2.5 text-[11px] cursor-pointer">
+                              Editar precio/stock
+                            </button>
+                            <button type="button" data-delete-prod-id="${escapeHtml(p.id)}" data-delete-prod-name="${escapeHtml(p.name)}" class="btn-delete-product btn-stone-outline py-1 px-2.5 text-[11px] text-red-400 hover:text-red-300 hover:border-red-500 cursor-pointer">
+                              Quitar
+                            </button>
+                          </td>
+                        </tr>
+                      `).join('')}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
         </section>
       `;
     }
@@ -3562,6 +3686,42 @@ async findAllProducts() {
             <div class="flex items-center gap-2 pt-2">
               <button type="button" id="btn-cancel-change-pwd" class="btn-stone-outline flex-1 py-2.5 justify-center text-xs font-semibold cursor-pointer">Cancelar</button>
               <button type="submit" id="btn-submit-change-pwd" class="btn-clay flex-1 py-2.5 justify-center text-xs font-semibold cursor-pointer">Guardar clave →</button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- MODAL DE EDICIÓN DE PRECIO Y STOCK DE PRODUCTO (Obsidian & Imperial Gold) -->
+      <div id="modal-edit-product" class="fixed inset-0 z-50 bg-[#0a0b0d]/85 backdrop-blur-sm flex items-center justify-center p-4 hidden">
+        <div class="anthropic-card w-full max-w-md p-6 sm:p-8 relative">
+          <button id="btn-close-edit-prod" type="button" class="absolute top-4 right-4 text-[#c5c0b6] hover:text-[#ffffff] text-xl font-light cursor-pointer">&times;</button>
+          
+          <div class="mb-5">
+            <div class="inline-flex items-center gap-2 mb-2 px-3 py-1 rounded-full bg-[#181c24] border border-[rgba(212,175,55,0.3)] text-[#f3e5ab] text-xs font-semibold">
+              <span class="w-2 h-2 rounded-full bg-[#d4af37]"></span>
+              <span id="edit-prod-badge">AJUSTE DE BOUTIQUE</span>
+            </div>
+            <h3 class="font-serif-editorial text-[24px] font-normal text-[#ffffff]" id="edit-prod-title">Editar producto</h3>
+            <p class="font-sans-ui text-xs text-[#c5c0b6] mt-1" id="edit-prod-subtitle">
+              Actualiza el precio de venta en COP y las unidades disponibles en stock.
+            </p>
+          </div>
+
+          <form id="form-edit-product" class="space-y-4">
+            <input type="hidden" id="edit-prod-id" value="">
+            <div>
+              <label class="block font-sans-ui text-xs font-semibold text-[#c5c0b6] mb-1.5">Precio en Efectivo (COP)</label>
+              <input type="number" id="edit-prod-price" required min="500" step="500" class="input-parchment text-sm font-mono-tech" placeholder="Ej. 25000">
+            </div>
+            <div>
+              <label class="block font-sans-ui text-xs font-semibold text-[#c5c0b6] mb-1.5">Unidades disponibles en Stock</label>
+              <input type="number" id="edit-prod-stock" required min="0" step="1" class="input-parchment text-sm font-mono-tech" placeholder="Ej. 10">
+            </div>
+            <div id="edit-prod-error-msg" class="font-sans-ui text-xs text-red-400 bg-red-950/50 border border-red-800 p-3 rounded-[8px] hidden"></div>
+            
+            <div class="flex items-center gap-2 pt-2">
+              <button type="button" id="btn-cancel-edit-prod" class="btn-stone-outline flex-1 py-2.5 justify-center text-xs font-semibold cursor-pointer">Cancelar</button>
+              <button type="submit" id="btn-submit-edit-prod" class="btn-clay flex-1 py-2.5 justify-center text-xs font-semibold cursor-pointer">Guardar cambios →</button>
             </div>
           </form>
         </div>
@@ -4102,11 +4262,15 @@ async findAllProducts() {
       };
     });
 
-    // Crear nuevo producto desde el panel del Barbero Jefe
+    // Crear nuevo producto (Exclusivo Administrador)
     const formCreateProduct = document.getElementById('form-create-product');
     if (formCreateProduct) {
       formCreateProduct.onsubmit = async (e) => {
         e.preventDefault();
+        if (!state.currentUser || state.currentUser.role !== Roles.ADMIN) {
+          alert('Acceso denegado: solo el Administrador puede agregar nuevos productos al catálogo.');
+          return;
+        }
         try {
           const name = document.getElementById('new-prod-name').value.trim();
           const category = document.getElementById('new-prod-category').value.trim() || 'Cuidado Personal';
@@ -4148,37 +4312,103 @@ async findAllProducts() {
       };
     });
 
-    // Editar precio y stock de un producto
+    // Modal de edición de precio y stock
+    const modalEditProd = document.getElementById('modal-edit-product');
+    const btnCloseEditProd = document.getElementById('btn-close-edit-prod');
+    const btnCancelEditProd = document.getElementById('btn-cancel-edit-prod');
+    const formEditProd = document.getElementById('form-edit-product');
+
+    if (btnCloseEditProd && modalEditProd) {
+      btnCloseEditProd.onclick = () => modalEditProd.classList.add('hidden');
+    }
+    if (btnCancelEditProd && modalEditProd) {
+      btnCancelEditProd.onclick = () => modalEditProd.classList.add('hidden');
+    }
+
+    if (formEditProd) {
+      formEditProd.onsubmit = async (e) => {
+        e.preventDefault();
+        const prodId = document.getElementById('edit-prod-id').value;
+        const priceVal = parseInt(document.getElementById('edit-prod-price').value, 10);
+        const stockVal = parseInt(document.getElementById('edit-prod-stock').value, 10);
+        const errorMsg = document.getElementById('edit-prod-error-msg');
+        const submitBtn = document.getElementById('btn-submit-edit-prod');
+
+        if (errorMsg) errorMsg.classList.add('hidden');
+        if (Number.isNaN(priceVal) || priceVal < 500) {
+          if (errorMsg) {
+            errorMsg.textContent = 'El precio debe ser un valor válido mayor a 500 COP.';
+            errorMsg.classList.remove('hidden');
+          }
+          return;
+        }
+
+        if (Number.isNaN(stockVal) || stockVal < 0) {
+          if (errorMsg) {
+            errorMsg.textContent = 'El stock debe ser un número entero mayor o igual a 0.';
+            errorMsg.classList.remove('hidden');
+          }
+          return;
+        }
+
+        if (submitBtn) {
+          submitBtn.disabled = true;
+          submitBtn.textContent = 'Guardando...';
+        }
+
+        try {
+          await repo.updateProduct(prodId, {
+            priceCop: priceVal,
+            stock: stockVal
+          });
+          if (modalEditProd) modalEditProd.classList.add('hidden');
+          renderApp();
+        } catch (err) {
+          if (errorMsg) {
+            errorMsg.textContent = err.message || 'No fue posible actualizar el producto.';
+            errorMsg.classList.remove('hidden');
+          }
+        } finally {
+          if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Guardar cambios →';
+          }
+        }
+      };
+    }
+
+    // Editar precio y stock de un producto (Abre modal elegante)
     document.querySelectorAll('.btn-edit-product').forEach((btn) => {
-      btn.onclick = async () => {
+      btn.onclick = () => {
         const prodId = btn.dataset.editProdId;
         const prod = (state.products || []).find((p) => p.id === prodId);
         if (!prod) return;
-        const newPriceStr = prompt(`Nuevo precio en Efectivo (COP) para "${prod.name}":`, String(prod.priceCop));
-        if (newPriceStr === null) return;
-        const newStockStr = prompt(`Cantidad de unidades disponibles en Stock para "${prod.name}":`, String(prod.stock));
-        if (newStockStr === null) return;
+        const hiddenId = document.getElementById('edit-prod-id');
+        const title = document.getElementById('edit-prod-title');
+        const price = document.getElementById('edit-prod-price');
+        const stock = document.getElementById('edit-prod-stock');
+        const errorMsg = document.getElementById('edit-prod-error-msg');
 
-        const priceCop = Math.max(0, parseInt(newPriceStr.replace(/\D/g, ''), 10) || prod.priceCop);
-        const stock = Math.max(0, parseInt(newStockStr, 10));
-        try {
-          await repo.updateProduct(prodId, {
-            priceCop,
-            stock: Number.isNaN(stock) ? prod.stock : stock
-          });
-          renderApp();
-        } catch (err) {
-          alert(err.message);
-        }
+        if (hiddenId) hiddenId.value = prod.id;
+        if (title) title.textContent = `Editar ${prod.name}`;
+        if (price) price.value = prod.priceCop;
+        if (stock) stock.value = prod.stock;
+        if (errorMsg) errorMsg.classList.add('hidden');
+        if (modalEditProd) modalEditProd.classList.remove('hidden');
+        if (price) price.focus();
       };
     });
 
-    // Eliminar producto del catálogo
+    // Eliminar producto del catálogo (Exclusivo Administrador)
     document.querySelectorAll('.btn-delete-product').forEach((btn) => {
       btn.onclick = async () => {
+        if (!state.currentUser || state.currentUser.role !== Roles.ADMIN) {
+          alert('Acceso denegado: solo el Administrador puede eliminar productos del catálogo.');
+          return;
+        }
         const prodId = btn.dataset.deleteProdId;
         const prodName = btn.dataset.deleteProdName;
-        const ok = confirm(`¿Seguro que deseas quitar "${prodName}" del catálogo de la tienda?`);
+        const ok = confirm(`¿Seguro que deseas quitar "${prodName}" del catálogo de la tienda de forma permanente?`);
         if (!ok) return;
         try {
           await repo.deleteProduct(prodId);

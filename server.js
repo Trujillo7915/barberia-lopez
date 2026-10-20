@@ -1435,6 +1435,14 @@ const server = http.createServer(async (req, res) => {
     }
 
     const barberId = reqUrl.substring('/api/barbers/'.length);
+    const PERMANENT_BARBERS = ['b-david-01', 'b-matta-01'];
+    if (PERMANENT_BARBERS.includes(barberId)) {
+      res.statusCode = 400;
+      res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      res.end(JSON.stringify({ error: 'No se permite eliminar los barberos principales de la sede.' }));
+      return;
+    }
+
     const barbers = readJsonFile(BARBERS_FILE, DEFAULT_BARBERS);
     const targetBarber = barbers.find((b) => b.id === barberId);
     const filtered = barbers.filter((b) => b.id !== barberId);
@@ -1442,9 +1450,11 @@ const server = http.createServer(async (req, res) => {
 
     // Cascada bidireccional: Eliminar la cuenta de usuario asociada en USERS_FILE
     const users = readJsonFile(USERS_FILE, DEFAULT_USERS);
+    const PERMANENT_USERS = ['u-admin-01', 'u-david-01', 'u-matta-01', 'admin', 'david.barber', 'matta.barber'];
     const filteredUsers = users.filter((u) => {
       if (u.role === 'ADMIN') return true;
-      if (u.barberId === barberId) return false;
+      if (PERMANENT_USERS.includes(u.id) || (u.username && PERMANENT_USERS.includes(u.username))) return true;
+      if (barberId && u.barberId === barberId) return false;
       if (targetBarber && targetBarber.userId && u.id === targetBarber.userId) return false;
       return true;
     });
@@ -1625,6 +1635,18 @@ const server = http.createServer(async (req, res) => {
       u.id === userId || 
       (u.username && (u.username === userId || u.username.replace(/^@/, '').toLowerCase().trim() === cleanId))
     );
+    const PERMANENT_USERS = ['u-admin-01', 'u-david-01', 'u-matta-01', 'admin', 'david.barber', 'matta.barber'];
+    if (
+      PERMANENT_USERS.includes(userId) ||
+      PERMANENT_USERS.includes(cleanId) ||
+      (targetIdx !== -1 && (PERMANENT_USERS.includes(users[targetIdx].id) || PERMANENT_USERS.includes(users[targetIdx].username)))
+    ) {
+      res.statusCode = 400;
+      res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      res.end(JSON.stringify({ error: 'No se permite eliminar cuentas protegidas del sistema.' }));
+      return;
+    }
+
     if (targetIdx !== -1 && users[targetIdx].role === 'ADMIN') {
       res.statusCode = 400;
       res.setHeader('Content-Type', 'application/json; charset=utf-8');
@@ -1774,10 +1796,10 @@ const server = http.createServer(async (req, res) => {
 
     if (req.method === 'POST') {
       const authUser = getAuthenticatedUser(req);
-      if (!authUser || (authUser.role !== 'ADMIN' && authUser.role !== 'JEFE')) {
+      if (!authUser || authUser.role !== 'ADMIN') {
         res.statusCode = 403;
         res.setHeader('Content-Type', 'application/json; charset=utf-8');
-        res.end(JSON.stringify({ error: 'Acceso denegado: solo el Barbero Jefe o Administrador puede agregar productos.' }));
+        res.end(JSON.stringify({ error: 'Acceso denegado: solo el Administrador puede agregar nuevos productos al catálogo.' }));
         return;
       }
 
@@ -1873,10 +1895,10 @@ const server = http.createServer(async (req, res) => {
 
   if (reqUrl.startsWith('/api/products/') && req.method === 'DELETE') {
     const authUser = getAuthenticatedUser(req);
-    if (!authUser || (authUser.role !== 'ADMIN' && authUser.role !== 'JEFE')) {
+    if (!authUser || authUser.role !== 'ADMIN') {
       res.statusCode = 403;
       res.setHeader('Content-Type', 'application/json; charset=utf-8');
-      res.end(JSON.stringify({ error: 'Acceso denegado: solo el Barbero Jefe o Administrador puede eliminar productos.' }));
+      res.end(JSON.stringify({ error: 'Acceso denegado: solo el Administrador puede eliminar productos del catálogo.' }));
       return;
     }
 

@@ -71,9 +71,9 @@ async function runTests() {
   let jefeToken = null;
   try {
     const candidates = [
-      { username: 'david.barber', password: 'password123' },
-      { username: 'admin', password: 'admin2026' },
-      { username: 'lopez.barber', password: 'password123' }
+      { username: 'david.barber', password: 'david2026' },
+      { username: 'david.barber', password: 'BarberiaLopez' },
+      { username: 'admin', password: 'admin2026' }
     ];
     for (const cred of candidates) {
       try {

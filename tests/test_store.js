@@ -80,7 +80,7 @@ async function runTests() {
     authToken = loginRes.data.token;
     console.log('[OK] 3. Autenticacion HMAC verificada para gestion de inventario.');
 
-    // 4. Agregar un nuevo producto a la tienda
+    // 4. Agregar un nuevo producto a la tienda (Exclusivo Administrador)
     const createProdRes = await request(
       'POST',
       '/api/products',
@@ -94,10 +94,48 @@ async function runTests() {
       authToken
     );
     if (createProdRes.status !== 200 || !createProdRes.data.product) {
-      throw new Error('Fallo al crear nuevo producto: ' + JSON.stringify(createProdRes));
+      throw new Error('Fallo al crear nuevo producto como ADMIN: ' + JSON.stringify(createProdRes));
     }
     testProd = createProdRes.data.product;
-    console.log('[OK] 4. Producto creado en inventario: ' + testProd.name + ' (Stock: ' + testProd.stock + ').');
+    console.log('[OK] 4. Producto creado en inventario por ADMIN: ' + testProd.name + ' (Stock: ' + testProd.stock + ').');
+
+    // 4b. Verificacion de Roles RBAC: Barbero Jefe NO puede crear ni eliminar productos, solo editar precio y stock
+    const loginJefe = await request('POST', '/api/auth/login', {
+      username: 'david.barber',
+      password: 'david2026'
+    });
+    if (loginJefe.status !== 200 || !loginJefe.data.token) {
+      throw new Error('Fallo al autenticar cuenta Barbero Jefe (david.barber): ' + JSON.stringify(loginJefe));
+    }
+    const jefeToken = loginJefe.data.token;
+
+    // Intento de creacion por Barbero Jefe -> Bloqueado con HTTP 403
+    const jefeCreateRes = await request('POST', '/api/products', {
+      name: 'Producto Ilegal Por Barbero Jefe',
+      priceCop: 15000,
+      stock: 10
+    }, jefeToken);
+    if (jefeCreateRes.status !== 403) {
+      throw new Error('Fallo RBAC: Barbero Jefe no debe poder agregar productos al catalogo (se esperaba 403).');
+    }
+
+    // Intento de eliminacion por Barbero Jefe -> Bloqueado con HTTP 403
+    const jefeDeleteRes = await request('DELETE', `/api/products/${testProd.id}`, null, jefeToken);
+    if (jefeDeleteRes.status !== 403) {
+      throw new Error('Fallo RBAC: Barbero Jefe no debe poder eliminar productos del catalogo (se esperaba 403).');
+    }
+
+    // Edicion de stock y precio por Barbero Jefe -> Permitido con HTTP 200
+    const jefeEditRes = await request('PUT', `/api/products/${testProd.id}`, {
+      priceCop: 32000,
+      stock: 7
+    }, jefeToken);
+    if (jefeEditRes.status !== 200 || jefeEditRes.data.product.priceCop !== 32000 || jefeEditRes.data.product.stock !== 7) {
+      throw new Error('Fallo RBAC: Barbero Jefe debe poder modificar precio y stock (HTTP 200).');
+    }
+    // Restaurar stock a 5 para el flujo posterior de pedidos
+    await request('PUT', `/api/products/${testProd.id}`, { priceCop: 28000, stock: 5 }, authToken);
+    console.log('[OK] 4b. RBAC de Catalogo verificado: Barbero Jefe restringido a precio/stock; creacion y eliminacion reservadas al ADMIN.');
 
     // 5. Cliente realiza compra en efectivo de 2 unidades -> genera referencia REF-BL-XXXX y descuenta stock a 3
     const orderRes = await request('POST', '/api/store/orders', {
