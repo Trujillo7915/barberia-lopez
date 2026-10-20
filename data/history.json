@@ -1,1 +1,14 @@
-[]
+[
+  {
+    "id": "2b021deb-41d6-48ee-8e69-3045b6c2db2d",
+    "appointmentId": "test-collision-01",
+    "barberId": "b-david-01",
+    "clientName": "Cliente Test A",
+    "date": "2026-10-20",
+    "executionDate": "2026-10-20",
+    "appointmentDate": "2026-11-20",
+    "time": "16:34",
+    "priceCop": 20000,
+    "createdAt": "2026-10-20T21:34:29.403Z"
+  }
+]

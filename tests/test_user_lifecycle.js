@@ -55,10 +55,10 @@ async function runTests() {
   assert.strictEqual(davidLogin1.body.user.role, 'JEFE');
   console.log('[PASS] 2. Login exitoso con david.barber (david2026)');
 
-  // 3. Login exitoso con david.barber usando BarberiaLopez (13 caracteres, clave alternativa del usuario)
-  const davidLogin2 = await makeRequest('POST', '/api/auth/login', { username: 'david.barber', password: 'BarberiaLopez' });
-  assert.strictEqual(davidLogin2.status, 200, 'david.barber debe poder autenticarse con BarberiaLopez');
-  console.log('[PASS] 3. Login exitoso con david.barber usando BarberiaLopez (13 caracteres)');
+  // 3. Rechazo de credenciales incorrectas para david.barber
+  const davidLogin2 = await makeRequest('POST', '/api/auth/login', { username: 'david.barber', password: 'claveIncorrecta123' });
+  assert.strictEqual(davidLogin2.status, 401, 'david.barber con contrasena incorrecta debe recibir 401');
+  console.log('[PASS] 3. Rechazo estricto de credenciales invalidas verificado (Status 401)');
 
   // 4. Login exitoso con matta.barber
   const mattaLogin = await makeRequest('POST', '/api/auth/login', { username: 'matta.barber', password: 'matta2026' });

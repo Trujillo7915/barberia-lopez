@@ -3758,6 +3758,10 @@ async findAllProducts() {
               <label class="block font-sans-ui text-xs font-semibold text-[#c5c0b6] mb-1.5">Unidades disponibles en Stock</label>
               <input type="number" id="edit-prod-stock" required min="0" step="1" class="input-parchment text-sm font-mono-tech" placeholder="Ej. 10">
             </div>
+            <div>
+              <label class="block font-sans-ui text-xs font-semibold text-[#c5c0b6] mb-1.5">URL de Imagen del Producto (opcional)</label>
+              <input type="url" id="edit-prod-image" class="input-parchment text-sm" placeholder="https://ejemplo.com/foto.webp">
+            </div>
             <div id="edit-prod-error-msg" class="font-sans-ui text-xs text-red-400 bg-red-950/50 border border-red-800 p-3 rounded-[8px] hidden"></div>
             
             <div class="flex items-center gap-2 pt-2">
@@ -4398,10 +4402,15 @@ async findAllProducts() {
         }
 
         try {
-          await repo.updateProduct(prodId, {
+          const updatePayload = {
             priceCop: priceVal,
             stock: stockVal
-          });
+          };
+          const imgInput = document.getElementById('edit-prod-image');
+          if (imgInput && imgInput.value.trim()) {
+            updatePayload.imageUrl = imgInput.value.trim();
+          }
+          await repo.updateProduct(prodId, updatePayload);
           if (modalEditProd) modalEditProd.classList.add('hidden');
           renderApp();
         } catch (err) {
@@ -4428,12 +4437,14 @@ async findAllProducts() {
         const title = document.getElementById('edit-prod-title');
         const price = document.getElementById('edit-prod-price');
         const stock = document.getElementById('edit-prod-stock');
+        const imgInput = document.getElementById('edit-prod-image');
         const errorMsg = document.getElementById('edit-prod-error-msg');
 
         if (hiddenId) hiddenId.value = prod.id;
         if (title) title.textContent = `Editar ${prod.name}`;
         if (price) price.value = prod.priceCop;
         if (stock) stock.value = prod.stock;
+        if (imgInput) imgInput.value = prod.imageUrl || '';
         if (errorMsg) errorMsg.classList.add('hidden');
         if (modalEditProd) modalEditProd.classList.remove('hidden');
         if (price) price.focus();

@@ -237,9 +237,8 @@ function hashPasswordScrypt(plainPassword) {
 function verifyPasswordSecure(plainPassword, storedHash, username = '') {
   if (!plainPassword || !storedHash) return false;
   const cleanInput = String(plainPassword).trim();
-  const cleanUser = String(username || '').replace(/^@/, '').toLowerCase().trim();
 
-  // 1. Verificacion directa con scrypt si esta hasheado
+  // 1. Verificacion estricta con scrypt si esta hasheado
   if (storedHash.startsWith('scrypt:')) {
     const parts = storedHash.split(':');
     if (parts.length === 3) {
@@ -247,12 +246,10 @@ function verifyPasswordSecure(plainPassword, storedHash, username = '') {
       const key = parts[2];
       const keyBuffer = Buffer.from(key, 'hex');
 
-      // Probar variaciones comunes de teclado movil
+      // Probar variaciones comunes de teclado movil (punto automatico o espacios)
       const inputVariations = [
         cleanInput,
         cleanInput.replace(/\.$/, ''),
-        cleanInput.toLowerCase(),
-        cleanInput.toLowerCase().replace(/\.$/, ''),
         cleanInput.replace(/\s+/g, '')
       ];
 
@@ -265,50 +262,19 @@ function verifyPasswordSecure(plainPassword, storedHash, username = '') {
         } catch (e) {}
       }
     }
+    // Si ya esta hasheado y no coincidio, rechazar de inmediato para no sobrescribir claves elegidas
+    return false;
   }
 
-  // 2. Contraseñas de recuperacion y maestros autorizados segun el usuario
-  const recoveryPasswords = {
-    'david.barber': ['david2026', 'David2026', 'BarberiaLopez', 'barberialopez', 'Barberia2026*', 'Lopez2026*', 'david.barber', 'david.barber1', 'password123'],
-    'matta.barber': ['matta2026', 'Matta2026', 'BarberiaLopez', 'barberialopez', 'Barberia2026*', 'Lopez2026*', 'matta.barber', 'password123'],
-    'admin': ['admin2026', 'Admin2026', 'BarberiaLopez', 'barberialopez', 'Barberia2026*', 'Lopez2026*']
-  };
-
-  const allowedForUser = recoveryPasswords[cleanUser] || ['Lopez2026*', 'BarberiaLopez'];
-  const testInputClean = cleanInput.toLowerCase().replace(/\.$/, '');
-  for (const rec of allowedForUser) {
-    if (cleanInput === rec || testInputClean === rec.toLowerCase()) {
-      return true;
-    }
-  }
-
-  // 3. Compatibilidad con contraseñas legadas en texto plano y tolerancia de teclado movil
+  // 2. Solo para cuentas iniciales legadas sin hash scrypt: verificar texto plano
   const cleanStored = String(storedHash).trim();
   const variations = [
     cleanInput,
     cleanInput.replace(/\.$/, ''),
-    cleanInput.toLowerCase(),
-    cleanInput.toLowerCase().replace(/\.$/, ''),
-    cleanInput.replace(/^@/, ''),
-    cleanInput.toLowerCase().replace(/^@/, '').replace(/\.$/, '')
+    cleanInput.replace(/^@/, '')
   ];
 
-  const storedVariations = [
-    cleanStored,
-    cleanStored.replace(/\.$/, ''),
-    cleanStored.toLowerCase(),
-    cleanStored.toLowerCase().replace(/\.$/, ''),
-    cleanStored.replace(/^@/, ''),
-    cleanStored.toLowerCase().replace(/^@/, '').replace(/\.$/, '')
-  ];
-
-  for (const sv of storedVariations) {
-    for (const iv of variations) {
-      if (sv === iv) return true;
-    }
-  }
-
-  return false;
+  return variations.includes(cleanStored);
 }
 
 function generateUuid() {
@@ -946,10 +912,9 @@ const server = http.createServer(async (req, res) => {
 
       clearAuthAttempts(req);
 
-      // Si inicio sesion correctamente, actualizar hash a scrypt con la clave introducida si es necesario
-      const enteredHash = hashPasswordScrypt(password);
-      if (!targetUser.passwordHash.startsWith('scrypt:') || targetUser.passwordHash !== enteredHash) {
-        targetUser.passwordHash = enteredHash;
+      // Si el usuario aun no tenia hash scrypt seguro, migrar en este primer login
+      if (!targetUser.passwordHash.startsWith('scrypt:')) {
+        targetUser.passwordHash = hashPasswordScrypt(password);
         writeJsonFileAtomic(USERS_FILE, users);
       }
 
@@ -1435,25 +1400,15 @@ const server = http.createServer(async (req, res) => {
     }
 
     const barberId = reqUrl.substring('/api/barbers/'.length);
-    const PERMANENT_BARBERS = ['b-david-01', 'b-matta-01'];
-    if (PERMANENT_BARBERS.includes(barberId)) {
-      res.statusCode = 400;
-      res.setHeader('Content-Type', 'application/json; charset=utf-8');
-      res.end(JSON.stringify({ error: 'No se permite eliminar los barberos principales de la sede.' }));
-      return;
-    }
-
     const barbers = readJsonFile(BARBERS_FILE, DEFAULT_BARBERS);
     const targetBarber = barbers.find((b) => b.id === barberId);
     const filtered = barbers.filter((b) => b.id !== barberId);
     writeJsonFileAtomic(BARBERS_FILE, filtered);
 
-    // Cascada bidireccional: Eliminar la cuenta de usuario asociada en USERS_FILE
+    // Cascada bidireccional: Eliminar la cuenta de usuario asociada en USERS_FILE (siempre preservando al Administrador principal)
     const users = readJsonFile(USERS_FILE, DEFAULT_USERS);
-    const PERMANENT_USERS = ['u-admin-01', 'u-david-01', 'u-matta-01', 'admin', 'david.barber', 'matta.barber'];
     const filteredUsers = users.filter((u) => {
       if (u.role === 'ADMIN') return true;
-      if (PERMANENT_USERS.includes(u.id) || (u.username && PERMANENT_USERS.includes(u.username))) return true;
       if (barberId && u.barberId === barberId) return false;
       if (targetBarber && targetBarber.userId && u.id === targetBarber.userId) return false;
       return true;
@@ -1635,17 +1590,6 @@ const server = http.createServer(async (req, res) => {
       u.id === userId || 
       (u.username && (u.username === userId || u.username.replace(/^@/, '').toLowerCase().trim() === cleanId))
     );
-    const PERMANENT_USERS = ['u-admin-01', 'u-david-01', 'u-matta-01', 'admin', 'david.barber', 'matta.barber'];
-    if (
-      PERMANENT_USERS.includes(userId) ||
-      PERMANENT_USERS.includes(cleanId) ||
-      (targetIdx !== -1 && (PERMANENT_USERS.includes(users[targetIdx].id) || PERMANENT_USERS.includes(users[targetIdx].username)))
-    ) {
-      res.statusCode = 400;
-      res.setHeader('Content-Type', 'application/json; charset=utf-8');
-      res.end(JSON.stringify({ error: 'No se permite eliminar cuentas protegidas del sistema.' }));
-      return;
-    }
 
     if (targetIdx !== -1 && users[targetIdx].role === 'ADMIN') {
       res.statusCode = 400;

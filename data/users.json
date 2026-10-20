@@ -2,7 +2,7 @@
   {
     "id": "u-admin-01",
     "username": "admin",
-    "passwordHash": "scrypt:66e09af3fdedf17fde52f50d4d5b0792:4032e29dc8a17c5b54f44c99e2b175f3e2f85f46c2981727970bc7b33d87df8bb8a113ad47390dd780d1afb273a3c708530320ff743c2b90ab575d226f9cb71b",
+    "passwordHash": "scrypt:a62d343f82a54881f5655a8b0aebc5aa:0352c650904964d490292b4106326df6d77b066f3a0a8301d59f09d2c7b3a853b52c97d1a53049c364de8794f6ea9f5db869c6870387e9c13b575d728a8e8783",
     "role": "ADMIN",
     "barberId": null,
     "active": true
@@ -10,7 +10,7 @@
   {
     "id": "u-david-01",
     "username": "david.barber",
-    "passwordHash": "scrypt:6bda4fe2315585dd211b578109715b50:529fb73cc2d3a9499d25fcd772b8451311d9f4892d6da95267b18beae31fb9888fb039a10a96143f8af1560cdf08433d541010ef96666e63b06967006b9a9435",
+    "passwordHash": "scrypt:c69d39f3fab5c1a73ced895be89315b9:476aafe97c119e6b012dffca9c1feb0653e6c99cfec8cae651998ad2ce415961b14a78ed309441cb0417dc5f1b6ca53ef20efb59802bb77811bb20680cce8c40",
     "role": "JEFE",
     "barberId": "b-david-01",
     "active": true,
@@ -19,19 +19,10 @@
   {
     "id": "u-matta-01",
     "username": "matta.barber",
-    "passwordHash": "scrypt:ce8d7757ca0f0aacad5391c3da7132d4:84325c5c573894440c0800ce6120446bffa29ebf7b118f02b1b535e63eb1b615363264cc42f17f79e137db383ee98d70503890c2d5f1f4ea73b5977a0ae56153",
+    "passwordHash": "scrypt:6098647c63f04d97264dd62602747535:2f877bb9e83c853372a0c527eed251f5c4d4b935f76f3342c80bc08ea6a0bbddcfd44b09abb7411b4d5375612c929d92b282f5dbad297ba9f16fb8aa07af33f5",
     "role": "BARBERO",
     "barberId": "b-matta-01",
     "active": true,
     "createdAt": "2026-10-20T07:45:00.000Z"
-  },
-  {
-    "id": "67523e1e-44ce-4233-99ba-5636ab4919f7",
-    "username": "barbero.test.1792528336343",
-    "passwordHash": "scrypt:6cdc1d5c955c454ff8fdf74bfd8ebe5e:13754f07b4601d832c5c7d0360d8937924b292a4badbe12acc6d232f6b45ba902d68dc5d05b22468ed0faea6a1dd42d4689971ae541779b1b1b4d059cf098c71",
-    "role": "BARBERO",
-    "barberId": "ad7ccf23-c8f0-4f38-8a88-953957c8a942",
-    "active": true,
-    "createdAt": "2026-10-20T20:32:16.434Z"
   }
 ]
