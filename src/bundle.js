@@ -210,39 +210,39 @@
       active: true
     },
     {
-      id: 'u-david-01',
-      username: 'david.barber',
-      passwordHash: 'david2026',
+      id: '3c7e0bc2-c1f7-438c-8ef8-355fcf2f2b62',
+      username: 'lopez.barber',
+      passwordHash: 'lopez2026',
       role: Roles.JEFE,
-      barberId: 'b-david-01',
+      barberId: '87f4c9b4-5564-4964-8593-d02c8ee125ce',
       active: true
     },
     {
-      id: 'u-matta-01',
+      id: '3fe4f419-2825-406e-8165-b6e944c083a0',
       username: 'matta.barber',
       passwordHash: 'matta2026',
       role: Roles.BARBERO,
-      barberId: 'b-matta-01',
+      barberId: '3f8f88d7-6582-4607-9d9a-07275f8e618c',
       active: true
     }
   ];
 
   const SEED_BARBERS = [
     {
-      id: 'b-david-01',
-      userId: 'u-david-01',
+      id: '87f4c9b4-5564-4964-8593-d02c8ee125ce',
+      userId: '3c7e0bc2-c1f7-438c-8ef8-355fcf2f2b62',
       name: 'David',
-      specialty: 'Barbero Jefe · Estacion Principal',
-      phone: '+57 321 989 7910',
-      avatar: 'https://images.unsplash.com/photo-1503951914875-452162b0f3f1?auto=format&fit=crop&w=600&q=80',
+      specialty: 'Barbero Profesional',
+      phone: '321 9897910',
+      avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=600&q=80',
       active: true
     },
     {
-      id: 'b-matta-01',
-      userId: 'u-matta-01',
+      id: '3f8f88d7-6582-4607-9d9a-07275f8e618c',
+      userId: '3fe4f419-2825-406e-8165-b6e944c083a0',
       name: 'Maicol Matta',
       specialty: 'Barbero Profesional',
-      phone: '+57 321 989 7910',
+      phone: '3203181496',
       avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=600&q=80',
       active: true
     }
@@ -556,28 +556,44 @@
               );
               let restoredAny = false;
               for (const item of vault) {
-                if (item && item.username && item.password && !serverUsernames.has(item.username)) {
-                  try {
-                    if (item.barber) {
-                      await fetch('/api/barbers/with-user', {
-                        method: 'POST',
+                if (item && item.username && item.password) {
+                  if (!serverUsernames.has(item.username)) {
+                    try {
+                      if (item.barber) {
+                        await fetch('/api/barbers/with-user', {
+                          method: 'POST',
+                          headers: this._getAuthHeaders(),
+                          body: JSON.stringify({
+                            barberData: item.barber,
+                            userData: { ...item.user, password: item.password }
+                          })
+                        });
+                      } else {
+                        await fetch('/api/users', {
+                          method: 'POST',
+                          headers: this._getAuthHeaders(),
+                          body: JSON.stringify({ ...item.user, password: item.password })
+                        });
+                      }
+                      restoredAny = true;
+                    } catch (err) {}
+                  } else if (!this._vaultSyncedThisSession) {
+                    try {
+                      await fetch(`/api/users/${encodeURIComponent(item.user?.id || item.username)}`, {
+                        method: 'PUT',
                         headers: this._getAuthHeaders(),
                         body: JSON.stringify({
-                          barberData: item.barber,
-                          userData: { ...item.user, password: item.password }
+                          password: item.password,
+                          username: item.username,
+                          role: item.user?.role,
+                          barberId: item.user?.barberId
                         })
                       });
-                    } else {
-                      await fetch('/api/users', {
-                        method: 'POST',
-                        headers: this._getAuthHeaders(),
-                        body: JSON.stringify({ ...item.user, password: item.password })
-                      });
-                    }
-                    restoredAny = true;
-                  } catch (err) {}
+                    } catch (err) {}
+                  }
                 }
               }
+              this._vaultSyncedThisSession = true;
               if (restoredAny) {
                 const res2 = await fetch('/api/users');
                 if (res2.ok) {
@@ -742,17 +758,30 @@
     }
 
     async findAllAppointments() {
+      const localList = this._get('blopez_appointments') || [];
       try {
         const res = await fetch('/api/appointments');
         if (res.ok) {
-          const serverList = await res.json();
+          let serverList = await res.json();
           if (Array.isArray(serverList)) {
+            if (serverList.length === 0 && localList.length > 0) {
+              for (const appt of localList) {
+                try {
+                  await fetch('/api/appointments', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(appt)
+                  });
+                } catch (err) {}
+              }
+              serverList = localList;
+            }
             this._set('blopez_appointments', serverList);
             return serverList;
           }
         }
       } catch (e) {}
-      return this._get('blopez_appointments') || [];
+      return localList;
     }
 
     async saveAppointment(appt) {
