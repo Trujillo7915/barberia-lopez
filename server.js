@@ -454,6 +454,7 @@ function validateAndSaveAppointment(newAppt) {
         if (newAppt.status !== 'CANCELADA') {
           // Deteccion idempotente de reenvio/doble-tap del mismo cliente
           const duplicateSameClient = appointments.find((a) => {
+            if (newAppt.id && a.id === newAppt.id) return false;
             if (a.status === 'CANCELADA') return false;
             if (a.barberId !== newAppt.barberId) return false;
             if (a.date !== newAppt.date) return false;
@@ -996,11 +997,24 @@ const server = http.createServer(async (req, res) => {
       const appointments = readJsonFile(APPOINTMENTS_FILE, DEFAULT_APPOINTMENTS);
       const idx = appointments.findIndex((a) => a.id === apptId);
       if (idx !== -1) {
-        const updated = { ...appointments[idx], ...updateData, id: apptId };
-        const saved = await validateAndSaveAppointment(updated);
-        res.statusCode = 200;
-        res.setHeader('Content-Type', 'application/json; charset=utf-8');
-        res.end(JSON.stringify({ success: true, appointment: saved }));
+        const current = appointments[idx];
+        const dateChanged = updateData.date && updateData.date !== current.date;
+        const timeChanged = (updateData.startTime && updateData.startTime !== current.startTime) ||
+                            (updateData.endTime && updateData.endTime !== current.endTime);
+        const barberChanged = updateData.barberId && updateData.barberId !== current.barberId;
+        const updated = { ...current, ...updateData, id: apptId };
+        if (dateChanged || timeChanged || barberChanged) {
+          const saved = await validateAndSaveAppointment(updated);
+          res.statusCode = 200;
+          res.setHeader('Content-Type', 'application/json; charset=utf-8');
+          res.end(JSON.stringify({ success: true, appointment: saved }));
+        } else {
+          appointments[idx] = updated;
+          writeJsonFileAtomic(APPOINTMENTS_FILE, appointments);
+          res.statusCode = 200;
+          res.setHeader('Content-Type', 'application/json; charset=utf-8');
+          res.end(JSON.stringify({ success: true, appointment: updated }));
+        }
       } else {
         res.statusCode = 404;
         res.setHeader('Content-Type', 'application/json; charset=utf-8');
@@ -1460,6 +1474,15 @@ const server = http.createServer(async (req, res) => {
       try {
         const newRecord = await readJsonBody(req);
         const history = readJsonFile(HISTORY_FILE, DEFAULT_HISTORY);
+        if (newRecord.appointmentId) {
+          const existing = history.find((h) => h.appointmentId === newRecord.appointmentId);
+          if (existing) {
+            res.statusCode = 200;
+            res.setHeader('Content-Type', 'application/json; charset=utf-8');
+            res.end(JSON.stringify({ success: true, record: existing, duplicatePrevented: true }));
+            return;
+          }
+        }
         history.push(newRecord);
         writeJsonFileAtomic(HISTORY_FILE, history);
         res.statusCode = 200;
