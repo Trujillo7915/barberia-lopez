@@ -5,7 +5,8 @@ const TESTS = [
   { name: 'Seguridad y Penetración Defensiva', file: 'test_security.js' },
   { name: 'Concurrencia, Persistencia y Calendarios RFC 5545', file: 'test_concurrency_and_barbers.js' },
   { name: 'Finalizacion de Corte, Idempotencia y Caja Diaria', file: 'test_cut_completion_and_cash.js' },
-  { name: 'Catalogo, Inventario, Turnos y Tienda de Productos', file: 'test_store.js' }
+  { name: 'Catalogo, Inventario, Turnos y Tienda de Productos', file: 'test_store.js' },
+  { name: 'Ciclo de Vida de Usuarios, Login y Credenciales', file: 'test_user_lifecycle.js' }
 ];
 
 console.log('===============================================================');

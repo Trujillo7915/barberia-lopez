@@ -1411,7 +1411,8 @@ async findAllProducts() {
       }
       const user = await this.repo.findUserById(userId);
       if (!user) throw new Error("Usuario no encontrado.");
-      await this.repo.updatePassword(userId, newPassword);
+      await this.repo.updatePassword(user.id, newPassword);
+      await this.repo.findAllUsers();
       return { success: true, message: `Contraseña de @${user.username} actualizada con éxito.` };
     }
 
@@ -1431,6 +1432,8 @@ async findAllProducts() {
           await this.repo.updateBarber(barber);
         }
       }
+      await this.repo.findAllUsers();
+      await this.repo.findAllBarbers();
       return { user };
     }
 
@@ -1443,10 +1446,12 @@ async findAllProducts() {
       if (user.role === Roles.ADMIN) throw new Error("No se puede eliminar la cuenta del Administrador.");
 
       const barberId = user.barberId;
-      await this.repo.deleteUser(userId);
+      await this.repo.deleteUser(user.id);
       if (barberId) {
-        await this.repo.deleteBarber(barberId);
+        await this.repo.deleteBarber(barberId).catch(() => {});
       }
+      await this.repo.findAllUsers();
+      await this.repo.findAllBarbers();
       return { success: true, message: `La cuenta de @${user.username} ha sido eliminada con éxito.` };
     }
   }
@@ -2424,7 +2429,10 @@ async findAllProducts() {
                   Limpiar solicitudes de prueba
                 </button>
               ` : ''}
-              <button id="btn-dashboard-back-home" class="btn-stone-outline text-xs font-medium py-2 px-4">
+              <button type="button" data-user-id="${state.currentUser.id}" data-username="${escapeHtml(state.currentUser.username)}" class="btn-change-password btn-stone-outline text-xs font-medium py-2 px-3.5 cursor-pointer">
+                Cambiar mi clave
+              </button>
+              <button id="btn-dashboard-back-home" class="btn-stone-outline text-xs font-medium py-2 px-4 cursor-pointer">
                 ← Volver al inicio
               </button>
             </div>
@@ -3499,14 +3507,62 @@ async findAllProducts() {
           <form id="form-login" class="space-y-4">
             <div>
               <label class="block font-sans-ui text-xs font-semibold text-[#c5c0b6] mb-1.5">Usuario</label>
-              <input type="text" id="login-username" required placeholder="" class="input-parchment">
+              <input type="text" id="login-username" required placeholder="admin o david.barber" class="input-parchment" autocapitalize="none" autocorrect="off" spellcheck="false" autocomplete="username">
             </div>
             <div>
               <label class="block font-sans-ui text-xs font-semibold text-[#c5c0b6] mb-1.5">Contraseña</label>
-              <input type="password" id="login-password" required placeholder="••••••••" class="input-parchment">
+              <div class="relative">
+                <input type="password" id="login-password" required placeholder="••••••••" class="input-parchment pr-12" autocapitalize="none" autocorrect="off" spellcheck="false" autocomplete="current-password">
+                <button type="button" id="btn-toggle-login-pwd" class="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-[#c5c0b6] hover:text-[#d4af37] px-1.5 py-1 cursor-pointer select-none">
+                  Ver
+                </button>
+              </div>
             </div>
             <div id="login-error-msg" class="font-sans-ui text-xs text-red-400 bg-red-950/50 border border-red-800 p-3 rounded-[8px] hidden"></div>
-            <button type="submit" class="btn-clay w-full py-3 justify-center text-sm font-semibold">Ingresar al sistema →</button>
+            <button type="submit" id="btn-submit-login" class="btn-clay w-full py-3 justify-center text-sm font-semibold cursor-pointer">Ingresar al sistema →</button>
+          </form>
+        </div>
+      </div>
+
+      <!-- MODAL DE CAMBIO DE CONTRASEÑA (Obsidian & Imperial Gold) -->
+      <div id="modal-change-password" class="fixed inset-0 z-50 bg-[#0a0b0d]/85 backdrop-blur-sm flex items-center justify-center p-4 hidden">
+        <div class="anthropic-card w-full max-w-md p-6 sm:p-8 relative">
+          <button id="btn-close-change-pwd" type="button" class="absolute top-4 right-4 text-[#c5c0b6] hover:text-[#ffffff] text-xl font-light cursor-pointer">&times;</button>
+          
+          <div class="mb-5">
+            <div class="inline-flex items-center gap-2 mb-2 px-3 py-1 rounded-full bg-[#181c24] border border-[rgba(212,175,55,0.3)] text-[#f3e5ab] text-xs font-semibold">
+              <span class="w-2 h-2 rounded-full bg-[#d4af37]"></span>
+              <span id="change-pwd-target-label">SEGURIDAD DE ACCESO</span>
+            </div>
+            <h3 class="font-serif-editorial text-[26px] font-normal text-[#ffffff]">Actualizar contraseña</h3>
+            <p class="font-sans-ui text-xs text-[#c5c0b6] mt-1" id="change-pwd-subtitle">
+              Establece una nueva clave para la cuenta de acceso.
+            </p>
+          </div>
+
+          <form id="form-change-password" class="space-y-4">
+            <input type="hidden" id="change-pwd-user-id" value="">
+            <div>
+              <label class="block font-sans-ui text-xs font-semibold text-[#c5c0b6] mb-1.5">Nueva contraseña</label>
+              <div class="relative">
+                <input type="password" id="input-new-password" required placeholder="Mínimo 4 caracteres" class="input-parchment pr-12 text-sm" autocapitalize="none" autocorrect="off" spellcheck="false">
+                <button type="button" id="btn-toggle-new-pwd" class="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-[#c5c0b6] hover:text-[#d4af37] px-1.5 py-1 cursor-pointer select-none">Ver</button>
+              </div>
+            </div>
+            <div>
+              <label class="block font-sans-ui text-xs font-semibold text-[#c5c0b6] mb-1.5">Confirmar contraseña</label>
+              <div class="relative">
+                <input type="password" id="input-confirm-password" required placeholder="Repite la contraseña" class="input-parchment pr-12 text-sm" autocapitalize="none" autocorrect="off" spellcheck="false">
+                <button type="button" id="btn-toggle-confirm-pwd" class="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-[#c5c0b6] hover:text-[#d4af37] px-1.5 py-1 cursor-pointer select-none">Ver</button>
+              </div>
+            </div>
+            <div id="change-pwd-error-msg" class="font-sans-ui text-xs text-red-400 bg-red-950/50 border border-red-800 p-3 rounded-[8px] hidden"></div>
+            <div id="change-pwd-success-msg" class="font-sans-ui text-xs text-emerald-300 bg-emerald-950/50 border border-emerald-800 p-3 rounded-[8px] hidden"></div>
+            
+            <div class="flex items-center gap-2 pt-2">
+              <button type="button" id="btn-cancel-change-pwd" class="btn-stone-outline flex-1 py-2.5 justify-center text-xs font-semibold cursor-pointer">Cancelar</button>
+              <button type="submit" id="btn-submit-change-pwd" class="btn-clay flex-1 py-2.5 justify-center text-xs font-semibold cursor-pointer">Guardar clave →</button>
+            </div>
           </form>
         </div>
       </div>
@@ -3745,9 +3801,21 @@ async findAllProducts() {
     const btnLoginTrigger = document.getElementById('btn-login-trigger');
     const modalAuth = document.getElementById('modal-auth');
     const btnCloseAuth = document.getElementById('btn-close-auth');
+    const btnToggleLoginPwd = document.getElementById('btn-toggle-login-pwd');
 
     if (btnLoginTrigger && modalAuth) btnLoginTrigger.onclick = () => modalAuth.classList.remove('hidden');
     if (btnCloseAuth && modalAuth) btnCloseAuth.onclick = () => modalAuth.classList.add('hidden');
+
+    if (btnToggleLoginPwd) {
+      btnToggleLoginPwd.onclick = () => {
+        const inp = document.getElementById('login-password');
+        if (inp) {
+          const isPass = inp.type === 'password';
+          inp.type = isPass ? 'text' : 'password';
+          btnToggleLoginPwd.textContent = isPass ? 'Ocultar' : 'Ver';
+        }
+      };
+    }
 
     document.querySelectorAll('.quick-fill-btn').forEach((btn) => {
       btn.onclick = () => {
@@ -3763,6 +3831,12 @@ async findAllProducts() {
         const username = document.getElementById('login-username').value;
         const password = document.getElementById('login-password').value;
         const errorMsg = document.getElementById('login-error-msg');
+        const submitBtn = document.getElementById('btn-submit-login');
+        if (errorMsg) errorMsg.classList.add('hidden');
+        if (submitBtn) {
+          submitBtn.disabled = true;
+          submitBtn.textContent = 'Verificando...';
+        }
         try {
           const { user } = await loginUseCase.execute({ username, password });
           modalAuth.classList.add('hidden');
@@ -3771,8 +3845,15 @@ async findAllProducts() {
           state.activeView = user.role === Roles.ADMIN ? 'admin' : 'dashboard';
           renderApp();
         } catch (err) {
-          errorMsg.textContent = err.message;
-          errorMsg.classList.remove('hidden');
+          if (errorMsg) {
+            errorMsg.textContent = err.message;
+            errorMsg.classList.remove('hidden');
+          }
+        } finally {
+          if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Ingresar al sistema →';
+          }
         }
       };
     }
@@ -4533,26 +4614,127 @@ async findAllProducts() {
       };
     }
 
+    const modalChangePwd = document.getElementById('modal-change-password');
+    const btnCloseChangePwd = document.getElementById('btn-close-change-pwd');
+    const btnCancelChangePwd = document.getElementById('btn-cancel-change-pwd');
+    const formChangePwd = document.getElementById('form-change-password');
+    const btnToggleNewPwd = document.getElementById('btn-toggle-new-pwd');
+    const btnToggleConfirmPwd = document.getElementById('btn-toggle-confirm-pwd');
+
+    if (btnCloseChangePwd && modalChangePwd) {
+      btnCloseChangePwd.onclick = () => modalChangePwd.classList.add('hidden');
+    }
+    if (btnCancelChangePwd && modalChangePwd) {
+      btnCancelChangePwd.onclick = () => modalChangePwd.classList.add('hidden');
+    }
+
+    if (btnToggleNewPwd) {
+      btnToggleNewPwd.onclick = () => {
+        const inp = document.getElementById('input-new-password');
+        if (inp) {
+          const isPass = inp.type === 'password';
+          inp.type = isPass ? 'text' : 'password';
+          btnToggleNewPwd.textContent = isPass ? 'Ocultar' : 'Ver';
+        }
+      };
+    }
+
+    if (btnToggleConfirmPwd) {
+      btnToggleConfirmPwd.onclick = () => {
+        const inp = document.getElementById('input-confirm-password');
+        if (inp) {
+          const isPass = inp.type === 'password';
+          inp.type = isPass ? 'text' : 'password';
+          btnToggleConfirmPwd.textContent = isPass ? 'Ocultar' : 'Ver';
+        }
+      };
+    }
+
     document.querySelectorAll('.btn-change-password').forEach((btn) => {
-      btn.onclick = async () => {
+      btn.onclick = () => {
         const userId = btn.dataset.userId;
-        const username = btn.dataset.username;
-        const newPassword = prompt(`Nueva contraseña para @${username}:`);
-        if (newPassword && newPassword.trim().length >= 4) {
-          try {
-            const res = await manageUsersUseCase.changePassword({
-              adminUser: state.currentUser,
-              userId,
-              newPassword
-            });
-            alert(res.message);
+        const username = btn.dataset.username || userId;
+        const targetLabel = document.getElementById('change-pwd-target-label');
+        const subtitle = document.getElementById('change-pwd-subtitle');
+        const hiddenUserId = document.getElementById('change-pwd-user-id');
+        const inputNew = document.getElementById('input-new-password');
+        const inputConfirm = document.getElementById('input-confirm-password');
+        const errorMsg = document.getElementById('change-pwd-error-msg');
+        const successMsg = document.getElementById('change-pwd-success-msg');
+
+        if (hiddenUserId) hiddenUserId.value = userId;
+        if (targetLabel) targetLabel.textContent = `@${username}`;
+        if (subtitle) subtitle.textContent = `Establece una nueva clave para la cuenta @${username}.`;
+        if (inputNew) inputNew.value = '';
+        if (inputConfirm) inputConfirm.value = '';
+        if (errorMsg) errorMsg.classList.add('hidden');
+        if (successMsg) successMsg.classList.add('hidden');
+        if (modalChangePwd) modalChangePwd.classList.remove('hidden');
+        if (inputNew) inputNew.focus();
+      };
+    });
+
+    if (formChangePwd) {
+      formChangePwd.onsubmit = async (e) => {
+        e.preventDefault();
+        const userId = document.getElementById('change-pwd-user-id').value;
+        const newPwd = document.getElementById('input-new-password').value.trim();
+        const confirmPwd = document.getElementById('input-confirm-password').value.trim();
+        const errorMsg = document.getElementById('change-pwd-error-msg');
+        const successMsg = document.getElementById('change-pwd-success-msg');
+        const submitBtn = document.getElementById('btn-submit-change-pwd');
+
+        if (errorMsg) errorMsg.classList.add('hidden');
+        if (successMsg) successMsg.classList.add('hidden');
+
+        if (!newPwd || newPwd.length < 4) {
+          if (errorMsg) {
+            errorMsg.textContent = 'La contraseña debe tener al menos 4 caracteres.';
+            errorMsg.classList.remove('hidden');
+          }
+          return;
+        }
+
+        if (newPwd !== confirmPwd) {
+          if (errorMsg) {
+            errorMsg.textContent = 'Las contraseñas no coinciden. Verifícalas.';
+            errorMsg.classList.remove('hidden');
+          }
+          return;
+        }
+
+        if (submitBtn) {
+          submitBtn.disabled = true;
+          submitBtn.textContent = 'Guardando clave...';
+        }
+
+        try {
+          const res = await manageUsersUseCase.changePassword({
+            adminUser: state.currentUser,
+            userId,
+            newPassword: newPwd
+          });
+          if (successMsg) {
+            successMsg.textContent = res.message || 'Contraseña actualizada con éxito.';
+            successMsg.classList.remove('hidden');
+          }
+          setTimeout(() => {
+            if (modalChangePwd) modalChangePwd.classList.add('hidden');
             renderApp();
-          } catch (err) {
-            alert(err.message);
+          }, 900);
+        } catch (err) {
+          if (errorMsg) {
+            errorMsg.textContent = err.message || 'No fue posible actualizar la contraseña.';
+            errorMsg.classList.remove('hidden');
+          }
+        } finally {
+          if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Guardar clave →';
           }
         }
       };
-    });
+    }
 
     document.querySelectorAll('.btn-toggle-status').forEach((btn) => {
       btn.onclick = async () => {
