@@ -27,25 +27,8 @@ const SERVICES_FILE = path.join(DATA_DIR, 'services.json');
 const USERS_FILE = path.join(DATA_DIR, 'users.json');
 const HISTORY_FILE = path.join(DATA_DIR, 'history.json');
 
-// Clave secreta para tokens de sesion HMAC-SHA256 persistente
-const AUTH_SECRET_FILE = path.join(DATA_DIR, '.auth_secret');
-let AUTH_SECRET = process.env.AUTH_SECRET;
-if (!AUTH_SECRET) {
-  if (fs.existsSync(AUTH_SECRET_FILE)) {
-    try {
-      const savedSecret = fs.readFileSync(AUTH_SECRET_FILE, 'utf8').trim();
-      if (savedSecret && savedSecret.length >= 32) {
-        AUTH_SECRET = savedSecret;
-      }
-    } catch (e) {}
-  }
-  if (!AUTH_SECRET) {
-    AUTH_SECRET = crypto.randomBytes(32).toString('hex');
-    try {
-      fs.writeFileSync(AUTH_SECRET_FILE, AUTH_SECRET, { encoding: 'utf8' });
-    } catch (e) {}
-  }
-}
+// Clave secreta para tokens de sesion HMAC-SHA256 deterministica (evita invalidar sesiones al reiniciar Render)
+const AUTH_SECRET = process.env.AUTH_SECRET || crypto.createHash('sha256').update('barberia_lopez_neiva_master_hmac_secret_2026').digest('hex');
 
 // Semillas por defecto si los archivos no existen aún
 const DEFAULT_USERS = [
@@ -58,40 +41,40 @@ const DEFAULT_USERS = [
     active: true
   },
   {
-    id: 'u-jefe-01',
-    username: 'maestro.lopez',
-    passwordHash: 'lopez2026',
+    id: 'u-david-01',
+    username: 'david.barber',
+    passwordHash: 'david2026',
     role: 'JEFE',
-    barberId: 'b-jefe-01',
+    barberId: 'b-david-01',
     active: true
   },
   {
-    id: 'u-junior-01',
-    username: 'carlos.junior',
-    passwordHash: 'junior2026',
-    role: 'PRACTICANTE',
-    barberId: 'b-junior-01',
+    id: 'u-matta-01',
+    username: 'matta.barber',
+    passwordHash: 'matta2026',
+    role: 'BARBERO',
+    barberId: 'b-matta-01',
     active: true
   }
 ];
 
 const DEFAULT_BARBERS = [
   {
-    id: 'b-jefe-01',
-    userId: 'u-jefe-01',
-    name: 'Maestro Lopez',
-    specialty: 'Maestro Barbero · Estación Principal',
+    id: 'b-david-01',
+    userId: 'u-david-01',
+    name: 'David',
+    specialty: 'Barbero Jefe · Maestro Barbero',
     phone: '+57 321 989 7910',
     avatar: 'https://images.unsplash.com/photo-1503951914875-452162b0f3f1?auto=format&fit=crop&w=600&q=80',
     active: true
   },
   {
-    id: 'b-junior-01',
-    userId: 'u-junior-01',
-    name: 'Carlos Andrés',
-    specialty: 'Barbero Practicante · Degradados & Perfilado',
-    phone: '+57 312 456 7890',
-    avatar: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&w=600&q=80',
+    id: 'b-matta-01',
+    userId: 'u-matta-01',
+    name: 'Maicol Matta',
+    specialty: 'Barbero Profesional · Degradados & Barba',
+    phone: '+57 300 000 0000',
+    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=600&q=80',
     active: true
   }
 ];
@@ -195,6 +178,17 @@ function verifyPasswordSecure(plainPassword, storedHash) {
   return false;
 }
 
+function generateUuid() {
+  if (typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
+
 function generateSessionToken(user) {
   const header = Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString('base64url');
   const payload = Buffer.from(JSON.stringify({
@@ -294,23 +288,29 @@ function checkRateLimit(req, res, maxRequests = 120, windowMs = 60000) {
 function checkAuthRateLimit(req, res) {
   const ip = getClientIp(req);
   const now = Date.now();
-  const windowMs = 15 * 60 * 1000; // 15 minutos
-  const maxAttempts = 10;
-  let record = ipAuthAttempts.get(ip);
-  if (!record || now > record.resetTime) {
-    record = { count: 1, resetTime: now + windowMs };
-    ipAuthAttempts.set(ip, record);
-    return true;
-  }
-  record.count++;
-  if (record.count > maxAttempts) {
+  const maxAttempts = 50;
+  const record = ipAuthAttempts.get(ip);
+  if (record && now <= record.resetTime && record.count >= maxAttempts) {
     res.statusCode = 429;
     res.setHeader('Content-Type', 'application/json; charset=utf-8');
     res.setHeader('Retry-After', Math.ceil((record.resetTime - now) / 1000));
-    res.end(JSON.stringify({ error: 'Demasiados intentos fallidos de autenticacion. Bloqueado temporalmente.' }));
+    res.end(JSON.stringify({ error: 'Demasiados intentos fallidos de autenticacion. Intenta de nuevo en unos minutos.' }));
     return false;
   }
   return true;
+}
+
+function recordFailedAuthAttempt(req) {
+  const ip = getClientIp(req);
+  const now = Date.now();
+  const windowMs = 5 * 60 * 1000; // 5 minutos
+  let record = ipAuthAttempts.get(ip);
+  if (!record || now > record.resetTime) {
+    record = { count: 1, resetTime: now + windowMs };
+  } else {
+    record.count++;
+  }
+  ipAuthAttempts.set(ip, record);
 }
 
 // ============================================================================
@@ -606,7 +606,7 @@ function generateIcsForClient(clientPhone) {
   const nowUtc = new Date().toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
 
   const events = clientAppts.map((appt) => {
-    const b = barbersMap.get(appt.barberId) || { name: 'Maestro Lopez' };
+    const b = barbersMap.get(appt.barberId) || { name: 'Barbero' };
     const s = servicesMap.get(appt.serviceId) || { name: 'Corte Tradicional', priceCop: 0, durationMinutes: 30 };
 
     const dtStartUtc = localToUtcIso(appt.date, appt.startTime || '10:00');
@@ -784,23 +784,29 @@ const server = http.createServer(async (req, res) => {
       });
 
       if (!targetUser || !targetUser.active) {
+        recordFailedAuthAttempt(req);
         res.statusCode = 401;
         res.setHeader('Content-Type', 'application/json; charset=utf-8');
         res.end(JSON.stringify({ error: 'Credenciales invalidas o usuario inactivo.' }));
         return;
       }
 
-      const isValid = verifyPasswordSecure(password, targetUser.passwordHash);
+      const isValid = verifyPasswordSecure(String(password).trim(), targetUser.passwordHash) ||
+                      verifyPasswordSecure(String(password), targetUser.passwordHash);
       if (!isValid) {
+        recordFailedAuthAttempt(req);
         res.statusCode = 401;
         res.setHeader('Content-Type', 'application/json; charset=utf-8');
         res.end(JSON.stringify({ error: 'Credenciales invalidas.' }));
         return;
       }
 
+      // Login exitoso: limpiar contador de intentos fallidos para esta IP
+      ipAuthAttempts.delete(getClientIp(req));
+
       // Migracion automatica transparente a scrypt seguro si aun esta en texto plano
       if (!targetUser.passwordHash.startsWith('scrypt:')) {
-        targetUser.passwordHash = hashPasswordScrypt(password);
+        targetUser.passwordHash = hashPasswordScrypt(String(password).trim());
         writeJsonFileAtomic(USERS_FILE, users);
       }
 
@@ -1093,8 +1099,8 @@ const server = http.createServer(async (req, res) => {
       }
 
       const barbers = readJsonFile(BARBERS_FILE, DEFAULT_BARBERS);
-      const barberId = barberData.id || crypto.randomUUID();
-      const userId = userData.id || crypto.randomUUID();
+      const barberId = barberData.id || generateUuid();
+      const userId = userData.id || generateUuid();
 
       const newBarber = {
         id: barberId,
@@ -1106,7 +1112,7 @@ const server = http.createServer(async (req, res) => {
         active: barberData.active !== false
       };
 
-      const passwordHash = hashPasswordScrypt(userData.password);
+      const passwordHash = hashPasswordScrypt(String(userData.password).trim());
       const targetRole = (authUser.role === 'JEFE' && userData.role === 'ADMIN') ? 'BARBERO' : (userData.role || 'BARBERO');
       const newUser = {
         id: userId,
@@ -1123,6 +1129,9 @@ const server = http.createServer(async (req, res) => {
 
       writeJsonFileAtomic(BARBERS_FILE, barbers);
       writeJsonFileAtomic(USERS_FILE, users);
+
+      // Desbloquear cualquier limite de intentos de autenticacion al crear barbero
+      ipAuthAttempts.clear();
 
       res.statusCode = 201;
       res.setHeader('Content-Type', 'application/json; charset=utf-8');
@@ -1233,10 +1242,15 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
-    const barberId = reqUrl.substring('/api/barbers/'.length);
+    const barberId = decodeURIComponent(reqUrl.substring('/api/barbers/'.length));
     const barbers = readJsonFile(BARBERS_FILE, DEFAULT_BARBERS);
     const filtered = barbers.filter((b) => b.id !== barberId);
     writeJsonFileAtomic(BARBERS_FILE, filtered);
+
+    const users = readJsonFile(USERS_FILE, DEFAULT_USERS);
+    const filteredUsers = users.filter((u) => u.role === 'ADMIN' || u.barberId !== barberId);
+    writeJsonFileAtomic(USERS_FILE, filteredUsers);
+
     res.statusCode = 200;
     res.setHeader('Content-Type', 'application/json; charset=utf-8');
     res.end(JSON.stringify({ success: true }));
@@ -1288,18 +1302,29 @@ const server = http.createServer(async (req, res) => {
           return;
         }
 
-        const rawPassword = newUser.passwordHash || newUser.password || 'Lopez2026*';
-        newUser.passwordHash = hashPasswordScrypt(rawPassword);
+        const rawPassword = String(newUser.passwordHash || newUser.password || 'Lopez2026*').trim();
+        newUser.passwordHash = rawPassword.startsWith('scrypt:') ? rawPassword : hashPasswordScrypt(rawPassword);
         delete newUser.password;
 
+        const cleanUsername = String(newUser.username).replace(/^@/, '').toLowerCase().trim();
+        newUser.username = cleanUsername;
+        if (!newUser.id) {
+          newUser.id = generateUuid();
+        }
+
         const users = readJsonFile(USERS_FILE, DEFAULT_USERS);
-        const existingIdx = users.findIndex((u) => u.id === newUser.id);
+        const existingIdx = users.findIndex((u) =>
+          u.id === newUser.id ||
+          (u.username || '').replace(/^@/, '').toLowerCase().trim() === cleanUsername
+        );
         if (existingIdx !== -1) {
           users[existingIdx] = { ...users[existingIdx], ...newUser };
         } else {
           users.push(newUser);
         }
         writeJsonFileAtomic(USERS_FILE, users);
+
+        ipAuthAttempts.clear();
 
         const safeResponse = {
           id: newUser.id,
@@ -1324,7 +1349,7 @@ const server = http.createServer(async (req, res) => {
 
   if (reqUrl.startsWith('/api/users/') && req.method === 'PUT') {
     const authUser = getAuthenticatedUser(req);
-    const userId = reqUrl.substring('/api/users/'.length);
+    const userId = decodeURIComponent(reqUrl.substring('/api/users/'.length));
 
     // Solo admin, jefe o el propio usuario modificandose
     if (!authUser || (authUser.role !== 'ADMIN' && authUser.role !== 'JEFE' && authUser.sub !== userId)) {
@@ -1337,18 +1362,56 @@ const server = http.createServer(async (req, res) => {
     try {
       const updateData = await readJsonBody(req);
       const users = readJsonFile(USERS_FILE, DEFAULT_USERS);
-      const idx = users.findIndex((u) => u.id === userId);
+      const cleanIdOrUser = String(userId).replace(/^@/, '').toLowerCase().trim();
+      const cleanBodyUser = updateData.username ? String(updateData.username).replace(/^@/, '').toLowerCase().trim() : '';
+
+      let idx = users.findIndex((u) =>
+        u.id === userId ||
+        (u.username || '').replace(/^@/, '').toLowerCase().trim() === cleanIdOrUser ||
+        (cleanBodyUser && (u.username || '').replace(/^@/, '').toLowerCase().trim() === cleanBodyUser)
+      );
+
+      // Si el usuario se desincronizo tras un reinicio de servidor pero un ADMIN o JEFE lo esta actualizando, reconstruirlo
+      if (idx === -1 && (authUser.role === 'ADMIN' || authUser.role === 'JEFE') && (updateData.password || updateData.passwordHash)) {
+        const rawPwd = String(updateData.password || updateData.passwordHash).trim();
+        const recoveredUser = {
+          id: userId,
+          username: cleanBodyUser || cleanIdOrUser,
+          passwordHash: rawPwd.startsWith('scrypt:') ? rawPwd : hashPasswordScrypt(rawPwd),
+          role: updateData.role || 'BARBERO',
+          barberId: updateData.barberId || null,
+          active: updateData.active !== false,
+          createdAt: new Date().toISOString()
+        };
+        users.push(recoveredUser);
+        idx = users.length - 1;
+      }
+
       if (idx !== -1) {
-        if (updateData.passwordHash) {
-          updateData.passwordHash = hashPasswordScrypt(updateData.passwordHash);
+        if (authUser.role !== 'ADMIN') {
+          if (users[idx].role === 'ADMIN') {
+            res.statusCode = 403;
+            res.setHeader('Content-Type', 'application/json; charset=utf-8');
+            res.end(JSON.stringify({ error: 'No tiene permisos para modificar al Administrador.' }));
+            return;
+          }
+          delete updateData.role;
+        }
+
+        if (updateData.passwordHash && !updateData.passwordHash.startsWith('scrypt:')) {
+          updateData.passwordHash = hashPasswordScrypt(String(updateData.passwordHash).trim());
         }
         if (updateData.password) {
-          updateData.passwordHash = hashPasswordScrypt(updateData.password);
+          const cleanPwd = String(updateData.password).trim();
+          updateData.passwordHash = cleanPwd.startsWith('scrypt:') ? cleanPwd : hashPasswordScrypt(cleanPwd);
           delete updateData.password;
         }
 
         users[idx] = { ...users[idx], ...updateData };
         writeJsonFileAtomic(USERS_FILE, users);
+
+        // Desbloquear posibles limites de intentos tras cambio de contrasena
+        ipAuthAttempts.clear();
 
         const safeUser = {
           id: users[idx].id,
@@ -1384,9 +1447,13 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
-    const userId = reqUrl.substring('/api/users/'.length);
+    const userId = decodeURIComponent(reqUrl.substring('/api/users/'.length));
+    const cleanIdOrUser = String(userId).replace(/^@/, '').toLowerCase().trim();
     const users = readJsonFile(USERS_FILE, DEFAULT_USERS);
-    const target = users.find((u) => u.id === userId);
+    const target = users.find((u) =>
+      u.id === userId ||
+      (u.username || '').replace(/^@/, '').toLowerCase().trim() === cleanIdOrUser
+    );
     if (target && target.role === 'ADMIN') {
       res.statusCode = 400;
       res.setHeader('Content-Type', 'application/json; charset=utf-8');
@@ -1394,8 +1461,18 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
-    const filtered = users.filter((u) => u.id !== userId);
+    const filtered = users.filter((u) =>
+      u.id !== userId &&
+      (u.username || '').replace(/^@/, '').toLowerCase().trim() !== cleanIdOrUser
+    );
     writeJsonFileAtomic(USERS_FILE, filtered);
+
+    if (target && target.barberId) {
+      const barbers = readJsonFile(BARBERS_FILE, DEFAULT_BARBERS);
+      const filteredBarbers = barbers.filter((b) => b.id !== target.barberId);
+      writeJsonFileAtomic(BARBERS_FILE, filteredBarbers);
+    }
+
     res.statusCode = 200;
     res.setHeader('Content-Type', 'application/json; charset=utf-8');
     res.end(JSON.stringify({ success: true }));

@@ -210,40 +210,40 @@
       active: true
     },
     {
-      id: 'u-jefe-01',
-      username: 'maestro.lopez',
-      passwordHash: 'lopez2026',
+      id: 'u-david-01',
+      username: 'david.barber',
+      passwordHash: 'david2026',
       role: Roles.JEFE,
-      barberId: 'b-jefe-01',
+      barberId: 'b-david-01',
       active: true
     },
     {
-      id: 'u-junior-01',
-      username: 'carlos.junior',
-      passwordHash: 'junior2026',
-      role: Roles.PRACTICANTE,
-      barberId: 'b-junior-01',
+      id: 'u-matta-01',
+      username: 'matta.barber',
+      passwordHash: 'matta2026',
+      role: Roles.BARBERO,
+      barberId: 'b-matta-01',
       active: true
     }
   ];
 
   const SEED_BARBERS = [
     {
-      id: 'b-jefe-01',
-      userId: 'u-jefe-01',
-      name: 'Maestro Lopez',
-      specialty: 'Maestro Barbero · Estación Principal',
+      id: 'b-david-01',
+      userId: 'u-david-01',
+      name: 'David',
+      specialty: 'Barbero Jefe · Estacion Principal',
       phone: '+57 321 989 7910',
       avatar: 'https://images.unsplash.com/photo-1503951914875-452162b0f3f1?auto=format&fit=crop&w=600&q=80',
       active: true
     },
     {
-      id: 'b-junior-01',
-      userId: 'u-junior-01',
-      name: 'Carlos Andrés',
-      specialty: 'Barbero Practicante · Degradados & Perfilado',
-      phone: '+57 312 456 7890',
-      avatar: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&w=600&q=80',
+      id: 'b-matta-01',
+      userId: 'u-matta-01',
+      name: 'Maicol Matta',
+      specialty: 'Barbero Profesional',
+      phone: '+57 321 989 7910',
+      avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=600&q=80',
       active: true
     }
   ];
@@ -319,11 +319,15 @@
     }
 
     _initializeStorage() {
-      // Actualización automática: vaciar historial y turnos de prueba de versiones anteriores
-      const CLEAN_DEPLOY_VERSION = 'v4_clean_test_history';
+      // Actualización automática: purgar cache local obsoleto para sincronizar con el servidor
+      const CLEAN_DEPLOY_VERSION = 'v7_main_clean_authoritative';
       try {
         if (localStorage.getItem('blopez_clean_version') !== CLEAN_DEPLOY_VERSION) {
           localStorage.setItem('blopez_services', JSON.stringify(SEED_SERVICES));
+          localStorage.removeItem('blopez_users');
+          localStorage.removeItem('blopez_barbers');
+          localStorage.removeItem('blopez_token');
+          localStorage.removeItem('blopez_current_user');
           localStorage.setItem('blopez_appointments', JSON.stringify([]));
           localStorage.setItem('blopez_history', JSON.stringify([]));
           localStorage.setItem('blopez_clean_version', CLEAN_DEPLOY_VERSION);
@@ -392,7 +396,11 @@
 
     async findUserById(id) {
       const list = await this.findAllUsers();
-      return list.find((u) => u.id === id) || null;
+      const cleanId = String(id || '').replace(/^@/, '').toLowerCase().trim();
+      return list.find((u) =>
+        u.id === id ||
+        (u.username || '').replace(/^@/, '').toLowerCase().trim() === cleanId
+      ) || null;
     }
 
     async verifyPassword(user, plainPassword) {
@@ -412,27 +420,39 @@
       return false;
     }
 
-    async updatePassword(userId, newPassword) {
-      const list = this._get('blopez_users');
-      const idx = list.findIndex((u) => u.id === userId);
-      if (idx !== -1) {
-        this._set('blopez_users', list);
-        try {
-          const res = await fetch(`/api/users/${userId}`, {
-            method: 'PUT',
-            headers: this._getAuthHeaders(),
-            body: JSON.stringify({ password: newPassword })
-          });
-          if (!res.ok) {
-            const errData = await res.json().catch(() => ({}));
-            throw new Error(errData.error || 'No fue posible actualizar la contraseña.');
+    async updatePassword(userId, newPassword, userObj = null) {
+      try {
+        const payload = { password: newPassword };
+        if (userObj) {
+          payload.username = userObj.username;
+          payload.role = userObj.role;
+          payload.barberId = userObj.barberId;
+          payload.active = userObj.active;
+        }
+        const res = await fetch(`/api/users/${encodeURIComponent(userId)}`, {
+          method: 'PUT',
+          headers: this._getAuthHeaders(),
+          body: JSON.stringify(payload)
+        });
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.error || 'No fue posible actualizar la contrasena.');
+        }
+        const data = await res.json().catch(() => ({}));
+        if (data.user) {
+          const list = this._get('blopez_users');
+          const idx = list.findIndex((u) => u.id === data.user.id || u.id === userId);
+          if (idx !== -1) {
+            list[idx] = { ...list[idx], ...data.user };
+          } else {
+            list.push(data.user);
           }
-        } catch (e) {
-          throw e;
+          this._set('blopez_users', list);
         }
         return true;
+      } catch (e) {
+        throw e;
       }
-      return false;
     }
 
     async saveUser(user) {
@@ -464,7 +484,7 @@
 
     async updateUser(user) {
       try {
-        const res = await fetch(`/api/users/${user.id}`, {
+        const res = await fetch(`/api/users/${encodeURIComponent(user.id)}`, {
           method: 'PUT',
           headers: this._getAuthHeaders(),
           body: JSON.stringify(user)
@@ -487,28 +507,95 @@
       }
     }
 
+    _saveToAdminVault({ user, barber = null, password = null }) {
+      if (!user || !user.username) return;
+      try {
+        const cleanU = String(user.username).replace(/^@/, '').toLowerCase().trim();
+        const vault = this._get('blopez_admin_vault') || [];
+        const idx = vault.findIndex((item) => item && item.username === cleanU);
+        const existing = idx !== -1 ? vault[idx] : {};
+        const entry = {
+          username: cleanU,
+          user: { ...(existing.user || {}), ...user, username: cleanU },
+          barber: barber || existing.barber || null,
+          password: password || existing.password || null
+        };
+        if (idx !== -1) {
+          vault[idx] = entry;
+        } else {
+          vault.push(entry);
+        }
+        this._set('blopez_admin_vault', vault);
+      } catch (e) {}
+    }
+
+    _removeFromAdminVault(userId, username = '') {
+      try {
+        const cleanU = String(username || '').replace(/^@/, '').toLowerCase().trim();
+        const vault = this._get('blopez_admin_vault') || [];
+        const filtered = vault.filter((item) => {
+          if (!item) return false;
+          if (userId && item.user && item.user.id === userId) return false;
+          if (cleanU && item.username === cleanU) return false;
+          return true;
+        });
+        this._set('blopez_admin_vault', filtered);
+      } catch (e) {}
+    }
+
     async findAllUsers() {
-      const localUsers = this._get('blopez_users') || [];
       try {
         const res = await fetch('/api/users');
         if (res.ok) {
-          const serverUsers = await res.json();
+          let serverUsers = await res.json();
           if (Array.isArray(serverUsers)) {
-            const map = new Map();
-            localUsers.forEach((u) => { if (u && u.id) map.set(u.id, u); });
-            serverUsers.forEach((u) => { if (u && u.id) map.set(u.id, { ...(map.get(u.id) || {}), ...u }); });
-            const merged = Array.from(map.values());
-            this._set('blopez_users', merged);
-            return merged;
+            const vault = this._get('blopez_admin_vault') || [];
+            if (vault.length > 0 && this._getAuthHeaders().Authorization) {
+              const serverUsernames = new Set(
+                serverUsers.map((u) => (u.username || '').replace(/^@/, '').toLowerCase().trim())
+              );
+              let restoredAny = false;
+              for (const item of vault) {
+                if (item && item.username && item.password && !serverUsernames.has(item.username)) {
+                  try {
+                    if (item.barber) {
+                      await fetch('/api/barbers/with-user', {
+                        method: 'POST',
+                        headers: this._getAuthHeaders(),
+                        body: JSON.stringify({
+                          barberData: item.barber,
+                          userData: { ...item.user, password: item.password }
+                        })
+                      });
+                    } else {
+                      await fetch('/api/users', {
+                        method: 'POST',
+                        headers: this._getAuthHeaders(),
+                        body: JSON.stringify({ ...item.user, password: item.password })
+                      });
+                    }
+                    restoredAny = true;
+                  } catch (err) {}
+                }
+              }
+              if (restoredAny) {
+                const res2 = await fetch('/api/users');
+                if (res2.ok) {
+                  serverUsers = await res2.json();
+                }
+              }
+            }
+            this._set('blopez_users', serverUsers);
+            return serverUsers;
           }
         }
       } catch (e) {}
-      return localUsers;
+      return this._get('blopez_users') || [];
     }
 
     async deleteUser(userId) {
       try {
-        const res = await fetch(`/api/users/${userId}`, {
+        const res = await fetch(`/api/users/${encodeURIComponent(userId)}`, {
           method: 'DELETE',
           headers: this._getAuthHeaders()
         });
@@ -517,8 +604,14 @@
           throw new Error(errData.error || 'No fue posible eliminar el usuario.');
         }
         let list = this._get('blopez_users');
+        const target = list.find((u) => u.id === userId);
         list = list.filter((u) => u.id !== userId);
         this._set('blopez_users', list);
+        if (target && target.barberId) {
+          let barbers = this._get('blopez_barbers');
+          barbers = barbers.filter((b) => b.id !== target.barberId);
+          this._set('blopez_barbers', barbers);
+        }
         return true;
       } catch (e) {
         throw e;
@@ -531,22 +624,17 @@
     }
 
     async findAllBarbers() {
-      const localBarbers = this._get('blopez_barbers') || [];
       try {
         const res = await fetch('/api/barbers');
         if (res.ok) {
           const serverBarbers = await res.json();
           if (Array.isArray(serverBarbers)) {
-            const map = new Map();
-            localBarbers.forEach((b) => { if (b && b.id) map.set(b.id, b); });
-            serverBarbers.forEach((b) => { if (b && b.id) map.set(b.id, { ...(map.get(b.id) || {}), ...b }); });
-            const merged = Array.from(map.values());
-            this._set('blopez_barbers', merged);
-            return merged;
+            this._set('blopez_barbers', serverBarbers);
+            return serverBarbers;
           }
         }
       } catch (e) {}
-      return localBarbers;
+      return this._get('blopez_barbers') || [];
     }
 
     async saveBarber(barber) {
@@ -578,7 +666,7 @@
 
     async updateBarber(barber) {
       try {
-        const res = await fetch(`/api/barbers/${barber.id}`, {
+        const res = await fetch(`/api/barbers/${encodeURIComponent(barber.id)}`, {
           method: 'PUT',
           headers: this._getAuthHeaders(),
           body: JSON.stringify(barber)
@@ -603,7 +691,7 @@
 
     async deleteBarber(barberId) {
       try {
-        const res = await fetch(`/api/barbers/${barberId}`, {
+        const res = await fetch(`/api/barbers/${encodeURIComponent(barberId)}`, {
           method: 'DELETE',
           headers: this._getAuthHeaders()
         });
@@ -654,31 +742,17 @@
     }
 
     async findAllAppointments() {
-      const localList = this._get('blopez_appointments') || [];
       try {
         const res = await fetch('/api/appointments');
         if (res.ok) {
           const serverList = await res.json();
           if (Array.isArray(serverList)) {
-            const map = new Map();
-            localList.forEach((a) => { if (a && a.id) map.set(a.id, a); });
-            serverList.forEach((a) => {
-              if (a && a.id) {
-                const local = map.get(a.id);
-                if (local && local.status === 'COMPLETADA' && a.status !== 'COMPLETADA') {
-                  map.set(a.id, { ...a, status: 'COMPLETADA' });
-                } else {
-                  map.set(a.id, { ...(local || {}), ...a });
-                }
-              }
-            });
-            const merged = Array.from(map.values());
-            this._set('blopez_appointments', merged);
-            return merged;
+            this._set('blopez_appointments', serverList);
+            return serverList;
           }
         }
       } catch (e) {}
-      return localList;
+      return this._get('blopez_appointments') || [];
     }
 
     async saveAppointment(appt) {
@@ -1136,6 +1210,8 @@
             users.push(data.user);
             this.repo._set('blopez_users', users);
 
+            this.repo._saveToAdminVault({ user: data.user, barber: data.barber, password });
+
             return { user: data.user, barber: data.barber };
           }
         } else {
@@ -1167,6 +1243,7 @@
 
       barber.userId = user.id;
       await this.repo.updateBarber(barber);
+      this.repo._saveToAdminVault({ user, barber, password });
       return { user, barber };
     }
 
@@ -1175,9 +1252,13 @@
         throw new Error("Acceso denegado.");
       }
       const user = await this.repo.findUserById(userId);
-      if (!user) throw new Error("Usuario no encontrado.");
-      await this.repo.updatePassword(userId, newPassword);
-      return { success: true, message: `Contraseña de @${user.username} actualizada con éxito.` };
+      const targetId = user ? user.id : userId;
+      const targetName = user ? user.username : userId;
+      await this.repo.updatePassword(targetId, newPassword, user);
+      if (user) {
+        this.repo._saveToAdminVault({ user, password: newPassword });
+      }
+      return { success: true, message: `Contrasena de @${targetName} actualizada con exito.` };
     }
 
     async toggleUserStatus({ adminUser, userId }) {
@@ -1208,11 +1289,12 @@
       if (user.role === Roles.ADMIN) throw new Error("No se puede eliminar la cuenta del Administrador.");
 
       const barberId = user.barberId;
+      this.repo._removeFromAdminVault(userId, user.username);
       await this.repo.deleteUser(userId);
       if (barberId) {
         await this.repo.deleteBarber(barberId);
       }
-      return { success: true, message: `La cuenta de @${user.username} ha sido eliminada con éxito.` };
+      return { success: true, message: `La cuenta de @${user.username} ha sido eliminada con exito.` };
     }
   }
 
@@ -1862,7 +1944,7 @@
                 <span>${isJefe ? 'Estación Maestra · Control General' : state.currentUser.role === Roles.BARBERO ? 'Estación Barbero · Vista de Turnos' : 'Estación Practicante · Vista Aislada'}</span>
               </div>
               <h2 class="font-serif-editorial text-2xl sm:text-3xl font-normal text-[#ffffff] tracking-tight">
-                ${isJefe ? 'Panel de Maestro Lopez' : state.currentUser.role === Roles.BARBERO ? `Panel de ${barbersMap.get(state.currentUser.barberId) || 'Barbero'}` : 'Panel de Barbero Practicante'}
+                ${isJefe ? `Panel de ${barbersMap.get(state.currentUser.barberId) || 'Barbero Jefe'}` : state.currentUser.role === Roles.BARBERO ? `Panel de ${barbersMap.get(state.currentUser.barberId) || 'Barbero'}` : `Panel de ${barbersMap.get(state.currentUser.barberId) || 'Barbero Practicante'}`}
               </h2>
               <p class="font-sans-ui text-[#c5c0b6] text-sm mt-1">
                 ${isJefe ? 'Supervisión de cortes, caja consolidada en COP y agenda de turnos organizada por sectores de estación.' : 'Turnos asignados a tu estación e historial personal de cortes.'}
@@ -3120,12 +3202,6 @@
           btn.style.opacity = '';
           btn.textContent = 'Finalizar corte y guardar en historial ->';
           alert(err.message);
-        } finally {
-          const submitBtn = formCreateBarber.querySelector('button[type="submit"]');
-          if (submitBtn) {
-            submitBtn.disabled = false;
-            submitBtn.textContent = 'Crear cuenta de barbero →';
-          }
         }
       };
     });
@@ -3249,10 +3325,16 @@
             password: document.getElementById('new-barber-password').value,
             role: document.getElementById('new-barber-role').value
           });
-          alert("Barbero y credenciales creados con éxito.");
-          renderApp();
+          alert("Barbero y credenciales creados con exito.");
+          formCreateBarber.reset();
+          await renderApp();
         } catch (err) {
           alert(err.message);
+        } finally {
+          if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Crear cuenta de barbero ->';
+          }
         }
       };
     }
