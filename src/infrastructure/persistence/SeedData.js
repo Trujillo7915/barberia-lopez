@@ -14,41 +14,43 @@ export const SEED_USERS = [
     active: true
   },
   {
-    id: 'u-jefe-01',
-    username: 'maestro.lopez',
-    passwordHash: 'lopez2026',
+    id: 'u-david-01',
+    username: 'david.barber',
+    passwordHash: 'david2026',
     role: Roles.JEFE,
-    barberId: 'b-jefe-01',
+    barberId: 'b-david-01',
     active: true
   },
   {
-    id: 'u-junior-01',
-    username: 'carlos.junior',
-    passwordHash: 'junior2026',
-    role: Roles.PRACTICANTE,
-    barberId: 'b-junior-01',
+    id: 'u-matta-01',
+    username: 'matta.barber',
+    passwordHash: 'matta2026',
+    role: Roles.BARBERO,
+    barberId: 'b-matta-01',
     active: true
   }
 ];
 
 export const SEED_BARBERS = [
   {
-    id: 'b-jefe-01',
-    userId: 'u-jefe-01',
-    name: 'Maestro Lopez',
-    specialty: 'Maestro Barbero & Estilista Clásico',
+    id: 'b-david-01',
+    userId: 'u-david-01',
+    name: 'David',
+    specialty: 'Barbero Jefe · Maestro Barbero',
     phone: '+57 321 989 7910',
     avatar: 'https://images.unsplash.com/photo-1503951914875-452162b0f3f1?auto=format&fit=crop&w=400&q=80',
-    active: true
+    active: true,
+    onShift: true
   },
   {
-    id: 'b-junior-01',
-    userId: 'u-junior-01',
-    name: 'Carlos Andrés (Practicante)',
-    specialty: 'Degradados Modernos & Diseños Urbanos',
-    phone: '+57 312 456 7890',
-    avatar: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&w=400&q=80',
-    active: true
+    id: 'b-matta-01',
+    userId: 'u-matta-01',
+    name: 'Maicol Matta',
+    specialty: 'Barbero Profesional · Degradados & Barba',
+    phone: '+57 300 000 0000',
+    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80',
+    active: true,
+    onShift: true
   }
 ];
 

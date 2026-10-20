@@ -165,16 +165,30 @@
         const price = Number(record.priceCop) || 0;
         cutsTotal += price;
         if (!byBarber[record.barberId]) {
-          byBarber[record.barberId] = { count: 0, total: 0 };
+          byBarber[record.barberId] = { count: 0, total: 0, storeCount: 0, storeTotal: 0, combinedTotal: 0 };
         }
         byBarber[record.barberId].count += 1;
         byBarber[record.barberId].total += price;
+        byBarber[record.barberId].combinedTotal = byBarber[record.barberId].total + byBarber[record.barberId].storeTotal;
       }
 
       const deliveredStoreOrders = (storeOrdersList || []).filter(
         (o) => o.status === 'ENTREGADO' && (o.deliveredDate || o.date) === dateStr
       );
       const storeTotalCop = deliveredStoreOrders.reduce((sum, o) => sum + (Number(o.totalCop) || 0), 0);
+
+      for (const ord of deliveredStoreOrders) {
+        const bId = ord.deliveredByBarberId || ord.preferredBarberId;
+        if (bId) {
+          if (!byBarber[bId]) {
+            byBarber[bId] = { count: 0, total: 0, storeCount: 0, storeTotal: 0, combinedTotal: 0 };
+          }
+          const ordAmount = Number(ord.totalCop) || 0;
+          byBarber[bId].storeCount += 1;
+          byBarber[bId].storeTotal += ordAmount;
+          byBarber[bId].combinedTotal = byBarber[bId].total + byBarber[bId].storeTotal;
+        }
+      }
 
       return {
         date: dateStr,
@@ -203,7 +217,7 @@
       const adminUserIds = new Set(
         usersList.filter((u) => u.role === Roles.ADMIN).map((u) => u.id)
       );
-      return barbersList.filter((b) => b.active && !adminUserIds.has(b.userId));
+      return barbersList.filter((b) => b.active !== false && !adminUserIds.has(b.userId));
     }
   }
 
@@ -218,41 +232,43 @@
       active: true
     },
     {
-      id: 'u-jefe-01',
-      username: 'maestro.lopez',
-      passwordHash: 'lopez2026',
+      id: 'u-david-01',
+      username: 'david.barber',
+      passwordHash: 'david2026',
       role: Roles.JEFE,
-      barberId: 'b-jefe-01',
+      barberId: 'b-david-01',
       active: true
     },
     {
-      id: 'u-junior-01',
-      username: 'carlos.junior',
-      passwordHash: 'junior2026',
-      role: Roles.PRACTICANTE,
-      barberId: 'b-junior-01',
+      id: 'u-matta-01',
+      username: 'matta.barber',
+      passwordHash: 'matta2026',
+      role: Roles.BARBERO,
+      barberId: 'b-matta-01',
       active: true
     }
   ];
 
   const SEED_BARBERS = [
     {
-      id: 'b-jefe-01',
-      userId: 'u-jefe-01',
-      name: 'Maestro Lopez',
-      specialty: 'Maestro Barbero · Estación Principal',
+      id: 'b-david-01',
+      userId: 'u-david-01',
+      name: 'David',
+      specialty: 'Barbero Jefe · Maestro Barbero',
       phone: '+57 321 989 7910',
       avatar: 'https://images.unsplash.com/photo-1503951914875-452162b0f3f1?auto=format&fit=crop&w=600&q=80',
-      active: true
+      active: true,
+      onShift: true
     },
     {
-      id: 'b-junior-01',
-      userId: 'u-junior-01',
-      name: 'Carlos Andrés',
-      specialty: 'Barbero Practicante · Degradados & Perfilado',
-      phone: '+57 312 456 7890',
-      avatar: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&w=600&q=80',
-      active: true
+      id: 'b-matta-01',
+      userId: 'u-matta-01',
+      name: 'Maicol Matta',
+      specialty: 'Barbero Profesional · Degradados & Barba',
+      phone: '+57 300 000 0000',
+      avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=600&q=80',
+      active: true,
+      onShift: true
     }
   ];
 
@@ -390,13 +406,15 @@
     }
 
     _initializeStorage() {
-      // Actualización automática: vaciar historial y turnos de prueba de versiones anteriores
-      const CLEAN_DEPLOY_VERSION = 'v4_clean_test_history';
+      // Sincronización autoritativa: limpiar cachés locales desactualizadas y usar datos vivos del servidor
+      const CLEAN_DEPLOY_VERSION = 'v6_david_matta_accounts';
       try {
         if (localStorage.getItem('blopez_clean_version') !== CLEAN_DEPLOY_VERSION) {
-          localStorage.setItem('blopez_services', JSON.stringify(SEED_SERVICES));
-          localStorage.setItem('blopez_appointments', JSON.stringify([]));
-          localStorage.setItem('blopez_history', JSON.stringify([]));
+          localStorage.removeItem('blopez_barbers');
+          localStorage.removeItem('blopez_users');
+          localStorage.removeItem('blopez_services');
+          localStorage.removeItem('blopez_appointments');
+          localStorage.removeItem('blopez_history');
           localStorage.setItem('blopez_clean_version', CLEAN_DEPLOY_VERSION);
         }
       } catch (e) {}
@@ -465,7 +483,8 @@
 
     async findUserById(id) {
       const list = await this.findAllUsers();
-      return list.find((u) => u.id === id) || null;
+      const clean = String(id || '').replace(/^@/, '').toLowerCase().trim();
+      return list.find((u) => u.id === id || (u.username && u.username.replace(/^@/, '').toLowerCase().trim() === clean)) || null;
     }
 
     async verifyPassword(user, plainPassword) {
@@ -486,26 +505,28 @@
     }
 
     async updatePassword(userId, newPassword) {
-      const list = this._get('blopez_users');
-      const idx = list.findIndex((u) => u.id === userId);
-      if (idx !== -1) {
-        this._set('blopez_users', list);
-        try {
-          const res = await fetch(`/api/users/${userId}`, {
-            method: 'PUT',
-            headers: this._getAuthHeaders(),
-            body: JSON.stringify({ password: newPassword })
-          });
-          if (!res.ok) {
-            const errData = await res.json().catch(() => ({}));
-            throw new Error(errData.error || 'No fue posible actualizar la contraseña.');
-          }
-        } catch (e) {
-          throw e;
+      const list = this._get('blopez_users') || [];
+      const clean = String(userId || '').replace(/^@/, '').toLowerCase().trim();
+      const idx = list.findIndex((u) => u.id === userId || (u.username && u.username.replace(/^@/, '').toLowerCase().trim() === clean));
+      try {
+        const res = await fetch(`/api/users/${encodeURIComponent(userId)}`, {
+          method: 'PUT',
+          headers: this._getAuthHeaders(),
+          body: JSON.stringify({ password: newPassword })
+        });
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.error || 'No fue posible actualizar la contraseña.');
+        }
+        const data = await res.json().catch(() => ({}));
+        if (data.user && idx !== -1) {
+          list[idx] = { ...list[idx], ...data.user };
+          this._set('blopez_users', list);
         }
         return true;
+      } catch (e) {
+        throw e;
       }
-      return false;
     }
 
     async saveUser(user) {
@@ -561,22 +582,17 @@
     }
 
     async findAllUsers() {
-      const localUsers = this._get('blopez_users') || [];
       try {
         const res = await fetch('/api/users');
         if (res.ok) {
           const serverUsers = await res.json();
           if (Array.isArray(serverUsers)) {
-            const map = new Map();
-            localUsers.forEach((u) => { if (u && u.id) map.set(u.id, u); });
-            serverUsers.forEach((u) => { if (u && u.id) map.set(u.id, { ...(map.get(u.id) || {}), ...u }); });
-            const merged = Array.from(map.values());
-            this._set('blopez_users', merged);
-            return merged;
+            this._set('blopez_users', serverUsers);
+            return serverUsers;
           }
         }
       } catch (e) {}
-      return localUsers;
+      return this._get('blopez_users') || [];
     }
 
     async deleteUser(userId) {
@@ -589,7 +605,7 @@
           const errData = await res.json().catch(() => ({}));
           throw new Error(errData.error || 'No fue posible eliminar el usuario.');
         }
-        let list = this._get('blopez_users');
+        let list = this._get('blopez_users') || [];
         list = list.filter((u) => u.id !== userId);
         this._set('blopez_users', list);
         return true;
@@ -604,22 +620,17 @@
     }
 
     async findAllBarbers() {
-      const localBarbers = this._get('blopez_barbers') || [];
       try {
         const res = await fetch('/api/barbers');
         if (res.ok) {
           const serverBarbers = await res.json();
           if (Array.isArray(serverBarbers)) {
-            const map = new Map();
-            localBarbers.forEach((b) => { if (b && b.id) map.set(b.id, b); });
-            serverBarbers.forEach((b) => { if (b && b.id) map.set(b.id, { ...(map.get(b.id) || {}), ...b }); });
-            const merged = Array.from(map.values());
-            this._set('blopez_barbers', merged);
-            return merged;
+            this._set('blopez_barbers', serverBarbers);
+            return serverBarbers;
           }
         }
       } catch (e) {}
-      return localBarbers;
+      return this._get('blopez_barbers') || [];
     }
 
     async saveBarber(barber) {
@@ -946,24 +957,59 @@ async findAllProducts() {
       return this._get('blopez_store_orders');
     }
 
-    async createStoreOrder({ productId, quantity, clientName, clientPhone }) {
+    async createStoreOrder({
+      productId,
+      quantity,
+      clientName,
+      clientPhone,
+      deliveryMode = 'APARTADO_RECOGIDA',
+      preferredBarberId = null,
+      directSale = false,
+      barberId = null
+    }) {
+      const headers = directSale ? this._getAuthHeaders() : { 'Content-Type': 'application/json' };
       const res = await fetch('/api/store/orders', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ productId, quantity, clientName, clientPhone })
+        headers,
+        body: JSON.stringify({
+          productId,
+          quantity,
+          clientName,
+          clientPhone,
+          deliveryMode,
+          preferredBarberId,
+          directSale,
+          barberId
+        })
       });
       if (!res.ok) {
         const errData = await res.json().catch(() => ({}));
         throw new Error(errData.error || 'No fue posible registrar el pedido en tienda.');
       }
       const data = await res.json();
+      if (Array.isArray(data.orders)) {
+        this._set('blopez_store_orders', data.orders);
+      }
+      if (Array.isArray(data.products)) {
+        this._set('blopez_products', data.products);
+      }
+      if (!directSale && data.order && data.order.referenceCode) {
+        try {
+          const savedRefs = JSON.parse(localStorage.getItem('blopez_my_store_refs') || '[]');
+          if (!savedRefs.includes(data.order.referenceCode)) {
+            savedRefs.unshift(data.order.referenceCode);
+            localStorage.setItem('blopez_my_store_refs', JSON.stringify(savedRefs.slice(0, 15)));
+          }
+        } catch (e) {}
+      }
       return data;
     }
 
-    async deliverStoreOrder(orderIdOrRef) {
+    async deliverStoreOrder(orderIdOrRef, barberId = null) {
       const res = await fetch(`/api/store/orders/${encodeURIComponent(orderIdOrRef)}/deliver`, {
         method: 'PUT',
-        headers: this._getAuthHeaders()
+        headers: this._getAuthHeaders(),
+        body: JSON.stringify(barberId ? { barberId } : {})
       });
       if (!res.ok) {
         const errData = await res.json().catch(() => ({}));
@@ -1316,60 +1362,36 @@ async findAllProducts() {
       const existing = await this.repo.findUserByUsername(username);
       if (existing) throw new Error(`El usuario '@${username}' ya existe.`);
 
-      // Intento de creacion atomica integral en el servidor
-      try {
-        const res = await fetch('/api/barbers/with-user', {
-          method: 'POST',
-          headers: this.repo._getAuthHeaders(),
-          body: JSON.stringify({
-            barberData: { name, specialty, phone },
-            userData: { username, password, role }
-          })
-        });
+      // Creación atómica integral en el servidor
+      const res = await fetch('/api/barbers/with-user', {
+        method: 'POST',
+        headers: this.repo._getAuthHeaders(),
+        body: JSON.stringify({
+          barberData: { name, specialty, phone },
+          userData: { username, password, role }
+        })
+      });
 
-        if (res.ok) {
-          const data = await res.json();
-          if (data.barber && data.user) {
-            const barbers = this.repo._get('blopez_barbers');
-            barbers.push(data.barber);
-            this.repo._set('blopez_barbers', barbers);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.barber && data.user) {
+          const barbers = this.repo._get('blopez_barbers') || [];
+          const bIdx = barbers.findIndex((b) => b.id === data.barber.id);
+          if (bIdx !== -1) barbers[bIdx] = data.barber; else barbers.push(data.barber);
+          this.repo._set('blopez_barbers', barbers);
 
-            const users = this.repo._get('blopez_users');
-            users.push(data.user);
-            this.repo._set('blopez_users', users);
+          const users = this.repo._get('blopez_users') || [];
+          const uIdx = users.findIndex((u) => u.id === data.user.id || u.username === data.user.username);
+          if (uIdx !== -1) users[uIdx] = data.user; else users.push(data.user);
+          this.repo._set('blopez_users', users);
 
-            return { user: data.user, barber: data.barber };
-          }
-        } else {
-          const errData = await res.json().catch(() => ({}));
-          throw new Error(errData.error || 'No fue posible registrar el barbero en el servidor.');
+          return { user: data.user, barber: data.barber };
         }
-      } catch (err) {
-        if (err.message && (err.message.includes('servidor') || err.message.includes('ya existe') || err.message.includes('denegado'))) {
-          throw err;
-        }
+        return data;
+      } else {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || 'No fue posible registrar el barbero en el servidor.');
       }
-
-      // Fallback transaccional seguro
-      const barber = new Barber({
-        name,
-        specialty,
-        phone,
-        avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=600&q=80'
-      });
-      await this.repo.saveBarber(barber);
-
-      const user = new User({
-        username,
-        passwordHash: password,
-        role,
-        barberId: barber.id
-      });
-      await this.repo.saveUser(user);
-
-      barber.userId = user.id;
-      await this.repo.updateBarber(barber);
-      return { user, barber };
     }
 
     async changePassword({ adminUser, userId, newPassword }) {
@@ -1774,7 +1796,7 @@ async findAllProducts() {
               </div>
               <div class="bg-[#12151b]/85 backdrop-blur-md border border-[#d4af37]/25 rounded-[22px] p-7 flex flex-col justify-between shadow-lg hover:border-[#d4af37]/50 transition-all">
                 <div class="font-serif-editorial text-[44px] sm:text-[52px] font-normal leading-none text-[#d4af37] mb-3">+12 Años</div>
-                <p class="font-sans-ui text-[14px] text-[#c5c0b6] leading-snug">Maestro Lopez al frente de la alta escuela de peluquería clásica en Neiva, Huila.</p>
+                <p class="font-sans-ui text-[14px] text-[#c5c0b6] leading-snug">Alta escuela de peluquería clásica, cortes de autor y visagismo en Neiva, Huila.</p>
               </div>
               <div class="bg-[#12151b]/85 backdrop-blur-md border border-[#d4af37]/25 rounded-[22px] p-7 flex flex-col justify-between shadow-lg hover:border-[#d4af37]/50 transition-all">
                 <div class="font-serif-editorial text-[44px] sm:text-[52px] font-normal leading-none text-[#d4af37] mb-3">4.9 / 5.0</div>
@@ -1980,6 +2002,22 @@ async findAllProducts() {
         ? activeProducts
         : activeProducts.filter((p) => (p.category || 'General') === state.storeCategoryFilter);
 
+      let savedClientRefs = [];
+      try {
+        savedClientRefs = JSON.parse(localStorage.getItem('blopez_my_store_refs') || '[]');
+      } catch (e) {
+        savedClientRefs = [];
+      }
+      const lookupQuery = (state.clientOrderLookup || '').trim().toLowerCase();
+      const myVisibleOrders = (state.storeOrders || []).filter((o) => {
+        if (lookupQuery.length >= 3) {
+          const matchRef = (o.referenceCode || '').toLowerCase().includes(lookupQuery);
+          const matchPhone = (o.clientPhone || '').replace(/\D/g, '').includes(lookupQuery.replace(/\D/g, '')) && lookupQuery.replace(/\D/g, '').length >= 6;
+          return matchRef || matchPhone;
+        }
+        return savedClientRefs.includes(o.referenceCode);
+      });
+
       mainContent = `
         <section class="max-w-[1240px] mx-auto px-6 md:px-12 py-12 font-sans-ui">
           
@@ -1994,7 +2032,7 @@ async findAllProducts() {
                 Tienda & Cuidado Masculino
               </h1>
               <p class="font-serif-editorial text-[#c5c0b6] max-w-2xl text-[17px] sm:text-[19px] mt-2 leading-relaxed">
-                Aparta tus productos de barbería en línea. El sistema genera una <strong>Referencia Única de Pago</strong> y reserva tus unidades en inventario para que las reclames y pagues en efectivo directamente en la barbería.
+                Compra estando en la barbería o aparta desde casa. El sistema genera una <strong>Referencia Única de Pago (REF-BL-XXXX)</strong> y separa tus unidades del inventario para que pagues en efectivo al barbero en turno.
               </p>
             </div>
             <button type="button" id="btn-store-back-home" class="btn-stone-outline text-xs font-semibold py-2.5 px-5 whitespace-nowrap cursor-pointer">
@@ -2002,20 +2040,97 @@ async findAllProducts() {
             </button>
           </div>
 
-          <!-- BANDA INFORMATIVA DEL PROTOCOLO ANTI-ROBO CON REFERENCIA -->
-          <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-10">
+          <!-- BANDA INFORMATIVA DEL PROTOCOLO ANTI-ROBO Y ESCENARIOS DE COMPRA -->
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
             <div class="bg-[#12151b] border border-[rgba(212,175,55,0.25)] rounded-[16px] p-5">
-              <div class="text-xs font-mono-tech font-bold text-[#d4af37] uppercase tracking-wider mb-1">PASO 01 · SELECCIONA Y APARTA</div>
-              <p class="text-xs text-[#c5c0b6] leading-relaxed">Elige el producto y la cantidad deseada. Nuestro sistema descuenta y separa tu unidad inmediatamente del stock disponible.</p>
+              <div class="text-xs font-mono-tech font-bold text-[#d4af37] uppercase tracking-wider mb-1">ESCENARIO 01 · DESDE CASA O EN CAMINO</div>
+              <p class="text-xs text-[#c5c0b6] leading-relaxed">Aparta tu producto en línea antes de llegar. El stock se descuenta de inmediato y tu referencia <strong>REF-BL-XXXX</strong> queda guardada para reclamar en el local.</p>
             </div>
             <div class="bg-[#12151b] border border-[rgba(212,175,55,0.25)] rounded-[16px] p-5">
-              <div class="text-xs font-mono-tech font-bold text-[#d4af37] uppercase tracking-wider mb-1">PASO 02 · GUARDA TU REFERENCIA</div>
-              <p class="text-xs text-[#c5c0b6] leading-relaxed">Recibirás un comprobante con código único <strong>REF-BL-XXXX</strong> en pantalla que podrás guardar o enviar por WhatsApp.</p>
+              <div class="text-xs font-mono-tech font-bold text-[#d4af37] uppercase tracking-wider mb-1">ESCENARIO 02 · CLIENTE EN LA BARBERÍA</div>
+              <p class="text-xs text-[#c5c0b6] leading-relaxed">Si estás en tu corte o en sala de espera, elige <strong>"Estoy en la barbería ahora mismo"</strong> y selecciona al barbero en turno que te está atendiendo.</p>
             </div>
             <div class="bg-[#12151b] border border-[rgba(212,175,55,0.25)] rounded-[16px] p-5">
-              <div class="text-xs font-mono-tech font-bold text-[#d4af37] uppercase tracking-wider mb-1">PASO 03 · PAGA EN EFECTIVO Y RECIBE</div>
-              <p class="text-xs text-[#c5c0b6] leading-relaxed">Presenta tu referencia en Barbería Lopez, realiza el pago en efectivo y el barbero validará el código para entregarte tu producto.</p>
+              <div class="text-xs font-mono-tech font-bold text-[#d4af37] uppercase tracking-wider mb-1">ESCENARIO 03 · PAGO Y VALIDACIÓN EN TURNO</div>
+              <p class="text-xs text-[#c5c0b6] leading-relaxed">Entrega el efectivo únicamente a un <strong>barbero activo en turno</strong>. Él validará tu referencia en el sistema para entregarte el producto.</p>
             </div>
+          </div>
+
+          <!-- PANEL DEL CLIENTE: MIS PEDIDOS Y CONSULTA DE REFERENCIA ACTIVA -->
+          <div class="bg-[#12151b] border border-[rgba(212,175,55,0.3)] rounded-[18px] p-5 mb-8 shadow-lg">
+            <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div>
+                <div class="inline-flex items-center gap-2 mb-1">
+                  <span class="w-2 h-2 rounded-full bg-[#d4af37]"></span>
+                  <span class="text-xs font-mono-tech font-bold uppercase tracking-wider text-[#d4af37]">MIS REFERENCIAS Y ESTADO DE PEDIDOS</span>
+                </div>
+                <p class="text-xs text-[#c5c0b6]">
+                  Consulta el estado de tus productos apartados o busca tu comprobante ingresando tu código <strong>REF-BL-XXXX</strong> o tu número de WhatsApp.
+                </p>
+              </div>
+              <div class="flex items-center gap-2 w-full md:w-auto">
+                <input
+                  type="text"
+                  id="input-client-order-lookup"
+                  placeholder="Ej. REF-BL-XXXX o tu celular"
+                  value="${escapeHtml(state.clientOrderLookup || '')}"
+                  class="input-parchment py-2 px-3 text-xs font-mono-tech w-full md:w-64"
+                >
+                ${state.clientOrderLookup ? `
+                  <button type="button" id="btn-clear-client-lookup" class="btn-stone-outline py-2 px-3 text-xs cursor-pointer">Limpiar</button>
+                ` : ''}
+              </div>
+            </div>
+
+            ${myVisibleOrders.length > 0 ? `
+              <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mt-4 pt-4 border-t border-[rgba(212,175,55,0.16)]">
+                ${myVisibleOrders.map((ord) => {
+                  const isPending = ord.status === 'PENDIENTE';
+                  const isDelivered = ord.status === 'ENTREGADO';
+                  const modeLabel = ord.deliveryMode === 'EN_BARBERIA'
+                    ? 'En barbería · Entrega inmediata'
+                    : ord.deliveryMode === 'VENTA_DIRECTA'
+                    ? 'Venta presencial en estación'
+                    : 'Apartado para recoger en barbería';
+                  return `
+                    <div class="bg-[#161a22] border ${isPending ? 'border-[#d4af37]/50' : isDelivered ? 'border-emerald-700/50' : 'border-stone-800 opacity-70'} rounded-[12px] p-4 flex flex-col justify-between gap-3">
+                      <div>
+                        <div class="flex items-center justify-between gap-2 mb-2">
+                          <span class="font-mono-tech text-xs font-bold text-[#d4af37] bg-[#0a0b0d] px-2.5 py-1 rounded border border-[#d4af37]/40">${escapeHtml(ord.referenceCode)}</span>
+                          <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full ${
+                            isPending
+                              ? 'bg-[#d4af37]/20 text-[#f3e5ab] border border-[#d4af37]/40'
+                              : isDelivered
+                              ? 'bg-emerald-950/80 text-emerald-300 border border-emerald-700/50'
+                              : 'bg-red-950/60 text-red-300 border border-red-800/50'
+                          }">
+                            ${isPending ? 'PENDIENTE DE PAGO' : isDelivered ? 'ENTREGADO' : 'CANCELADO'}
+                          </span>
+                        </div>
+                        <div class="font-serif-editorial text-base text-[#ffffff]">${escapeHtml(ord.productName)} (x${ord.quantity})</div>
+                        <div class="text-xs font-mono-tech text-[#d4af37] font-bold mt-0.5">$${Number(ord.totalCop || 0).toLocaleString('es-CO')} COP en efectivo</div>
+                        <div class="text-[11px] text-[#c5c0b6] mt-1.5">${escapeHtml(modeLabel)}</div>
+                        <div class="text-[11px] text-[#8a8275] mt-0.5">
+                          ${isDelivered
+                            ? `Atendido por: ${escapeHtml(ord.deliveredByName || ord.deliveredBy || 'Barbero en turno')}`
+                            : `Barbero: ${escapeHtml(ord.preferredBarberName || 'Cualquier barbero en turno')}`}
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        data-open-voucher-ref="${escapeHtml(ord.referenceCode)}"
+                        class="btn-reopen-store-voucher btn-stone-outline w-full py-1.5 text-xs font-semibold text-[#f3e5ab] justify-center cursor-pointer">
+                        Ver comprobante de referencia →
+                      </button>
+                    </div>
+                  `;
+                }).join('')}
+              </div>
+            ` : state.clientOrderLookup ? `
+              <div class="mt-4 pt-3 border-t border-[rgba(212,175,55,0.15)] text-xs text-[#c5c0b6]">
+                No se encontraron pedidos con la referencia o teléfono ingresado.
+              </div>
+            ` : ''}
           </div>
 
           <!-- FILTRO DE CATEGORÍAS -->
@@ -2200,24 +2315,51 @@ async findAllProducts() {
 
       const totalFilteredCop = activeHistoryDisplayCuts.reduce((sum, h) => sum + (h.priceCop || 0), 0);
 
+      const myBarber = state.currentUser.barberId
+        ? barbers.find((b) => b.id === state.currentUser.barberId)
+        : null;
+      const isMyStationOnShift = myBarber ? (myBarber.onShift !== false && myBarber.active !== false) : true;
+      const activeShiftBarbers = barbers.filter((b) => b.active !== false && b.onShift !== false);
+      const inStockProducts = products.filter((p) => p.active !== false && (Number(p.stock) || 0) > 0);
+
       mainContent = `
         <section class="max-w-[1240px] mx-auto px-6 md:px-12 py-10 font-sans-ui">
           
-          <!-- Encabezado del Perfil -->
+          <!-- Encabezado del Perfil y Control de Turno -->
           <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-8 pb-6 border-b border-[rgba(212,175,55,0.22)]">
             <div>
-              <div class="inline-flex items-center gap-2 mb-2 px-3 py-1 rounded-full bg-[#181c24] border border-[rgba(212,175,55,0.3)] text-[#f3e5ab] text-xs font-semibold">
-                <span class="w-2 h-2 rounded-full bg-[#d4af37]"></span>
-                <span>${isJefe ? 'Estación Maestra · Control General' : state.currentUser.role === Roles.BARBERO ? 'Estación Barbero · Vista de Turnos' : 'Estación Practicante · Vista Aislada'}</span>
+              <div class="flex flex-wrap items-center gap-2 mb-2">
+                <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#181c24] border border-[rgba(212,175,55,0.3)] text-[#f3e5ab] text-xs font-semibold">
+                  <span class="w-2 h-2 rounded-full bg-[#d4af37]"></span>
+                  <span>${isJefe ? 'Estación Maestra · Control General' : state.currentUser.role === Roles.BARBERO ? 'Estación Barbero · Vista de Turnos' : 'Estación Practicante · Vista Aislada'}</span>
+                </div>
+                ${myBarber ? `
+                  <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-mono-tech font-bold ${
+                    isMyStationOnShift
+                      ? 'bg-emerald-950/80 border border-emerald-600/60 text-emerald-300'
+                      : 'bg-red-950/80 border border-red-600/60 text-red-300'
+                  }">
+                    <span class="w-2 h-2 rounded-full ${isMyStationOnShift ? 'bg-emerald-400' : 'bg-red-400'}"></span>
+                    <span>${isMyStationOnShift ? 'ESTACIÓN EN TURNO' : 'ESTACIÓN FUERA DE TURNO'}</span>
+                  </span>
+                ` : ''}
               </div>
               <h2 class="font-serif-editorial text-2xl sm:text-3xl font-normal text-[#ffffff] tracking-tight">
-                ${isJefe ? 'Panel de Maestro Lopez' : state.currentUser.role === Roles.BARBERO ? `Panel de ${barbersMap.get(state.currentUser.barberId) || 'Barbero'}` : 'Panel de Barbero Practicante'}
+                ${myBarber ? `Panel de ${escapeHtml(myBarber.name)}` : isJefe ? 'Panel de Barbero Jefe' : 'Panel de Estación'}
               </h2>
               <p class="font-sans-ui text-[#c5c0b6] text-sm mt-1">
-                ${isJefe ? 'Supervisión de cortes, caja consolidada en COP y agenda de turnos organizada por sectores de estación.' : 'Turnos asignados a tu estación e historial personal de cortes.'}
+                ${isJefe ? 'Supervisión de cortes, ventas de tienda, control de barberos en turno y caja consolidada en COP.' : 'Turnos asignados a tu estación, verificación de tienda e historial personal de cortes.'}
               </p>
             </div>
-            <div class="flex items-center gap-2">
+            <div class="flex flex-wrap items-center gap-2">
+              ${myBarber ? `
+                <button
+                  type="button"
+                  data-toggle-shift-barber-id="${escapeHtml(myBarber.id)}"
+                  class="btn-toggle-barber-shift ${isMyStationOnShift ? 'btn-stone-outline text-amber-300 border-amber-500/40' : 'btn-clay'} text-xs font-semibold py-2 px-3.5 cursor-pointer">
+                  ${isMyStationOnShift ? 'Pasar mi estación a Fuera de Turno' : 'Activar mi estación (Entrar en Turno)'}
+                </button>
+              ` : ''}
               ${isJefe ? `
                 <button id="btn-clear-control-tests" class="btn-stone-outline text-xs text-red-400 hover:text-red-300 hover:border-red-500 font-medium py-2 px-3">
                   Limpiar solicitudes de prueba
@@ -2230,7 +2372,7 @@ async findAllProducts() {
           </div>
 
           ${isJefe ? `
-            <!-- CAJA CONSOLIDADA HOY (EXCLUSIVO BARBERO JEFE) -->
+            <!-- CAJA CONSOLIDADA HOY Y DESGLOSE POR BARBERO (EXCLUSIVO BARBERO JEFE / ADMIN) -->
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mb-10">
               <div class="anthropic-card p-6 border border-[rgba(212,175,55,0.4)]">
                 <span class="block text-xs font-semibold text-[#d4af37] uppercase tracking-wider mb-2">Gran Total Caja Hoy</span>
@@ -2246,31 +2388,75 @@ async findAllProducts() {
                 </div>
                 <span class="text-xs font-medium text-[#8a8275] mt-2 block">${cashData.storeOrdersCount} ${cashData.storeOrdersCount === 1 ? 'pedido entregado hoy' : 'pedidos entregados hoy'}</span>
               </div>
-              ${barbers.map((b) => `
-                <div class="anthropic-card p-6">
-                  <span class="block text-xs font-semibold text-[#c5c0b6] uppercase tracking-wider mb-2">Estación ${escapeHtml(b.name)}</span>
-                  <div class="text-2xl sm:text-3xl font-mono-tech font-bold text-[#ffffff] tracking-tight">
-                    $${(cashData.breakdownByBarber[b.id]?.total || 0).toLocaleString('es-CO')} <span class="text-xs font-sans-ui font-semibold text-[#8a8275]">COP</span>
+              ${barbers.map((b) => {
+                const bStats = cashData.breakdownByBarber[b.id] || { count: 0, total: 0, storeCount: 0, storeTotal: 0, combinedTotal: 0 };
+                const bOnShift = b.onShift !== false && b.active !== false;
+                return `
+                  <div class="anthropic-card p-5 flex flex-col justify-between">
+                    <div>
+                      <div class="flex items-center justify-between gap-2 mb-2">
+                        <span class="text-xs font-semibold text-[#c5c0b6] uppercase tracking-wider">Estación ${escapeHtml(b.name)}</span>
+                        <span class="text-[10px] font-mono-tech font-bold px-2 py-0.5 rounded-full ${bOnShift ? 'bg-emerald-950/80 text-emerald-300 border border-emerald-700/50' : 'bg-red-950/70 text-red-300 border border-red-800/50'}">
+                          ${bOnShift ? 'EN TURNO' : 'FUERA DE TURNO'}
+                        </span>
+                      </div>
+                      <div class="text-2xl font-mono-tech font-bold text-[#ffffff] tracking-tight">
+                        $${(bStats.combinedTotal || bStats.total || 0).toLocaleString('es-CO')} <span class="text-xs font-sans-ui font-semibold text-[#d4af37]">COP en estación</span>
+                      </div>
+                      <div class="text-[11px] text-[#c5c0b6] mt-2 space-y-0.5 font-sans-ui">
+                        <div>Cortes hoy: <strong class="text-[#ffffff] font-mono-tech">$${(bStats.total || 0).toLocaleString('es-CO')}</strong> (${bStats.count || 0})</div>
+                        <div>Tienda cobrada: <strong class="text-[#d4af37] font-mono-tech">$${(bStats.storeTotal || 0).toLocaleString('es-CO')}</strong> (${bStats.storeCount || 0})</div>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      data-toggle-shift-barber-id="${escapeHtml(b.id)}"
+                      class="btn-toggle-barber-shift btn-stone-outline w-full mt-3 py-1 px-2.5 text-[11px] font-semibold justify-center cursor-pointer">
+                      ${bOnShift ? 'Marcar Fuera de Turno' : 'Poner En Turno'}
+                    </button>
                   </div>
-                  <span class="text-xs font-medium text-[#8a8275] mt-2 block">Cortes realizados: ${cashData.breakdownByBarber[b.id]?.count || 0}</span>
-                </div>
-              `).join('')}
+                `;
+              }).join('')}
             </div>
+          ` : myBarber ? `
+            <!-- RESUMEN DE EFECTIVO EN LA ESTACIÓN DEL BARBERO -->
+            ${(() => {
+              const myStats = cashData.breakdownByBarber[myBarber.id] || { count: 0, total: 0, storeCount: 0, storeTotal: 0, combinedTotal: 0 };
+              return `
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-10">
+                  <div class="anthropic-card p-5 border border-[rgba(212,175,55,0.35)]">
+                    <span class="block text-xs font-semibold text-[#d4af37] uppercase tracking-wider mb-1">Efectivo Total en Mi Estación Hoy</span>
+                    <div class="text-2xl font-mono-tech font-bold text-[#ffffff]">$${(myStats.combinedTotal || 0).toLocaleString('es-CO')} COP</div>
+                    <span class="text-[11px] text-[#c5c0b6] mt-1 block">Efectivo recibido por tus cortes y entregas de tienda hoy</span>
+                  </div>
+                  <div class="anthropic-card p-5">
+                    <span class="block text-xs font-semibold text-[#c5c0b6] uppercase tracking-wider mb-1">Mis Cortes Hoy</span>
+                    <div class="text-2xl font-mono-tech font-bold text-[#ffffff]">$${(myStats.total || 0).toLocaleString('es-CO')} COP</div>
+                    <span class="text-[11px] text-[#8a8275] mt-1 block">${myStats.count || 0} cortes completados hoy</span>
+                  </div>
+                  <div class="anthropic-card p-5">
+                    <span class="block text-xs font-semibold text-[#f3e5ab] uppercase tracking-wider mb-1">Productos Cobrados por Mí Hoy</span>
+                    <div class="text-2xl font-mono-tech font-bold text-[#d4af37]">$${(myStats.storeTotal || 0).toLocaleString('es-CO')} COP</div>
+                    <span class="text-[11px] text-[#8a8275] mt-1 block">${myStats.storeCount || 0} productos entregados en mi estación</span>
+                  </div>
+                </div>
+              `;
+            })()}
           ` : ''}
 
-          <!-- DESPACHO DE TIENDA Y VERIFICACIÓN DE REFERENCIAS DE PAGO (ANTI-ROBO) -->
+          <!-- DESPACHO DE TIENDA, VENTA DIRECTA Y VERIFICACIÓN DE REFERENCIAS DE PAGO (ANTI-ROBO) -->
           <div class="mb-12">
             <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5 pb-4 border-b border-[rgba(212,175,55,0.22)]">
               <div>
                 <div class="inline-flex items-center gap-2 mb-1 px-2.5 py-0.5 rounded-full bg-[#181c24] border border-[rgba(212,175,55,0.3)] text-[#f3e5ab] text-[11px] font-semibold">
                   <span class="w-1.5 h-1.5 rounded-full bg-[#d4af37]"></span>
-                  <span>CONTROL ANTI-ROBO · SOLO PAGO EN EFECTIVO</span>
+                  <span>CONTROL ANTI-ROBO · CLIENTES EN LOCAL Y APARTADOS REMOTOS</span>
                 </div>
                 <h3 class="font-serif-editorial text-xl sm:text-2xl font-normal text-[#ffffff] tracking-tight">
-                  Verificación de Referencias y Entrega de Productos
+                  Verificación de Referencias y Venta de Productos en Estación
                 </h3>
                 <p class="font-sans-ui text-xs sm:text-sm text-[#c5c0b6] mt-0.5">
-                  Cuando el cliente venga a reclamar su producto, verifica aquí su código <strong>REF-BL-XXXX</strong>, recibe el efectivo y confirma la entrega.
+                  Valida códigos <strong>REF-BL-XXXX</strong> de clientes que apartaron en línea o registra una <strong>Venta Directa en Efectivo</strong> cuando el cliente te compra el producto en tu silla.
                 </p>
               </div>
               <div class="flex items-center gap-2 self-start sm:self-auto">
@@ -2279,6 +2465,72 @@ async findAllProducts() {
                 </span>
               </div>
             </div>
+
+            ${!isMyStationOnShift ? `
+              <!-- ALERTA DE BLOQUEO PARA BARBERO FUERA DE TURNO -->
+              <div class="bg-red-950/60 border border-red-600/60 rounded-[14px] p-4 mb-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div>
+                  <div class="text-xs font-mono-tech font-bold text-red-300 uppercase tracking-wider">ESTACIÓN FUERA DE TURNO · COBROS DE TIENDA BLOQUEADOS</div>
+                  <p class="text-xs text-[#f3e5ab] mt-1 leading-relaxed">
+                    Tu estación figura actualmente <strong>Fuera de Turno</strong>. Por seguridad de caja, un barbero que no está de turno no puede confirmar entregas en efectivo ni registrar ventas directas. Si ya estás en la barbería, activa tu turno.
+                  </p>
+                </div>
+                ${myBarber ? `
+                  <button
+                    type="button"
+                    data-toggle-shift-barber-id="${escapeHtml(myBarber.id)}"
+                    class="btn-toggle-barber-shift btn-clay py-2 px-4 text-xs font-semibold whitespace-nowrap cursor-pointer">
+                    Entrar en Turno Ahora →
+                  </button>
+                ` : ''}
+              </div>
+            ` : `
+              <!-- MÓDULO DE VENTA DIRECTA EN ESTACIÓN / MOSTRADOR (CLIENTE PRESENCIAL SIN CELULAR) -->
+              <div class="anthropic-card p-5 mb-5 border border-[rgba(212,175,55,0.32)] bg-[#141821]">
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-2 mb-3">
+                  <div>
+                    <span class="text-[11px] font-mono-tech font-bold uppercase tracking-wider text-[#d4af37]">VENTA DIRECTA EN SILLA / MOSTRADOR (CLIENTE PRESENCIAL)</span>
+                    <p class="text-xs text-[#c5c0b6]">Si el cliente está en la barbería y te entrega el efectivo directamente sin haber generado código en su celular, regístralo aquí en 1 paso.</p>
+                  </div>
+                </div>
+                <form id="form-direct-store-sale" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 items-end">
+                  <div class="lg:col-span-2">
+                    <label class="block text-[11px] font-semibold text-[#c5c0b6] mb-1">Producto en stock *</label>
+                    <select id="direct-sale-product" required class="input-parchment py-2 px-3 text-xs">
+                      ${inStockProducts.length === 0 ? `<option value="">Sin productos con stock</option>` : inStockProducts.map((p) => `
+                        <option value="${escapeHtml(p.id)}">${escapeHtml(p.name)} — $${Number(p.priceCop || 0).toLocaleString('es-CO')} (${p.stock} disp.)</option>
+                      `).join('')}
+                    </select>
+                  </div>
+                  <div>
+                    <label class="block text-[11px] font-semibold text-[#c5c0b6] mb-1">Cantidad y Cliente</label>
+                    <div class="flex gap-2">
+                      <input type="number" id="direct-sale-qty" min="1" max="10" value="1" required class="input-parchment py-2 px-2.5 text-xs font-mono-tech w-16" title="Cantidad">
+                      <input type="text" id="direct-sale-client" placeholder="Nombre cliente (opc.)" class="input-parchment py-2 px-2.5 text-xs flex-1">
+                    </div>
+                  </div>
+                  <div>
+                    <label class="block text-[11px] font-semibold text-[#c5c0b6] mb-1">Barbero en turno que cobra</label>
+                    ${isJefe ? `
+                      <select id="direct-sale-barber" class="input-parchment py-2 px-3 text-xs">
+                        ${activeShiftBarbers.map((b) => `
+                          <option value="${escapeHtml(b.id)}" ${myBarber && myBarber.id === b.id ? 'selected' : ''}>${escapeHtml(b.name)} (En Turno)</option>
+                        `).join('')}
+                      </select>
+                    ` : `
+                      <div class="input-parchment py-2 px-3 text-xs bg-[#12151b] text-[#f3e5ab] font-semibold truncate">
+                        ${escapeHtml(myBarber ? myBarber.name : state.currentUser.username)} (En Turno)
+                      </div>
+                    `}
+                  </div>
+                  <div>
+                    <button type="submit" ${inStockProducts.length === 0 ? 'disabled' : ''} class="btn-clay w-full py-2.5 px-3 text-xs font-semibold justify-center cursor-pointer">
+                      Cobrar efectivo y entregar →
+                    </button>
+                  </div>
+                </form>
+              </div>
+            `}
 
             <!-- BUSCADOR DE REFERENCIA RÁPIDA Y FILTRO DE ESTADO -->
             <div class="anthropic-card p-4 mb-5 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
@@ -2324,7 +2576,7 @@ async findAllProducts() {
                 return `
                   <div class="bg-[#12151b] rounded-[14px] border border-dashed border-[rgba(212,175,55,0.2)] p-8 text-center">
                     <p class="font-serif-editorial text-lg text-[#c5c0b6]">No hay pedidos de tienda que coincidan con el filtro actual</p>
-                    <p class="text-xs text-[#8a8275] mt-1">Cuando un cliente compre un producto en el apartado TIENDA, su referencia aparecerá aquí al instante.</p>
+                    <p class="text-xs text-[#8a8275] mt-1">Cuando un cliente compre un producto en el apartado TIENDA o registres una venta directa, aparecerá aquí al instante.</p>
                   </div>
                 `;
               }
@@ -2334,6 +2586,13 @@ async findAllProducts() {
                   ${filteredOrders.map((ord) => {
                     const isPending = ord.status === 'PENDIENTE';
                     const isDelivered = ord.status === 'ENTREGADO';
+                    const isClientInShop = ord.deliveryMode === 'EN_BARBERIA';
+                    const isDirectSale = ord.deliveryMode === 'VENTA_DIRECTA';
+                    const modeBadgeText = isDirectSale
+                      ? 'VENTA DIRECTA EN ESTACIÓN'
+                      : isClientInShop
+                      ? 'CLIENTE EN BARBERÍA · ENTREGA INMEDIATA'
+                      : 'CLIENTE REMOTO · APARTADO PARA RECOGER';
                     return `
                       <div class="store-order-card anthropic-card p-5 flex flex-col justify-between border ${
                         isPending
@@ -2343,7 +2602,7 @@ async findAllProducts() {
                           : 'border-stone-800 bg-[#12151b] opacity-65'
                       }">
                         <div>
-                          <div class="flex items-center justify-between gap-2 mb-3 pb-2.5 border-b border-[rgba(212,175,55,0.15)]">
+                          <div class="flex items-center justify-between gap-2 mb-2 pb-2 border-b border-[rgba(212,175,55,0.15)]">
                             <span class="font-mono-tech text-sm font-bold text-[#d4af37] bg-[#0a0b0d] px-3 py-1 rounded border border-[#d4af37]/40 tracking-wider">
                               ${escapeHtml(ord.referenceCode)}
                             </span>
@@ -2355,6 +2614,18 @@ async findAllProducts() {
                                 : 'bg-red-950/60 text-red-300 border border-red-800/50'
                             }">
                               ${isPending ? 'PENDIENTE DE PAGO' : isDelivered ? 'COBRADO Y ENTREGADO' : 'CANCELADO'}
+                            </span>
+                          </div>
+
+                          <div class="mb-2.5">
+                            <span class="inline-block text-[10px] font-mono-tech font-bold px-2 py-0.5 rounded ${
+                              isClientInShop
+                                ? 'bg-amber-500/20 text-amber-200 border border-amber-500/40'
+                                : isDirectSale
+                                ? 'bg-emerald-950/70 text-emerald-300 border border-emerald-700/40'
+                                : 'bg-[#181c24] text-[#c5c0b6] border border-[rgba(212,175,55,0.25)]'
+                            }">
+                              ${modeBadgeText}
                             </span>
                           </div>
 
@@ -2375,38 +2646,48 @@ async findAllProducts() {
                               <span class="text-[#c5c0b6] font-mono-tech">${escapeHtml(ord.clientPhone)}</span>
                             </div>
                             <div class="flex justify-between">
+                              <span class="text-[#8a8275]">Barbero solicitado:</span>
+                              <span class="text-[#f3e5ab] font-medium">${escapeHtml(ord.preferredBarberName || 'Cualquier barbero en turno')}</span>
+                            </div>
+                            <div class="flex justify-between">
                               <span class="text-[#8a8275]">Fecha pedido:</span>
                               <span class="text-[#c5c0b6]">${escapeHtml(ord.date || '')}</span>
                             </div>
-                            ${isDelivered && ord.deliveredBy ? `
+                            ${isDelivered && (ord.deliveredByName || ord.deliveredBy) ? `
                               <div class="flex justify-between pt-1 border-t border-[rgba(212,175,55,0.12)]">
-                                <span class="text-[#8a8275]">Entregado por:</span>
-                                <span class="text-[#d4af37] font-mono-tech">@${escapeHtml(ord.deliveredBy)}</span>
+                                <span class="text-[#8a8275]">Efectivo recibido por:</span>
+                                <span class="text-[#d4af37] font-mono-tech font-bold">${escapeHtml(ord.deliveredByName || ('@' + ord.deliveredBy))}</span>
                               </div>
                             ` : ''}
                           </div>
                         </div>
 
                         ${isPending ? `
-                          <div class="space-y-2">
-                            <button
-                              type="button"
-                              data-deliver-order-id="${escapeHtml(ord.id)}"
-                              data-deliver-ref="${escapeHtml(ord.referenceCode)}"
-                              class="btn-deliver-store-order btn-clay w-full py-2.5 px-3 text-xs font-semibold justify-center cursor-pointer">
-                              Confirmar pago en efectivo y entregar →
-                            </button>
-                            <button
-                              type="button"
-                              data-cancel-order-id="${escapeHtml(ord.id)}"
-                              data-cancel-ref="${escapeHtml(ord.referenceCode)}"
-                              class="btn-cancel-store-order btn-stone-outline w-full py-1.5 px-3 text-[11px] text-red-300 hover:text-red-200 hover:border-red-500 justify-center cursor-pointer">
-                              Cancelar pedido y devolver al stock
-                            </button>
-                          </div>
+                          ${isMyStationOnShift ? `
+                            <div class="space-y-2">
+                              <button
+                                type="button"
+                                data-deliver-order-id="${escapeHtml(ord.id)}"
+                                data-deliver-ref="${escapeHtml(ord.referenceCode)}"
+                                class="btn-deliver-store-order btn-clay w-full py-2.5 px-3 text-xs font-semibold justify-center cursor-pointer">
+                                Confirmar pago en efectivo y entregar →
+                              </button>
+                              <button
+                                type="button"
+                                data-cancel-order-id="${escapeHtml(ord.id)}"
+                                data-cancel-ref="${escapeHtml(ord.referenceCode)}"
+                                class="btn-cancel-store-order btn-stone-outline w-full py-1.5 px-3 text-[11px] text-red-300 hover:text-red-200 hover:border-red-500 justify-center cursor-pointer">
+                                Cancelar pedido y devolver al stock
+                              </button>
+                            </div>
+                          ` : `
+                            <div class="text-[11px] font-semibold text-red-300 py-2 px-3 text-center bg-red-950/40 border border-red-800/50 rounded-[8px]">
+                              Estación fuera de turno · Activa tu turno para cobrar y entregar
+                            </div>
+                          `}
                         ` : isDelivered ? `
                           <div class="text-xs font-semibold text-emerald-300 py-2 text-center bg-emerald-950/40 border border-emerald-700/40 rounded-[8px]">
-                            Producto entregado · Efectivo en caja
+                            Producto entregado · Efectivo en caja (${escapeHtml(ord.deliveredByName || ord.deliveredBy || 'En turno')})
                           </div>
                         ` : `
                           <div class="text-xs font-semibold text-[#8a8275] py-2 text-center bg-[#14171f] border border-stone-800 rounded-[8px]">
@@ -2428,7 +2709,7 @@ async findAllProducts() {
                 <div>
                   <div class="inline-flex items-center gap-2 mb-1 px-2.5 py-0.5 rounded-full bg-[#181c24] border border-[rgba(212,175,55,0.3)] text-[#f3e5ab] text-[11px] font-semibold">
                     <span class="w-1.5 h-1.5 rounded-full bg-[#d4af37]"></span>
-                    <span>ADMINISTRACIÓN DE BOUTIQUE · MAESTRO LOPEZ</span>
+                    <span>ADMINISTRACIÓN DE BOUTIQUE · ${myBarber ? escapeHtml(myBarber.name).toUpperCase() : 'CONTROL GENERAL'}</span>
                   </div>
                   <h3 class="font-serif-editorial text-xl sm:text-2xl font-normal text-[#ffffff] tracking-tight">
                     Control de Inventario y Catálogo de Productos
@@ -3073,52 +3354,54 @@ async findAllProducts() {
 
     root.innerHTML = `
       <!-- TOP EDITORIAL NAVIGATION BAR (Obsidian & Imperial Gold) -->
-      <header class="anthropic-nav">
-        <div class="max-w-[1240px] mx-auto flex items-center justify-between">
+      <header class="anthropic-nav sticky top-0 z-40 bg-[#0a0b0d]/95 backdrop-blur-md border-b border-[rgba(212,175,55,0.25)] px-3 sm:px-6 py-2.5 sm:py-3 shadow-lg">
+        <div class="max-w-[1240px] mx-auto flex items-center justify-between gap-2 sm:gap-4">
           
-          <!-- Far Left: Circular Avatar (Logo Oficial) + Wordmark -->
-          <a href="#hero" class="flex items-center gap-3 no-underline" id="nav-brand">
-            <img src="./logo_barberia_lopez_hd.jpg" alt="Barbería Lopez" class="w-9 h-9 rounded-full object-cover border border-[rgba(212,175,55,0.4)]">
+          <!-- Far Left: Logo + Wordmark -->
+          <a href="#hero" class="flex items-center gap-2 sm:gap-3 no-underline shrink-0" id="nav-brand">
+            <img src="./logo_barberia_lopez_hd.jpg" alt="Barbería Lopez" class="w-8 h-8 sm:w-9 sm:h-9 rounded-full object-cover border border-[rgba(212,175,55,0.4)]">
             <div class="flex flex-col">
-              <span class="font-serif-editorial text-xl font-normal tracking-tight text-[#ffffff] leading-none">Barbería Lopez</span>
-              <span class="font-sans-ui text-[11px] font-semibold text-[#d4af37] tracking-wider mt-0.5">NEIVA, HUILA · 2026</span>
+              <span class="font-serif-editorial text-lg sm:text-xl font-normal tracking-tight text-[#ffffff] leading-none">Barbería Lopez</span>
+              <span class="font-sans-ui text-[10px] sm:text-[11px] font-semibold text-[#d4af37] tracking-wider mt-0.5">NEIVA · 2026</span>
             </div>
           </a>
 
-          <!-- Center: Navigation Links -->
-          <nav class="hidden md:flex items-center gap-8">
-            <a href="#hero" id="nav-link-inicio" class="font-sans-ui text-xs font-semibold uppercase tracking-wider ${state.activeView === 'home' ? 'text-[#d4af37]' : 'text-[#c5c0b6]'} hover:text-[#d4af37] transition-colors">INICIO</a>
-            <a href="#calendario" id="nav-link-calendario" class="font-sans-ui text-xs font-semibold uppercase tracking-wider text-[#c5c0b6] hover:text-[#d4af37] transition-colors">CALENDARIO</a>
-            <a href="#servicios" id="nav-link-servicios" class="font-sans-ui text-xs font-semibold uppercase tracking-wider text-[#c5c0b6] hover:text-[#d4af37] transition-colors">SERVICIOS</a>
-            <a href="https://wa.me/573219897910" target="_blank" class="font-sans-ui text-xs font-semibold uppercase tracking-wider text-[#f3e5ab] hover:text-[#d4af37] transition-colors link-editorial">WHATSAPP</a>
-            <button type="button" id="btn-nav-store" class="font-sans-ui text-xs font-semibold uppercase tracking-wider px-3 py-1 rounded-full border transition-all cursor-pointer ${state.activeView === 'store' ? 'bg-[#d4af37] text-[#0a0b0d] border-[#d4af37]' : 'bg-[#181c24] text-[#f3e5ab] border-[rgba(212,175,55,0.45)] hover:border-[#d4af37] hover:text-[#ffffff]'}">
-              TIENDA
+          <!-- Center: Navigation Links (Inicio, Reservar, Tienda siempre visibles) -->
+          <nav class="flex items-center gap-2 sm:gap-5 md:gap-7">
+            <a href="#hero" id="nav-link-inicio" class="font-sans-ui text-xs font-semibold uppercase tracking-wider ${state.activeView === 'home' ? 'text-[#d4af37]' : 'text-[#c5c0b6]'} hover:text-[#d4af37] transition-colors cursor-pointer py-1">
+              Inicio
+            </a>
+            <a href="#calendario" id="nav-link-calendario" class="font-sans-ui text-xs font-semibold uppercase tracking-wider text-[#f3e5ab] hover:text-[#d4af37] transition-colors cursor-pointer py-1">
+              Reservar
+            </a>
+            <button type="button" id="btn-nav-store" class="font-sans-ui text-xs font-semibold uppercase tracking-wider px-2.5 sm:px-3.5 py-1 rounded-full border transition-all cursor-pointer ${state.activeView === 'store' ? 'bg-[#d4af37] text-[#0a0b0d] border-[#d4af37] font-bold' : 'bg-[#181c24] text-[#f3e5ab] border-[rgba(212,175,55,0.45)] hover:border-[#d4af37] hover:text-[#ffffff]'}">
+              Tienda
             </button>
+            <a href="#servicios" id="nav-link-servicios" class="hidden md:inline-block font-sans-ui text-xs font-semibold uppercase tracking-wider text-[#c5c0b6] hover:text-[#d4af37] transition-colors cursor-pointer py-1">
+              Servicios
+            </a>
           </nav>
 
           <!-- Far Right: Auth & Action Button -->
-          <div class="flex items-center gap-2 sm:gap-3">
-            <button type="button" id="btn-nav-store-mobile" class="md:hidden btn-stone-outline py-2 px-3 text-xs font-semibold text-[#f3e5ab] border-[#d4af37]/50 cursor-pointer">
-              TIENDA
-            </button>
+          <div class="flex items-center gap-1.5 sm:gap-3 shrink-0">
             ${!isAuth ? `
-              <button id="btn-login-trigger" class="btn-stone-outline py-2 px-3.5 text-xs">
+              <button id="btn-login-trigger" class="btn-stone-outline py-1.5 px-2.5 sm:px-3.5 text-xs">
                 Acceder
               </button>
-              <a href="#calendario" id="btn-cta-reservar" class="btn-clay py-2 px-4 text-xs font-medium">
+              <a href="#calendario" id="btn-cta-reservar" class="hidden sm:inline-flex btn-clay py-1.5 px-3.5 text-xs font-medium">
                 Reservar cita →
               </a>
             ` : `
-              <span class="font-sans-ui text-xs font-semibold text-[#f3e5ab] px-3 py-1 rounded-full bg-[#181c24] border border-[rgba(212,175,55,0.3)] hidden sm:inline-block">
+              <span class="font-sans-ui text-xs font-semibold text-[#f3e5ab] px-2.5 py-1 rounded-full bg-[#181c24] border border-[rgba(212,175,55,0.3)] hidden md:inline-block">
                 @${state.currentUser.username}
               </span>
               ${state.activeView !== 'home' ? `
-                <button id="btn-nav-home" class="btn-stone-outline py-2 px-3.5 text-xs">Inicio</button>
+                <button id="btn-nav-home" class="btn-stone-outline py-1.5 px-2.5 sm:px-3 text-xs">Inicio</button>
               ` : ''}
               ${state.activeView !== 'dashboard' && state.activeView !== 'admin' ? `
-                <button id="btn-nav-panel" class="btn-clay py-2 px-3.5 text-xs">Mi panel →</button>
+                <button id="btn-nav-panel" class="btn-clay py-1.5 px-2.5 sm:px-3.5 text-xs">Mi panel →</button>
               ` : ''}
-              <button id="btn-logout" class="btn-stone-outline py-2 px-3 text-xs" title="Salir">Salir</button>
+              <button id="btn-logout" class="btn-stone-outline py-1.5 px-2.5 text-xs" title="Salir">Salir</button>
             `}
           </div>
 
@@ -3494,11 +3777,12 @@ async findAllProducts() {
 
     const navBrand = document.getElementById('nav-brand');
     if (navBrand) {
-      navBrand.onclick = (e) => {
+      navBrand.onclick = async (e) => {
         if (state.activeView !== 'home') {
           e.preventDefault();
           state.activeView = 'home';
-          renderApp();
+          await renderApp();
+          window.scrollTo({ top: 0, behavior: 'smooth' });
         }
       };
     }
@@ -3506,14 +3790,105 @@ async findAllProducts() {
     ['nav-link-inicio', 'nav-link-calendario', 'nav-link-servicios', 'btn-cta-reservar'].forEach((id) => {
       const el = document.getElementById(id);
       if (el) {
-        el.onclick = () => {
+        el.onclick = async (e) => {
+          const targetHash = el.getAttribute('href') || '#hero';
           if (state.activeView !== 'home') {
+            e.preventDefault();
             state.activeView = 'home';
-            renderApp();
+            await renderApp();
+            const targetEl = document.querySelector(targetHash);
+            if (targetEl) {
+              targetEl.scrollIntoView({ behavior: 'smooth' });
+            } else {
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }
           }
         };
       }
     });
+
+    // Consulta de referencias del cliente en la vista Tienda
+    const inputClientOrderLookup = document.getElementById('input-client-order-lookup');
+    if (inputClientOrderLookup) {
+      inputClientOrderLookup.oninput = (e) => {
+        state.clientOrderLookup = e.target.value;
+      };
+      inputClientOrderLookup.onchange = (e) => {
+        state.clientOrderLookup = e.target.value;
+        renderApp();
+      };
+    }
+
+    const btnClearClientLookup = document.getElementById('btn-clear-client-lookup');
+    if (btnClearClientLookup) {
+      btnClearClientLookup.onclick = () => {
+        state.clientOrderLookup = '';
+        renderApp();
+      };
+    }
+
+    document.querySelectorAll('.btn-reopen-store-voucher').forEach((btn) => {
+      btn.onclick = () => {
+        const ref = btn.dataset.openVoucherRef;
+        const ord = (state.storeOrders || []).find((o) => o.referenceCode === ref);
+        if (ord) {
+          showStoreVoucherModal(ord);
+        }
+      };
+    });
+
+    // Alternar estado En Turno / Fuera de Turno de una estación de barbero
+    document.querySelectorAll('.btn-toggle-barber-shift').forEach((btn) => {
+      btn.onclick = async () => {
+        const barberId = btn.dataset.toggleShiftBarberId;
+        const barber = (state.barbers || []).find((b) => b.id === barberId);
+        if (!barber) return;
+        const currentShift = barber.onShift !== false && barber.active !== false;
+        const nextShift = !currentShift;
+        const updatedBarber = { ...barber, onShift: nextShift };
+        try {
+          await repo.updateBarber(updatedBarber);
+          state.barbers = (state.barbers || []).map((b) => b.id === barberId ? updatedBarber : b);
+          await renderApp();
+        } catch (err) {
+          alert(err.message);
+        }
+      };
+    });
+
+    // Venta Directa en Estación / Mostrador (cuando el cliente en barbería paga en efectivo al barbero en turno)
+    const formDirectStoreSale = document.getElementById('form-direct-store-sale');
+    if (formDirectStoreSale) {
+      formDirectStoreSale.onsubmit = async (e) => {
+        e.preventDefault();
+        const productId = document.getElementById('direct-sale-product')?.value;
+        const quantity = Math.max(1, parseInt(document.getElementById('direct-sale-qty')?.value, 10) || 1);
+        const clientName = (document.getElementById('direct-sale-client')?.value || '').trim() || 'Cliente en Estacion';
+        const barberSelect = document.getElementById('direct-sale-barber');
+        const barberId = barberSelect ? barberSelect.value : (state.currentUser?.barberId || null);
+
+        if (!productId) {
+          alert('Selecciona un producto con stock disponible.');
+          return;
+        }
+
+        try {
+          const res = await repo.createStoreOrder({
+            productId,
+            quantity,
+            clientName,
+            clientPhone: 'Venta Presencial',
+            deliveryMode: 'VENTA_DIRECTA',
+            directSale: true,
+            barberId
+          });
+          await renderApp();
+          alert(`Venta registrada y entregada en efectivo.\nReferencia: ${res.order.referenceCode}\nProducto: ${res.order.productName} (x${res.order.quantity})\nTotal en caja: $${Number(res.order.totalCop || 0).toLocaleString('es-CO')} COP`);
+        } catch (err) {
+          alert(err.message);
+        }
+      };
+    }
 
     // Filtros de categorías en Tienda
     document.querySelectorAll('.btn-store-cat').forEach((btn) => {
@@ -3962,12 +4337,6 @@ async findAllProducts() {
           btn.style.opacity = '';
           btn.textContent = 'Finalizar corte y guardar en historial ->';
           alert(err.message);
-        } finally {
-          const submitBtn = formCreateBarber.querySelector('button[type="submit"]');
-          if (submitBtn) {
-            submitBtn.disabled = false;
-            submitBtn.textContent = 'Crear cuenta de barbero →';
-          }
         }
       };
     });
@@ -4095,6 +4464,11 @@ async findAllProducts() {
           renderApp();
         } catch (err) {
           alert(err.message);
+        } finally {
+          if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Crear cuenta de barbero →';
+          }
         }
       };
     }
@@ -4161,10 +4535,11 @@ async findAllProducts() {
 
     const savedPhone = localStorage.getItem('blopez_last_phone') || '';
     const maxQty = Math.min(10, Math.max(1, Number(product.stock) || 1));
+    const onShiftBarbers = (state.barbers || []).filter((b) => b.active !== false && b.onShift !== false);
 
     container.innerHTML = `
       <div id="modal-store-buy" class="fixed inset-0 z-50 bg-[#0a0b0d]/85 backdrop-blur-sm flex items-center justify-center p-4">
-        <div class="anthropic-card w-full max-w-lg p-6 sm:p-8 relative border border-[#d4af37]/40 shadow-2xl">
+        <div class="anthropic-card w-full max-w-lg max-h-[92vh] overflow-y-auto p-6 sm:p-8 relative border border-[#d4af37]/40 shadow-2xl">
           <button id="btn-close-store-buy" class="absolute top-4 right-4 text-[#c5c0b6] hover:text-[#ffffff] text-xl font-light cursor-pointer">&times;</button>
 
           <div class="mb-5">
@@ -4190,6 +4565,29 @@ async findAllProducts() {
                 <span class="block text-[11px] text-[#8a8275] uppercase font-semibold">Disponibles</span>
                 <span class="font-mono-tech text-sm font-bold text-[#f3e5ab]">${product.stock} unidades</span>
               </div>
+            </div>
+
+            <!-- ESCENARIO DEL CLIENTE: EN BARBERIA vs APARTADO DESDE FUERA -->
+            <div>
+              <label class="block text-xs font-semibold text-[#c5c0b6] mb-1.5">¿Dónde te encuentras en este momento? *</label>
+              <select id="store-buy-delivery-mode" class="input-parchment text-xs sm:text-sm">
+                <option value="APARTADO_RECOGIDA">No estoy en la barbería · Apartar para recoger y pagar más tarde</option>
+                <option value="EN_BARBERIA">Estoy en la barbería ahora mismo · Reclamo y pago inmediato en estación</option>
+              </select>
+            </div>
+
+            <!-- BARBERO EN TURNO QUE ATIENDE O RECIBE EL EFECTIVO -->
+            <div>
+              <label class="block text-xs font-semibold text-[#c5c0b6] mb-1.5">Barbero en turno que te atiende / recibirá tu pago</label>
+              <select id="store-buy-barber" class="input-parchment text-xs sm:text-sm">
+                <option value="ANY">Cualquier barbero disponible en turno</option>
+                ${onShiftBarbers.map((b) => `
+                  <option value="${escapeHtml(b.id)}">${escapeHtml(b.name)} (En Turno)</option>
+                `).join('')}
+              </select>
+              <span class="block text-[11px] text-[#8a8275] mt-1">
+                Solo se listan barberos activos de turno. Al entregar el efectivo, cualquier barbero en turno puede validar tu código.
+              </span>
             </div>
 
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -4252,6 +4650,8 @@ async findAllProducts() {
         const quantity = Math.max(1, parseInt(document.getElementById('store-buy-qty').value, 10) || 1);
         const clientName = document.getElementById('store-buy-name').value.trim();
         const clientPhone = document.getElementById('store-buy-phone').value.trim();
+        const deliveryMode = document.getElementById('store-buy-delivery-mode')?.value || 'APARTADO_RECOGIDA';
+        const preferredBarberId = document.getElementById('store-buy-barber')?.value || 'ANY';
         const errBox = document.getElementById('store-buy-error');
 
         if (clientPhone) {
@@ -4265,7 +4665,9 @@ async findAllProducts() {
             productId: product.id,
             quantity,
             clientName,
-            clientPhone
+            clientPhone,
+            deliveryMode,
+            preferredBarberId
           });
           await renderApp();
           showStoreVoucherModal(res.order);
@@ -4285,10 +4687,16 @@ async findAllProducts() {
     const container = document.getElementById('modal-confirmation-container');
     if (!container || !order) return;
 
+    const modeDesc = order.deliveryMode === 'EN_BARBERIA'
+      ? 'Cliente en barberia (Entrega inmediata en estacion)'
+      : 'Apartado para recoger en barberia';
+
     const waText = encodeURIComponent(
       `Hola Barberia Lopez, he apartado un producto en la Tienda Web:\n` +
       `Referencia de Pago: ${order.referenceCode}\n` +
       `Producto: ${order.productName} (x${order.quantity})\n` +
+      `Modalidad: ${modeDesc}\n` +
+      `Barbero asignado: ${order.preferredBarberName || 'Cualquier barbero en turno'}\n` +
       `Total a pagar en efectivo: $${Number(order.totalCop || 0).toLocaleString('es-CO')} COP\n` +
       `Cliente: ${order.clientName} (${order.clientPhone})`
     );
@@ -4306,7 +4714,7 @@ async findAllProducts() {
               Referencia de Pago Generada
             </h3>
             <p class="font-sans-ui text-xs text-[#c5c0b6] mt-1">
-              Muestra este código al barbero cuando vayas a reclamar y pagar tu producto en la barbería.
+              Muestra este código al barbero en turno cuando entregues el efectivo para recibir tu producto.
             </p>
           </div>
 
@@ -4326,6 +4734,8 @@ async findAllProducts() {
           <div class="bg-[#161a22] p-4 rounded-[12px] border border-[rgba(212,175,55,0.22)] space-y-2 mb-5 font-sans-ui text-xs sm:text-sm">
             <div class="flex justify-between"><span class="text-[#8a8275]">Producto</span><span class="text-[#ffffff] font-semibold">${escapeHtml(order.productName)}</span></div>
             <div class="flex justify-between"><span class="text-[#8a8275]">Cantidad apartada</span><span class="text-[#f3e5ab] font-mono-tech font-bold">${order.quantity} und</span></div>
+            <div class="flex justify-between"><span class="text-[#8a8275]">Modalidad de entrega</span><span class="text-[#f3e5ab] font-medium">${escapeHtml(modeDesc)}</span></div>
+            <div class="flex justify-between"><span class="text-[#8a8275]">Barbero en turno</span><span class="text-[#ffffff] font-medium">${escapeHtml(order.preferredBarberName || 'Cualquier barbero en turno')}</span></div>
             <div class="flex justify-between"><span class="text-[#8a8275]">Cliente titular</span><span class="text-[#ffffff]">${escapeHtml(order.clientName)}</span></div>
             <div class="flex justify-between"><span class="text-[#8a8275]">Modalidad de pago</span><span class="text-[#f3e5ab] font-semibold">EFECTIVO EN BARBERÍA</span></div>
             <div class="flex justify-between pt-2.5 border-t border-[rgba(212,175,55,0.2)]">

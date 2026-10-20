@@ -419,8 +419,8 @@ function showConfirmationModal({ appointment, barber, service, calendarPayload }
       <div class="glass-modal w-full max-w-lg p-6 sm:p-8 rounded-2xl relative border border-[#d4af37]">
         
         <div class="text-center mb-6">
-          <div class="w-14 h-14 rounded-full bg-green-950/60 border border-green-500/40 mx-auto mb-3 flex items-center justify-center text-green-400 text-2xl font-bold">
-            ✓
+          <div class="w-14 h-14 rounded-full bg-green-950/60 border border-green-500/40 mx-auto mb-3 flex items-center justify-center text-green-400">
+            <svg class="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
           </div>
           <span class="text-[11px] font-mono uppercase tracking-widest text-[#d4af37]">TURNO CONFIRMADO</span>
           <h3 class="font-editorial text-2xl sm:text-3xl font-bold text-[#f7f4ef] mt-1">
@@ -457,7 +457,7 @@ function showConfirmationModal({ appointment, barber, service, calendarPayload }
         <!-- BOTONES DE SINCRONIZACIÓN DE CALENDARIO -->
         <div class="space-y-3 mb-6">
           <p class="text-[11px] text-center uppercase tracking-wider text-[#d4af37] font-semibold">
-            📅 Sincroniza con el calendario de tu celular:
+            Sincroniza con el calendario de tu celular:
           </p>
           
           <a 

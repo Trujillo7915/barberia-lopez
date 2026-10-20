@@ -31,7 +31,7 @@ export function renderCatalog(services, selectedServiceId, onSelectService) {
                 ? 'bg-[#d4af37] text-black font-bold'
                 : 'border border-[#d4af37]/30 text-[#f7f4ef] hover:bg-[#d4af37]/15'
             }">
-            ${isSelected ? '✓ Servicio Seleccionado' : 'Elegir para Agendar'}
+            ${isSelected ? 'Servicio Seleccionado' : 'Elegir para Agendar'}
           </button>
         </div>
       `;

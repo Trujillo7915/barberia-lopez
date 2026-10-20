@@ -398,7 +398,7 @@ a {
 }
 
 .hidden {
-  display: none !important;
+  display: none;
 }
 
 .fixed {
@@ -592,4 +592,26 @@ a {
   padding: 16px !important;
   margin-top: 16px !important;
   margin-bottom: 16px !important;
+}
+
+
+@media (min-width: 640px) {
+  .sm\:inline-block {
+    display: inline-block !important;
+  }
+  .sm\:flex {
+    display: flex !important;
+  }
+}
+
+@media (min-width: 768px) {
+  .md\:flex {
+    display: flex !important;
+  }
+  .md\:inline-block {
+    display: inline-block !important;
+  }
+  .md\:hidden {
+    display: none !important;
+  }
 }

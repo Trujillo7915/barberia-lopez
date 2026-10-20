@@ -8,12 +8,21 @@
     "active": true
   },
   {
-    "id": "828401c4-1ef2-4bfd-a5b4-43f6c3b4bf35",
-    "username": "lopez.barber",
-    "passwordHash": "scrypt:232172833020895a935a1938145ec77c:5294dda5cba63b71c4587728513d7beffdf717f8541a45e30fd8668d970376920c26d6d0923ce50b6142d18ee2ae7986601cf6294400d8b98bcc7cfe5e794f8d",
+    "id": "u-david-01",
+    "username": "david.barber",
+    "passwordHash": "scrypt:85568ac4d552e7db3c6c7fd7a53c085b:5282840d0c250a7e421753e1ee177ffcdfeadf1837c33200e247a14de458208258767468082ca62548fe18cb58e26c04b20919aa7265254038ceb013f496c1c3",
     "role": "JEFE",
-    "barberId": "7597ebfd-bbb0-4c71-9e49-8d1ea242a0e6",
+    "barberId": "b-david-01",
     "active": true,
-    "createdAt": "2026-10-18T19:51:47.734Z"
+    "createdAt": "2026-10-20T07:45:00.000Z"
+  },
+  {
+    "id": "u-matta-01",
+    "username": "matta.barber",
+    "passwordHash": "scrypt:f9987222eaa080f53f51bf90d1d03fb8:f0057149b65f0ef21ce95aa02f3a25145455c908e1788d7c1cb64ded09ed992e0a731886124c6020550d7e7f32c5461453479641b57dcef960f61fd5d76937bf",
+    "role": "BARBERO",
+    "barberId": "b-matta-01",
+    "active": true,
+    "createdAt": "2026-10-20T07:45:00.000Z"
   }
 ]

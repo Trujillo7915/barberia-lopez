@@ -18,7 +18,7 @@ export function renderMarquee() {
       (item) => `
       <span class="inline-flex items-center gap-3 text-xs tracking-[0.2em] font-semibold uppercase text-[#a39f97] px-6">
         <span>${item}</span>
-        <span class="text-[#d4af37]">✦</span>
+        <span class="text-[#d4af37]">&bull;</span>
       </span>
     `
     )

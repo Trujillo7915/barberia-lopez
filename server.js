@@ -60,41 +60,43 @@ const DEFAULT_USERS = [
     active: true
   },
   {
-    id: 'u-jefe-01',
-    username: 'maestro.lopez',
-    passwordHash: 'lopez2026',
+    id: 'u-david-01',
+    username: 'david.barber',
+    passwordHash: 'david2026',
     role: 'JEFE',
-    barberId: 'b-jefe-01',
+    barberId: 'b-david-01',
     active: true
   },
   {
-    id: 'u-junior-01',
-    username: 'carlos.junior',
-    passwordHash: 'junior2026',
-    role: 'PRACTICANTE',
-    barberId: 'b-junior-01',
+    id: 'u-matta-01',
+    username: 'matta.barber',
+    passwordHash: 'matta2026',
+    role: 'BARBERO',
+    barberId: 'b-matta-01',
     active: true
   }
 ];
 
 const DEFAULT_BARBERS = [
   {
-    id: 'b-jefe-01',
-    userId: 'u-jefe-01',
-    name: 'Maestro Lopez',
-    specialty: 'Maestro Barbero · Estación Principal',
+    id: 'b-david-01',
+    userId: 'u-david-01',
+    name: 'David',
+    specialty: 'Barbero Jefe · Maestro Barbero',
     phone: '+57 321 989 7910',
     avatar: 'https://images.unsplash.com/photo-1503951914875-452162b0f3f1?auto=format&fit=crop&w=600&q=80',
-    active: true
+    active: true,
+    onShift: true
   },
   {
-    id: 'b-junior-01',
-    userId: 'u-junior-01',
-    name: 'Carlos Andrés',
-    specialty: 'Barbero Practicante · Degradados & Perfilado',
-    phone: '+57 312 456 7890',
-    avatar: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&w=600&q=80',
-    active: true
+    id: 'b-matta-01',
+    userId: 'u-matta-01',
+    name: 'Maicol Matta',
+    specialty: 'Barbero Profesional · Degradados & Barba',
+    phone: '+57 300 000 0000',
+    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=600&q=80',
+    active: true,
+    onShift: true
   }
 ];
 
@@ -261,6 +263,17 @@ function verifyPasswordSecure(plainPassword, storedHash) {
   }
 
   return false;
+}
+
+function generateUuid() {
+  if (typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
 }
 
 function generateSessionToken(user) {
@@ -674,7 +687,7 @@ function generateIcsForClient(clientPhone) {
   const nowUtc = new Date().toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
 
   const events = clientAppts.map((appt) => {
-    const b = barbersMap.get(appt.barberId) || { name: 'Maestro Lopez' };
+    const b = barbersMap.get(appt.barberId) || { name: 'Barbería Lopez' };
     const s = servicesMap.get(appt.serviceId) || { name: 'Corte Tradicional', priceCop: 0, durationMinutes: 30 };
 
     const dtStartUtc = localToUtcIso(appt.date, appt.startTime || '10:00');
@@ -1161,8 +1174,8 @@ const server = http.createServer(async (req, res) => {
       }
 
       const barbers = readJsonFile(BARBERS_FILE, DEFAULT_BARBERS);
-      const barberId = barberData.id || crypto.randomUUID();
-      const userId = userData.id || crypto.randomUUID();
+      const barberId = barberData.id || generateUuid();
+      const userId = userData.id || generateUuid();
 
       const newBarber = {
         id: barberId,
@@ -1260,20 +1273,35 @@ const server = http.createServer(async (req, res) => {
 
   if (reqUrl.startsWith('/api/barbers/') && req.method === 'PUT') {
     const authUser = getAuthenticatedUser(req);
-    if (!authUser || (authUser.role !== 'ADMIN' && authUser.role !== 'JEFE')) {
+    const barberId = reqUrl.substring('/api/barbers/'.length);
+    const isAdminOrJefe = authUser && (authUser.role === 'ADMIN' || authUser.role === 'JEFE');
+    const isOwnStation = authUser && authUser.barberId === barberId;
+
+    if (!isAdminOrJefe && !isOwnStation) {
       res.statusCode = 403;
       res.setHeader('Content-Type', 'application/json; charset=utf-8');
-      res.end(JSON.stringify({ error: 'Acceso denegado: se requieren permisos administrativos.' }));
+      res.end(JSON.stringify({ error: 'Acceso denegado: se requieren permisos administrativos o ser titular de la estacion.' }));
       return;
     }
 
-    const barberId = reqUrl.substring('/api/barbers/'.length);
     try {
       const updateData = await readJsonBody(req);
       const barbers = readJsonFile(BARBERS_FILE, DEFAULT_BARBERS);
       const idx = barbers.findIndex((b) => b.id === barberId);
       if (idx !== -1) {
-        barbers[idx] = { ...barbers[idx], ...updateData };
+        if (isAdminOrJefe) {
+          barbers[idx] = { ...barbers[idx], ...updateData };
+        } else {
+          // El barbero titular solo puede alternar su estado En Turno / Fuera de Turno
+          const allowedChanges = {};
+          if (updateData.onShift !== undefined) {
+            allowedChanges.onShift = Boolean(updateData.onShift);
+          }
+          if (updateData.active !== undefined) {
+            allowedChanges.active = Boolean(updateData.active);
+          }
+          barbers[idx] = { ...barbers[idx], ...allowedChanges };
+        }
         writeJsonFileAtomic(BARBERS_FILE, barbers);
         res.statusCode = 200;
         res.setHeader('Content-Type', 'application/json; charset=utf-8');
@@ -1392,10 +1420,12 @@ const server = http.createServer(async (req, res) => {
 
   if (reqUrl.startsWith('/api/users/') && req.method === 'PUT') {
     const authUser = getAuthenticatedUser(req);
-    const userId = reqUrl.substring('/api/users/'.length);
+    const rawUserId = reqUrl.substring('/api/users/'.length);
+    const userId = decodeURIComponent(rawUserId).trim();
+    const cleanId = userId.replace(/^@/, '').toLowerCase().trim();
 
     // Solo admin, jefe o el propio usuario modificandose
-    if (!authUser || (authUser.role !== 'ADMIN' && authUser.role !== 'JEFE' && authUser.sub !== userId)) {
+    if (!authUser || (authUser.role !== 'ADMIN' && authUser.role !== 'JEFE' && authUser.sub !== userId && authUser.username !== cleanId)) {
       res.statusCode = 403;
       res.setHeader('Content-Type', 'application/json; charset=utf-8');
       res.end(JSON.stringify({ error: 'Acceso denegado.' }));
@@ -1405,8 +1435,18 @@ const server = http.createServer(async (req, res) => {
     try {
       const updateData = await readJsonBody(req);
       const users = readJsonFile(USERS_FILE, DEFAULT_USERS);
-      const idx = users.findIndex((u) => u.id === userId);
+      const idx = users.findIndex((u) => 
+        u.id === userId || 
+        (u.username && (u.username === userId || u.username.replace(/^@/, '').toLowerCase().trim() === cleanId))
+      );
       if (idx !== -1) {
+        if (users[idx].role === 'ADMIN' && authUser.role !== 'ADMIN') {
+          res.statusCode = 403;
+          res.setHeader('Content-Type', 'application/json; charset=utf-8');
+          res.end(JSON.stringify({ error: 'Acceso denegado: solo el Administrador principal puede modificar su propia cuenta.' }));
+          return;
+        }
+
         if (updateData.passwordHash) {
           updateData.passwordHash = hashPasswordScrypt(updateData.passwordHash);
         }
@@ -1414,6 +1454,11 @@ const server = http.createServer(async (req, res) => {
           updateData.passwordHash = hashPasswordScrypt(updateData.password);
           delete updateData.password;
         }
+
+        if (authUser.role !== 'ADMIN') {
+          delete updateData.role;
+        }
+        delete updateData.id;
 
         users[idx] = { ...users[idx], ...updateData };
         writeJsonFileAtomic(USERS_FILE, users);
@@ -1452,17 +1497,30 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
-    const userId = reqUrl.substring('/api/users/'.length);
+    const rawUserId = reqUrl.substring('/api/users/'.length);
+    const userId = decodeURIComponent(rawUserId).trim();
+    const cleanId = userId.replace(/^@/, '').toLowerCase().trim();
+
     const users = readJsonFile(USERS_FILE, DEFAULT_USERS);
-    const target = users.find((u) => u.id === userId);
-    if (target && target.role === 'ADMIN') {
+    const targetIdx = users.findIndex((u) => 
+      u.id === userId || 
+      (u.username && (u.username === userId || u.username.replace(/^@/, '').toLowerCase().trim() === cleanId))
+    );
+    if (targetIdx !== -1 && users[targetIdx].role === 'ADMIN') {
       res.statusCode = 400;
       res.setHeader('Content-Type', 'application/json; charset=utf-8');
       res.end(JSON.stringify({ error: 'No se permite eliminar al usuario Administrador.' }));
       return;
     }
 
-    const filtered = users.filter((u) => u.id !== userId);
+    if (targetIdx === -1) {
+      res.statusCode = 404;
+      res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      res.end(JSON.stringify({ error: 'Usuario no encontrado' }));
+      return;
+    }
+
+    const filtered = users.filter((u, i) => i !== targetIdx);
     writeJsonFileAtomic(USERS_FILE, filtered);
     res.statusCode = 200;
     res.setHeader('Content-Type', 'application/json; charset=utf-8');
@@ -1703,7 +1761,40 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  // Pedidos de Tienda con Referencia Unica Anti-Robo y Pago Solo en Efectivo
+  // Helper para verificar si el usuario/barbero autenticado se encuentra activo y EN TURNO
+  function getActiveBarberShiftContext(authUser) {
+    if (!authUser) return { onShift: false, user: null, barber: null, barberId: null, barberName: null };
+    const users = readJsonFile(USERS_FILE, DEFAULT_USERS);
+    const barbers = readJsonFile(BARBERS_FILE, DEFAULT_BARBERS);
+    const dbUser = users.find((u) => u.id === authUser.sub || u.username === authUser.username);
+    if (!dbUser || dbUser.active === false) {
+      return { onShift: false, user: dbUser || null, barber: null, barberId: null, barberName: null };
+    }
+    const barberId = dbUser.barberId || authUser.barberId || null;
+    const barber = barberId ? barbers.find((b) => b.id === barberId) : null;
+
+    // Si tiene estacion de barbero asociada y dicha estacion figura Fuera de Turno o inactiva, bloquear operaciones de caja/tienda
+    const isShiftActive = barber ? (barber.onShift !== false && barber.active !== false) : true;
+    if (barberId && (!barber || !isShiftActive)) {
+      return {
+        onShift: false,
+        user: dbUser,
+        barber: barber || null,
+        barberId,
+        barberName: barber ? barber.name : dbUser.username
+      };
+    }
+
+    return {
+      onShift: true,
+      user: dbUser,
+      barber: barber || null,
+      barberId: barber ? barber.id : null,
+      barberName: barber ? barber.name : (dbUser.role === 'ADMIN' ? 'Administracion General' : dbUser.username)
+    };
+  }
+
+  // Pedidos de Tienda con Referencia Unica Anti-Robo, Escenarios Cliente/Barbero y Pago Solo en Efectivo
   if (reqUrl === '/api/store/orders') {
     if (req.method === 'GET') {
       const orders = readJsonFile(STORE_ORDERS_FILE, DEFAULT_STORE_ORDERS);
@@ -1716,10 +1807,31 @@ const server = http.createServer(async (req, res) => {
     if (req.method === 'POST') {
       try {
         const body = await readJsonBody(req);
+        const isDirectSale = Boolean(body.directSale);
         const productId = String(body.productId || '').trim();
-        const clientName = String(body.clientName || '').trim();
-        const clientPhone = String(body.clientPhone || '').trim();
         const quantity = Math.max(1, Math.floor(Number(body.quantity) || 1));
+
+        // Si es Venta Directa en Estacion (realizada por el barbero cuando el cliente pide en silla/mostrador)
+        let shiftCtx = null;
+        if (isDirectSale) {
+          const authUser = getAuthenticatedUser(req);
+          if (!authUser) {
+            res.statusCode = 401;
+            res.setHeader('Content-Type', 'application/json; charset=utf-8');
+            res.end(JSON.stringify({ error: 'Debes iniciar sesion para registrar una venta directa en mostrador.' }));
+            return;
+          }
+          shiftCtx = getActiveBarberShiftContext(authUser);
+          if (!shiftCtx.onShift) {
+            res.statusCode = 403;
+            res.setHeader('Content-Type', 'application/json; charset=utf-8');
+            res.end(JSON.stringify({ error: 'Accion bloqueada: Tu estacion figura FUERA DE TURNO. Activa tu turno para poder cobrar y registrar ventas de productos.' }));
+            return;
+          }
+        }
+
+        const clientName = String(body.clientName || (isDirectSale ? 'Cliente en Estacion' : '')).trim();
+        const clientPhone = String(body.clientPhone || (isDirectSale ? 'Venta Presencial' : '')).trim();
 
         if (!productId || !clientName || !clientPhone) {
           res.statusCode = 400;
@@ -1749,28 +1861,75 @@ const server = http.createServer(async (req, res) => {
           return;
         }
 
+        const barbers = readJsonFile(BARBERS_FILE, DEFAULT_BARBERS);
+        const deliveryMode = isDirectSale
+          ? 'VENTA_DIRECTA'
+          : (body.deliveryMode === 'EN_BARBERIA' ? 'EN_BARBERIA' : 'APARTADO_RECOGIDA');
+
+        let preferredBarberId = body.preferredBarberId && body.preferredBarberId !== 'ANY'
+          ? String(body.preferredBarberId).trim()
+          : null;
+        let preferredBarberName = 'Cualquier barbero en turno';
+
+        if (preferredBarberId) {
+          const targetBarber = barbers.find((b) => b.id === preferredBarberId);
+          const isTargetOnShift = targetBarber && targetBarber.active !== false && targetBarber.onShift !== false;
+          if (!targetBarber || !isTargetOnShift) {
+            if (deliveryMode === 'EN_BARBERIA') {
+              res.statusCode = 409;
+              res.setHeader('Content-Type', 'application/json; charset=utf-8');
+              res.end(JSON.stringify({
+                error: 'El barbero seleccionado no se encuentra de turno en este momento. Selecciona un barbero en turno o "Cualquier barbero en turno".'
+              }));
+              return;
+            }
+            preferredBarberId = null;
+          } else {
+            preferredBarberName = targetBarber.name;
+          }
+        }
+
         const orders = readJsonFile(STORE_ORDERS_FILE, DEFAULT_STORE_ORDERS);
 
-        // Generar codigo de referencia unico e irrepetible formato REF-BL-XXXX
-        const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+        // Generar codigo de referencia unico e irrepetible formato REF-BL-XXXXXX (Base32 Crockford)
+        const chars = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
         let referenceCode = '';
         let exists = true;
         while (exists) {
           let suffix = '';
-          for (let i = 0; i < 4; i++) {
-            suffix += chars.charAt(Math.floor(Math.random() * chars.length));
+          for (let i = 0; i < 6; i++) {
+            suffix += chars.charAt(crypto.randomInt(0, chars.length));
           }
           referenceCode = `REF-BL-${suffix}`;
           exists = orders.some((o) => o.referenceCode === referenceCode);
         }
 
-        // Descontar del stock inmediatamente para reservar el producto al cliente
+        // Descontar del stock inmediatamente para reservar o entregar el producto
         products[prodIdx].stock -= quantity;
         writeJsonFileAtomic(PRODUCTS_FILE, products);
 
         // Fecha actual en zona horaria de Colombia (UTC-5)
         const nowCol = new Date(Date.now() - (5 * 60 * 60 * 1000));
         const dateStr = nowCol.toISOString().split('T')[0];
+
+        let deliveredByBarberId = null;
+        let deliveredByName = null;
+        if (isDirectSale && shiftCtx) {
+          const requestedBarberId = body.barberId ? String(body.barberId).trim() : shiftCtx.barberId;
+          const assignedBarber = requestedBarberId ? barbers.find((b) => b.id === requestedBarberId) : shiftCtx.barber;
+          const isAssignedOnShift = assignedBarber && assignedBarber.active !== false && assignedBarber.onShift !== false;
+          if (assignedBarber && !isAssignedOnShift) {
+            // Rollback stock si intentan asignar venta directa a un barbero fuera de turno
+            products[prodIdx].stock += quantity;
+            writeJsonFileAtomic(PRODUCTS_FILE, products);
+            res.statusCode = 403;
+            res.setHeader('Content-Type', 'application/json; charset=utf-8');
+            res.end(JSON.stringify({ error: `No se puede asignar la venta a ${assignedBarber.name} porque su estacion esta FUERA DE TURNO.` }));
+            return;
+          }
+          deliveredByBarberId = assignedBarber ? assignedBarber.id : shiftCtx.barberId;
+          deliveredByName = assignedBarber ? assignedBarber.name : shiftCtx.barberName;
+        }
 
         const newOrder = {
           id: `ord-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
@@ -1783,13 +1942,18 @@ const server = http.createServer(async (req, res) => {
           totalCop: product.priceCop * quantity,
           clientName,
           clientPhone,
+          deliveryMode, // EN_BARBERIA | APARTADO_RECOGIDA | VENTA_DIRECTA
+          preferredBarberId: isDirectSale ? deliveredByBarberId : preferredBarberId,
+          preferredBarberName: isDirectSale ? (deliveredByName || 'Venta en Mostrador') : preferredBarberName,
           paymentMethod: 'EFECTIVO',
-          status: 'PENDIENTE', // PENDIENTE | ENTREGADO | CANCELADO
+          status: isDirectSale ? 'ENTREGADO' : 'PENDIENTE', // PENDIENTE | ENTREGADO | CANCELADO
           date: dateStr,
           createdAt: new Date().toISOString(),
-          deliveredAt: null,
-          deliveredDate: null,
-          deliveredBy: null
+          deliveredAt: isDirectSale ? new Date().toISOString() : null,
+          deliveredDate: isDirectSale ? dateStr : null,
+          deliveredBy: isDirectSale && shiftCtx ? shiftCtx.user.username : null,
+          deliveredByBarberId,
+          deliveredByName
         };
 
         orders.unshift(newOrder);
@@ -1800,7 +1964,9 @@ const server = http.createServer(async (req, res) => {
         res.end(JSON.stringify({
           success: true,
           order: newOrder,
-          product: products[prodIdx]
+          product: products[prodIdx],
+          orders,
+          products
         }));
         return;
       } catch (err) {
@@ -1818,6 +1984,16 @@ const server = http.createServer(async (req, res) => {
       res.statusCode = 401;
       res.setHeader('Content-Type', 'application/json; charset=utf-8');
       res.end(JSON.stringify({ error: 'Debes iniciar sesion como barbero o administrador para verificar y entregar pedidos.' }));
+      return;
+    }
+
+    const shiftCtx = getActiveBarberShiftContext(authUser);
+    if (!shiftCtx.onShift) {
+      res.statusCode = 403;
+      res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      res.end(JSON.stringify({
+        error: 'Accion bloqueada: Tu estacion figura FUERA DE TURNO. Solo un barbero activo en turno dentro de la barberia puede recibir efectivo y confirmar entregas.'
+      }));
       return;
     }
 
@@ -1846,13 +2022,38 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
+    let body = {};
+    try {
+      body = await readJsonBody(req);
+    } catch (e) {
+      body = {};
+    }
+
+    const barbers = readJsonFile(BARBERS_FILE, DEFAULT_BARBERS);
+    let collectorBarberId = shiftCtx.barberId;
+    let collectorBarberName = shiftCtx.barberName;
+
+    // Si un ADMIN (sin estacion propia) confirma el pedido, adjudicar al barbero en turno indicado o al preferido del pedido si esta en turno
+    if (!collectorBarberId) {
+      const candidateId = body.barberId || orders[idx].preferredBarberId;
+      if (candidateId) {
+        const candidateBarber = barbers.find((b) => b.id === candidateId && b.active !== false);
+        if (candidateBarber) {
+          collectorBarberId = candidateBarber.id;
+          collectorBarberName = candidateBarber.name;
+        }
+      }
+    }
+
     const nowCol = new Date(Date.now() - (5 * 60 * 60 * 1000));
     const deliveredDate = nowCol.toISOString().split('T')[0];
 
     orders[idx].status = 'ENTREGADO';
     orders[idx].deliveredAt = new Date().toISOString();
     orders[idx].deliveredDate = deliveredDate;
-    orders[idx].deliveredBy = authUser.username;
+    orders[idx].deliveredBy = shiftCtx.user.username;
+    orders[idx].deliveredByBarberId = collectorBarberId;
+    orders[idx].deliveredByName = collectorBarberName;
 
     writeJsonFileAtomic(STORE_ORDERS_FILE, orders);
 
@@ -1868,6 +2069,16 @@ const server = http.createServer(async (req, res) => {
       res.statusCode = 401;
       res.setHeader('Content-Type', 'application/json; charset=utf-8');
       res.end(JSON.stringify({ error: 'Debes iniciar sesion para cancelar un pedido y restaurar el stock.' }));
+      return;
+    }
+
+    const shiftCtx = getActiveBarberShiftContext(authUser);
+    if (!shiftCtx.onShift) {
+      res.statusCode = 403;
+      res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      res.end(JSON.stringify({
+        error: 'Accion bloqueada: Tu estacion figura FUERA DE TURNO. Solo personal activo en turno puede cancelar pedidos.'
+      }));
       return;
     }
 
@@ -1906,7 +2117,8 @@ const server = http.createServer(async (req, res) => {
 
     orders[idx].status = 'CANCELADO';
     orders[idx].cancelledAt = new Date().toISOString();
-    orders[idx].cancelledBy = authUser.username;
+    orders[idx].cancelledBy = shiftCtx.user.username;
+    orders[idx].cancelledByName = shiftCtx.barberName;
 
     writeJsonFileAtomic(STORE_ORDERS_FILE, orders);
 

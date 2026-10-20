@@ -9,12 +9,12 @@ export function renderAuthModal() {
         
         <!-- Botón Cerrar -->
         <button id="btn-close-auth" class="absolute top-4 right-4 text-[#a39f97] hover:text-[#f7f4ef] p-1.5 transition-colors">
-          ✕
+          &times;
         </button>
 
         <div class="text-center mb-6">
           <div class="w-12 h-12 rounded-full border border-[#d4af37]/40 mx-auto mb-3 flex items-center justify-center bg-[#141311]">
-            <span class="text-lg text-[#d4af37]">🔐</span>
+            <span class="text-xs text-[#d4af37] font-bold">SEG</span>
           </div>
           <h3 class="font-editorial text-2xl font-bold text-[#f7f4ef]">Acceso de Personal</h3>
           <p class="text-xs text-[#a39f97] mt-1">Ingresa con tus credenciales asignadas por el Administrador.</p>
@@ -27,7 +27,7 @@ export function renderAuthModal() {
               type="text" 
               id="login-username" 
               required 
-              placeholder="Ej: maestro.lopez / carlos.junior"
+              placeholder="Ej: david.barber / matta.barber"
               class="w-full bg-[#141311] border border-[#d4af37]/25 rounded-xl px-4 py-2.5 text-sm text-[#f7f4ef] focus:outline-none focus:border-[#d4af37]">
           </div>
 
@@ -48,20 +48,20 @@ export function renderAuthModal() {
           </button>
         </form>
 
-        <!-- Accesos rápidos preconfigurados para demostración -->
+        <!-- Accesos directos preconfigurados -->
         <div class="mt-6 pt-5 border-t border-[#d4af37]/15">
           <span class="block text-[10px] uppercase tracking-wider text-[#6e6a62] font-semibold text-center mb-2.5">
-            Credenciales de Prueba (Clic para autocompletar):
+            Credenciales del Personal:
           </span>
           <div class="flex flex-wrap gap-2 justify-center">
-            <button type="button" class="quick-fill-btn text-[11px] px-2.5 py-1 rounded-full bg-[#141311] border border-[#d4af37]/20 text-[#a39f97] hover:border-[#d4af37]" data-u="maestro.lopez" data-p="lopez2026">
-              👑 Maestro Lopez (Jefe)
+            <button type="button" class="quick-fill-btn text-[11px] px-2.5 py-1 rounded-full bg-[#141311] border border-[#d4af37]/20 text-[#a39f97] hover:border-[#d4af37]" data-u="david.barber" data-p="david2026">
+              David (Barbero Jefe)
             </button>
-            <button type="button" class="quick-fill-btn text-[11px] px-2.5 py-1 rounded-full bg-[#141311] border border-[#d4af37]/20 text-[#a39f97] hover:border-[#d4af37]" data-u="carlos.junior" data-p="junior2026">
-              💈 Carlos (Practicante)
+            <button type="button" class="quick-fill-btn text-[11px] px-2.5 py-1 rounded-full bg-[#141311] border border-[#d4af37]/20 text-[#a39f97] hover:border-[#d4af37]" data-u="matta.barber" data-p="matta2026">
+              Maicol Matta (Barbero)
             </button>
             <button type="button" class="quick-fill-btn text-[11px] px-2.5 py-1 rounded-full bg-[#141311] border border-[#d4af37]/20 text-[#a39f97] hover:border-[#d4af37]" data-u="admin" data-p="admin2026">
-              🕵️ Administrador (Incógnito)
+              Administrador
             </button>
           </div>
         </div>
