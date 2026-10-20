@@ -2095,74 +2095,48 @@ async findAllProducts() {
       mainContent = `
         <section class="max-w-[1240px] mx-auto px-6 md:px-12 py-12 font-sans-ui">
           
-          <!-- Encabezado Editorial de la Tienda -->
-          <div class="flex flex-col md:flex-row items-start md:items-end justify-between gap-6 mb-10 pb-8 border-b border-[rgba(212,175,55,0.22)]">
-            <div class="flex items-start gap-4 sm:gap-5">
-              <div class="relative shrink-0 hidden sm:block mt-1">
-                <div class="absolute inset-0 rounded-full bg-[#d4af37]/20 blur-md"></div>
-                <img 
-                  src="./logo_barberia_lopez_hd.jpg" 
-                  alt="Logo Tienda Barberia Lopez" 
-                  class="relative w-16 h-16 sm:w-20 sm:h-20 rounded-full object-cover border-2 border-[rgba(212,175,55,0.45)] shadow-[0_0_20px_rgba(212,175,55,0.2)]"
-                  onerror="this.src='./logo_barberia_lopez.png'"
-                >
-              </div>
+          <!-- Encabezado Editorial de la Tienda (Limpio y Minimalista) -->
+          <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8 pb-6 border-b border-[rgba(212,175,55,0.2)]">
+            <div class="flex items-center gap-3.5">
+              <img 
+                src="./logo_barberia_lopez_hd.jpg" 
+                alt="Logo Tienda Barberia Lopez" 
+                class="w-12 h-12 sm:w-14 sm:h-14 rounded-full object-cover border border-[rgba(212,175,55,0.4)] shadow-[0_0_15px_rgba(212,175,55,0.2)] shrink-0"
+                onerror="this.src='./logo_barberia_lopez.png'"
+              >
               <div>
-                <div class="inline-flex items-center gap-2 mb-2 px-3.5 py-1 rounded-full bg-[#181c24] border border-[rgba(212,175,55,0.35)] text-[#f3e5ab] text-xs font-semibold tracking-wider uppercase">
-                  <span class="w-2 h-2 rounded-full bg-[#d4af37] shadow-[0_0_8px_#d4af37]"></span>
-                  <span>BOUTIQUE OFICIAL · PAGO EXCLUSIVO EN EFECTIVO</span>
-                </div>
-                <h1 class="type-display-editorial text-[32px] sm:text-[46px] leading-[1.05] text-[#ffffff] tracking-tight">
-                  Tienda & Cuidado Masculino
+                <h1 class="font-serif-editorial text-2xl sm:text-3xl text-[#ffffff] tracking-tight leading-tight">
+                  Tienda Oficial López
                 </h1>
-                <p class="font-serif-editorial text-[#c5c0b6] max-w-2xl text-[16px] sm:text-[18px] mt-2 leading-relaxed">
-                  Compra estando en la barberia o aparta desde casa. El sistema genera una <strong>Referencia Unica de Pago (REF-BL-XXXX)</strong> y separa tus unidades del inventario para que pagues en efectivo al barbero en turno.
+                <p class="font-sans-ui text-xs sm:text-sm text-[#d4af37] font-medium mt-0.5">
+                  Aparta en línea y paga en efectivo en la barbería.
                 </p>
               </div>
             </div>
-            <button type="button" id="btn-store-back-home" class="btn-stone-outline text-xs font-semibold py-2.5 px-5 whitespace-nowrap cursor-pointer">
-              ← Volver a la agenda de cortes
+            <button type="button" id="btn-store-back-home" class="btn-stone-outline text-xs font-semibold py-2 px-4 whitespace-nowrap cursor-pointer self-stretch sm:self-auto text-center">
+              ← Volver a la agenda
             </button>
           </div>
 
-          <!-- BANDA INFORMATIVA DEL PROTOCOLO ANTI-ROBO Y ESCENARIOS DE COMPRA -->
-          <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-            <div class="bg-[#12151b] border border-[rgba(212,175,55,0.25)] rounded-[16px] p-5">
-              <div class="text-xs font-mono-tech font-bold text-[#d4af37] uppercase tracking-wider mb-1">ESCENARIO 01 · DESDE CASA O EN CAMINO</div>
-              <p class="text-xs text-[#c5c0b6] leading-relaxed">Aparta tu producto en línea antes de llegar. El stock se descuenta de inmediato y tu referencia <strong>REF-BL-XXXX</strong> queda guardada para reclamar en el local.</p>
-            </div>
-            <div class="bg-[#12151b] border border-[rgba(212,175,55,0.25)] rounded-[16px] p-5">
-              <div class="text-xs font-mono-tech font-bold text-[#d4af37] uppercase tracking-wider mb-1">ESCENARIO 02 · CLIENTE EN LA BARBERÍA</div>
-              <p class="text-xs text-[#c5c0b6] leading-relaxed">Si estás en tu corte o en sala de espera, elige <strong>"Estoy en la barbería ahora mismo"</strong> y selecciona al barbero en turno que te está atendiendo.</p>
-            </div>
-            <div class="bg-[#12151b] border border-[rgba(212,175,55,0.25)] rounded-[16px] p-5">
-              <div class="text-xs font-mono-tech font-bold text-[#d4af37] uppercase tracking-wider mb-1">ESCENARIO 03 · PAGO Y VALIDACIÓN EN TURNO</div>
-              <p class="text-xs text-[#c5c0b6] leading-relaxed">Entrega el efectivo únicamente a un <strong>barbero activo en turno</strong>. Él validará tu referencia en el sistema para entregarte el producto.</p>
-            </div>
-          </div>
-
-          <!-- PANEL DEL CLIENTE: MIS PEDIDOS Y CONSULTA DE REFERENCIA ACTIVA -->
-          <div class="bg-[#12151b] border border-[rgba(212,175,55,0.3)] rounded-[18px] p-5 mb-8 shadow-lg">
-            <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
-              <div>
-                <div class="inline-flex items-center gap-2 mb-1">
-                  <span class="w-2 h-2 rounded-full bg-[#d4af37]"></span>
-                  <span class="text-xs font-mono-tech font-bold uppercase tracking-wider text-[#d4af37]">MIS REFERENCIAS Y ESTADO DE PEDIDOS</span>
-                </div>
-                <p class="text-xs text-[#c5c0b6]">
-                  Consulta el estado de tus productos apartados o busca tu comprobante ingresando tu código <strong>REF-BL-XXXX</strong> o tu número de WhatsApp.
-                </p>
+          <!-- PANEL DEL CLIENTE: CONSULTA DE PEDIDO -->
+          <div class="bg-[#12151b] border border-[rgba(212,175,55,0.25)] rounded-[16px] p-4 mb-8">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div class="flex items-center gap-2">
+                <span class="w-2 h-2 rounded-full bg-[#d4af37]"></span>
+                <span class="text-xs font-sans-ui font-semibold text-[#f3e5ab] uppercase tracking-wide">
+                  Consultar estado de pedido:
+                </span>
               </div>
-              <div class="flex items-center gap-2 w-full md:w-auto">
+              <div class="flex items-center gap-2 w-full sm:w-auto">
                 <input
                   type="text"
                   id="input-client-order-lookup"
-                  placeholder="Ej. REF-BL-XXXX o tu celular"
+                  placeholder="Código REF-BL-XXXX o celular"
                   value="${escapeHtml(state.clientOrderLookup || '')}"
-                  class="input-parchment py-2 px-3 text-xs font-mono-tech w-full md:w-64"
+                  class="input-parchment py-1.5 px-3 text-xs font-mono-tech w-full sm:w-64"
                 >
                 ${state.clientOrderLookup ? `
-                  <button type="button" id="btn-clear-client-lookup" class="btn-stone-outline py-2 px-3 text-xs cursor-pointer">Limpiar</button>
+                  <button type="button" id="btn-clear-client-lookup" class="btn-stone-outline py-1.5 px-3 text-xs cursor-pointer">Limpiar</button>
                 ` : ''}
               </div>
             </div>
