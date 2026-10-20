@@ -561,17 +561,22 @@
     }
 
     async findAllUsers() {
+      const localUsers = this._get('blopez_users') || [];
       try {
         const res = await fetch('/api/users');
         if (res.ok) {
           const serverUsers = await res.json();
           if (Array.isArray(serverUsers)) {
-            this._set('blopez_users', serverUsers);
-            return serverUsers;
+            const map = new Map();
+            localUsers.forEach((u) => { if (u && u.id) map.set(u.id, u); });
+            serverUsers.forEach((u) => { if (u && u.id) map.set(u.id, { ...(map.get(u.id) || {}), ...u }); });
+            const merged = Array.from(map.values());
+            this._set('blopez_users', merged);
+            return merged;
           }
         }
       } catch (e) {}
-      return this._get('blopez_users');
+      return localUsers;
     }
 
     async deleteUser(userId) {
@@ -599,17 +604,22 @@
     }
 
     async findAllBarbers() {
+      const localBarbers = this._get('blopez_barbers') || [];
       try {
         const res = await fetch('/api/barbers');
         if (res.ok) {
           const serverBarbers = await res.json();
           if (Array.isArray(serverBarbers)) {
-            this._set('blopez_barbers', serverBarbers);
-            return serverBarbers;
+            const map = new Map();
+            localBarbers.forEach((b) => { if (b && b.id) map.set(b.id, b); });
+            serverBarbers.forEach((b) => { if (b && b.id) map.set(b.id, { ...(map.get(b.id) || {}), ...b }); });
+            const merged = Array.from(map.values());
+            this._set('blopez_barbers', merged);
+            return merged;
           }
         }
       } catch (e) {}
-      return this._get('blopez_barbers');
+      return localBarbers;
     }
 
     async saveBarber(barber) {
@@ -717,17 +727,31 @@
     }
 
     async findAllAppointments() {
+      const localList = this._get('blopez_appointments') || [];
       try {
         const res = await fetch('/api/appointments');
         if (res.ok) {
           const serverList = await res.json();
           if (Array.isArray(serverList)) {
-            this._set('blopez_appointments', serverList);
-            return serverList;
+            const map = new Map();
+            localList.forEach((a) => { if (a && a.id) map.set(a.id, a); });
+            serverList.forEach((a) => {
+              if (a && a.id) {
+                const local = map.get(a.id);
+                if (local && local.status === 'COMPLETADA' && a.status !== 'COMPLETADA') {
+                  map.set(a.id, { ...a, status: 'COMPLETADA' });
+                } else {
+                  map.set(a.id, { ...(local || {}), ...a });
+                }
+              }
+            });
+            const merged = Array.from(map.values());
+            this._set('blopez_appointments', merged);
+            return merged;
           }
         }
       } catch (e) {}
-      return this._get('blopez_appointments');
+      return localList;
     }
 
     async saveAppointment(appt) {
@@ -808,17 +832,39 @@
     }
 
     async findAllCutHistory() {
+      const localHistory = this._get('blopez_history') || [];
       try {
         const res = await fetch('/api/history');
         if (res.ok) {
           const serverHistory = await res.json();
           if (Array.isArray(serverHistory)) {
-            this._set('blopez_history', serverHistory);
-            return serverHistory;
+            const map = new Map();
+            localHistory.forEach((h) => {
+              const k = h.id || h.appointmentId;
+              if (k) map.set(k, h);
+            });
+            serverHistory.forEach((h) => {
+              const k = h.id || h.appointmentId;
+              if (k) map.set(k, { ...(map.get(k) || {}), ...h });
+            });
+            const merged = Array.from(map.values());
+            this._set('blopez_history', merged);
+            const serverKeys = new Set(serverHistory.map((h) => h.id || h.appointmentId));
+            const missingOnServer = localHistory.filter((h) => !serverKeys.has(h.id || h.appointmentId));
+            if (missingOnServer.length > 0 && this._getAuthHeaders().Authorization) {
+              for (const cut of missingOnServer) {
+                fetch('/api/history', {
+                  method: 'POST',
+                  headers: this._getAuthHeaders(),
+                  body: JSON.stringify(cut)
+                }).catch(() => {});
+              }
+            }
+            return merged;
           }
         }
       } catch (e) {}
-      return this._get('blopez_history');
+      return localHistory;
     }
 
 
@@ -3916,6 +3962,12 @@ async findAllProducts() {
           btn.style.opacity = '';
           btn.textContent = 'Finalizar corte y guardar en historial ->';
           alert(err.message);
+        } finally {
+          const submitBtn = formCreateBarber.querySelector('button[type="submit"]');
+          if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Crear cuenta de barbero →';
+          }
         }
       };
     });
@@ -4024,6 +4076,11 @@ async findAllProducts() {
     if (formCreateBarber) {
       formCreateBarber.onsubmit = async (e) => {
         e.preventDefault();
+        const submitBtn = formCreateBarber.querySelector('button[type="submit"]');
+        if (submitBtn) {
+          submitBtn.disabled = true;
+          submitBtn.textContent = 'Creando cuenta...';
+        }
         try {
           await manageUsersUseCase.createBarber({
             adminUser: state.currentUser,

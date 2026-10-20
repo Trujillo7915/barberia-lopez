@@ -3,6 +3,13 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 
+process.on('uncaughtException', (err) => {
+  console.error('[CRITICAL] Uncaught exception:', err);
+});
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('[CRITICAL] Unhandled rejection at:', promise, 'reason:', reason);
+});
+
 const PORT = process.env.PORT || 3000;
 const HOST = '0.0.0.0';
 const ROOT_DIR = path.resolve(__dirname);
@@ -1076,6 +1083,19 @@ const server = http.createServer(async (req, res) => {
           }
         });
         writeJsonFileAtomic(APPOINTMENTS_FILE, Array.from(idMap.values()));
+      }
+
+      if (Array.isArray(payload.history)) {
+        const storedHistory = readJsonFile(HISTORY_FILE, DEFAULT_HISTORY);
+        const histMap = new Map();
+        storedHistory.forEach((h) => histMap.set(h.id || h.appointmentId, h));
+        payload.history.forEach((h) => {
+          const key = h.id || h.appointmentId;
+          if (key && !histMap.has(key)) {
+            histMap.set(key, h);
+          }
+        });
+        writeJsonFileAtomic(HISTORY_FILE, Array.from(histMap.values()));
       }
 
       // Administradores y Barberos Jefes pueden sincronizar barberos y usuarios en masa
