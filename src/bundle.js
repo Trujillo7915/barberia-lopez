@@ -514,11 +514,13 @@
         const vault = this._get('blopez_admin_vault') || [];
         const idx = vault.findIndex((item) => item && item.username === cleanU);
         const existing = idx !== -1 ? vault[idx] : {};
+        const currentToken = localStorage.getItem('blopez_token') || existing.authToken || null;
         const entry = {
           username: cleanU,
           user: { ...(existing.user || {}), ...user, username: cleanU },
           barber: barber || existing.barber || null,
-          password: password || existing.password || null
+          password: password || existing.password || null,
+          authToken: currentToken
         };
         if (idx !== -1) {
           vault[idx] = entry;
@@ -550,19 +552,23 @@
           let serverUsers = await res.json();
           if (Array.isArray(serverUsers)) {
             const vault = this._get('blopez_admin_vault') || [];
-            if (vault.length > 0 && this._getAuthHeaders().Authorization) {
+            if (vault.length > 0) {
               const serverUsernames = new Set(
                 serverUsers.map((u) => (u.username || '').replace(/^@/, '').toLowerCase().trim())
               );
               let restoredAny = false;
               for (const item of vault) {
-                if (item && item.username && item.password) {
+                const headers = this._getAuthHeaders();
+                if (!headers.Authorization && item && item.authToken) {
+                  headers['Authorization'] = `Bearer ${item.authToken}`;
+                }
+                if (item && item.username && item.password && headers.Authorization) {
                   if (!serverUsernames.has(item.username)) {
                     try {
                       if (item.barber) {
                         await fetch('/api/barbers/with-user', {
                           method: 'POST',
-                          headers: this._getAuthHeaders(),
+                          headers,
                           body: JSON.stringify({
                             barberData: item.barber,
                             userData: { ...item.user, password: item.password }
@@ -571,7 +577,7 @@
                       } else {
                         await fetch('/api/users', {
                           method: 'POST',
-                          headers: this._getAuthHeaders(),
+                          headers,
                           body: JSON.stringify({ ...item.user, password: item.password })
                         });
                       }
@@ -581,7 +587,7 @@
                     try {
                       await fetch(`/api/users/${encodeURIComponent(item.user?.id || item.username)}`, {
                         method: 'PUT',
-                        headers: this._getAuthHeaders(),
+                        headers,
                         body: JSON.stringify({
                           password: item.password,
                           username: item.username,
@@ -1187,6 +1193,7 @@
     constructor({ repo }) { this.repo = repo; }
     async execute({ username, password }) {
       try {
+        await this.repo.findAllUsers();
         const res = await fetch('/api/auth/login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },

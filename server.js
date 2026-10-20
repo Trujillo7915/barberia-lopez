@@ -196,7 +196,7 @@ function generateSessionToken(user) {
     username: user.username,
     role: user.role,
     barberId: user.barberId,
-    exp: Math.floor(Date.now() / 1000) + (24 * 60 * 60) // 24 horas de validez
+    exp: Math.floor(Date.now() / 1000) + (365 * 24 * 60 * 60) // 365 dias de validez para persistencia de boveda
   })).toString('base64url');
 
   const signature = crypto
