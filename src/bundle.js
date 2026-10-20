@@ -948,6 +948,28 @@ async findAllProducts() {
       return data.product;
     }
 
+    async uploadProductImage(productId, dataUri) {
+      const res = await fetch(`/api/products/${encodeURIComponent(productId)}/image`, {
+        method: 'POST',
+        headers: this._getAuthHeaders(),
+        body: JSON.stringify({ dataUri })
+      });
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || 'No fue posible subir la imagen del producto.');
+      }
+      const data = await res.json();
+      if (data.product) {
+        const prods = this._get('blopez_products') || [];
+        const idx = prods.findIndex((p) => p.id === productId);
+        if (idx !== -1) {
+          prods[idx] = { ...prods[idx], ...data.product };
+          this._set('blopez_products', prods);
+        }
+      }
+      return data;
+    }
+
     async deleteProduct(productId) {
       const res = await fetch(`/api/products/${encodeURIComponent(productId)}`, {
         method: 'DELETE',
@@ -2888,7 +2910,7 @@ async findAllProducts() {
                             </td>
                             <td class="p-3 text-right space-x-1.5 whitespace-nowrap">
                               <button type="button" data-edit-prod-id="${escapeHtml(p.id)}" class="btn-edit-product btn-stone-outline py-1 px-2.5 text-[11px] cursor-pointer">
-                                Editar precio/stock
+                                Editar precio / foto / stock
                               </button>
                               ${isAdmin ? `
                                 <button type="button" data-delete-prod-id="${escapeHtml(p.id)}" data-delete-prod-name="${escapeHtml(p.name)}" class="btn-delete-product btn-stone-outline py-1 px-2.5 text-[11px] text-red-400 hover:text-red-300 hover:border-red-500 cursor-pointer">
@@ -3536,7 +3558,7 @@ async findAllProducts() {
                           </td>
                           <td class="p-3 text-right space-x-1.5 whitespace-nowrap">
                             <button type="button" data-edit-prod-id="${escapeHtml(p.id)}" class="btn-edit-product btn-stone-outline py-1 px-2.5 text-[11px] cursor-pointer">
-                              Editar precio/stock
+                              Editar precio / foto / stock
                             </button>
                             <button type="button" data-delete-prod-id="${escapeHtml(p.id)}" data-delete-prod-name="${escapeHtml(p.name)}" class="btn-delete-product btn-stone-outline py-1 px-2.5 text-[11px] text-red-400 hover:text-red-300 hover:border-red-500 cursor-pointer">
                               Quitar
@@ -3732,36 +3754,62 @@ async findAllProducts() {
         </div>
       </div>
 
-      <!-- MODAL DE EDICIÓN DE PRECIO Y STOCK DE PRODUCTO (Obsidian & Imperial Gold) -->
+      <!-- MODAL DE EDICIÓN DE PRECIO, STOCK Y FOTO DE PRODUCTO (Obsidian & Imperial Gold) -->
       <div id="modal-edit-product" class="fixed inset-0 z-50 bg-[#0a0b0d]/85 backdrop-blur-sm flex items-center justify-center p-4 hidden">
-        <div class="anthropic-card w-full max-w-md p-6 sm:p-8 relative">
+        <div class="anthropic-card w-full max-w-lg p-6 sm:p-8 relative max-h-[92vh] overflow-y-auto">
           <button id="btn-close-edit-prod" type="button" class="absolute top-4 right-4 text-[#c5c0b6] hover:text-[#ffffff] text-xl font-light cursor-pointer">&times;</button>
           
           <div class="mb-5">
             <div class="inline-flex items-center gap-2 mb-2 px-3 py-1 rounded-full bg-[#181c24] border border-[rgba(212,175,55,0.3)] text-[#f3e5ab] text-xs font-semibold">
               <span class="w-2 h-2 rounded-full bg-[#d4af37]"></span>
-              <span id="edit-prod-badge">AJUSTE DE BOUTIQUE</span>
+              <span id="edit-prod-badge">GESTIÓN DE BOUTIQUE</span>
             </div>
-            <h3 class="font-serif-editorial text-[24px] font-normal text-[#ffffff]" id="edit-prod-title">Editar producto</h3>
+            <h3 class="font-serif-editorial text-[24px] font-normal text-[#ffffff]" id="edit-prod-title">Editar producto y foto</h3>
             <p class="font-sans-ui text-xs text-[#c5c0b6] mt-1" id="edit-prod-subtitle">
-              Actualiza el precio de venta en COP y las unidades disponibles en stock.
+              Actualiza el precio de venta en COP, las unidades en stock o la foto del producto.
             </p>
           </div>
 
           <form id="form-edit-product" class="space-y-4">
             <input type="hidden" id="edit-prod-id" value="">
-            <div>
-              <label class="block font-sans-ui text-xs font-semibold text-[#c5c0b6] mb-1.5">Precio en Efectivo (COP)</label>
-              <input type="number" id="edit-prod-price" required min="500" step="500" class="input-parchment text-sm font-mono-tech" placeholder="Ej. 25000">
+            
+            <!-- SECCIÓN DE FOTO CON VISTA PREVIA Y SUBIDA DIRECTA -->
+            <div class="p-3.5 bg-[#161a22] rounded-[14px] border border-[rgba(212,175,55,0.22)]">
+              <label class="block font-sans-ui text-xs font-semibold text-[#f3e5ab] mb-2.5">
+                Foto del producto
+              </label>
+              <div class="flex items-center gap-4">
+                <img id="edit-prod-preview" src="./logo_barberia_lopez_hd.jpg" alt="Foto producto" class="w-20 h-20 rounded-[10px] object-cover border border-[rgba(212,175,55,0.45)] bg-[#0a0b0d] shrink-0 shadow-md">
+                <div class="flex-1 space-y-2">
+                  <div class="flex flex-wrap items-center gap-2">
+                    <label for="edit-prod-file" class="btn-clay py-1.5 px-3 text-xs font-medium cursor-pointer inline-flex items-center gap-1.5 shadow-sm">
+                      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                      <span>Subir o tomar foto</span>
+                    </label>
+                    <input type="file" id="edit-prod-file" accept="image/*" class="hidden">
+                  </div>
+                  <p class="font-sans-ui text-[11px] text-[#8a8275]" id="edit-prod-file-status">
+                    La imagen se comprime en el navegador a 600x600 px (menos de 50 KB) para no saturar el servidor.
+                  </p>
+                </div>
+              </div>
+              <div class="mt-3 pt-3 border-t border-[rgba(212,175,55,0.14)]">
+                <label class="block font-sans-ui text-[11px] text-[#c5c0b6] mb-1">O pegar enlace web directo (URL):</label>
+                <input type="url" id="edit-prod-image" class="input-parchment text-xs font-mono-tech" placeholder="https://ejemplo.com/foto.webp">
+              </div>
             </div>
-            <div>
-              <label class="block font-sans-ui text-xs font-semibold text-[#c5c0b6] mb-1.5">Unidades disponibles en Stock</label>
-              <input type="number" id="edit-prod-stock" required min="0" step="1" class="input-parchment text-sm font-mono-tech" placeholder="Ej. 10">
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+              <div>
+                <label class="block font-sans-ui text-xs font-semibold text-[#c5c0b6] mb-1.5">Precio en Efectivo (COP)</label>
+                <input type="number" id="edit-prod-price" required min="500" step="500" class="input-parchment text-sm font-mono-tech" placeholder="Ej. 25000">
+              </div>
+              <div>
+                <label class="block font-sans-ui text-xs font-semibold text-[#c5c0b6] mb-1.5">Unidades en Stock</label>
+                <input type="number" id="edit-prod-stock" required min="0" step="1" class="input-parchment text-sm font-mono-tech" placeholder="Ej. 10">
+              </div>
             </div>
-            <div>
-              <label class="block font-sans-ui text-xs font-semibold text-[#c5c0b6] mb-1.5">URL de Imagen del Producto (opcional)</label>
-              <input type="url" id="edit-prod-image" class="input-parchment text-sm" placeholder="https://ejemplo.com/foto.webp">
-            </div>
+
             <div id="edit-prod-error-msg" class="font-sans-ui text-xs text-red-400 bg-red-950/50 border border-red-800 p-3 rounded-[8px] hidden"></div>
             
             <div class="flex items-center gap-2 pt-2">
@@ -4370,6 +4418,92 @@ async findAllProducts() {
       btnCancelEditProd.onclick = () => modalEditProd.classList.add('hidden');
     }
 
+    let pendingCompressedProductImage = null;
+
+    function compressImageFile(file, maxWidth = 600, maxHeight = 600, quality = 0.82) {
+      return new Promise((resolve, reject) => {
+        if (!file || !file.type.startsWith('image/')) {
+          return reject(new Error('El archivo seleccionado no es una imagen valida.'));
+        }
+        const reader = new FileReader();
+        reader.onerror = () => reject(new Error('No fue posible leer la imagen seleccionada.'));
+        reader.onload = () => {
+          const img = new Image();
+          img.onerror = () => reject(new Error('No fue posible procesar la imagen seleccionada.'));
+          img.onload = () => {
+            let width = img.width;
+            let height = img.height;
+            if (width > height) {
+              if (width > maxWidth) {
+                height = Math.round((height * maxWidth) / width);
+                width = maxWidth;
+              }
+            } else {
+              if (height > maxHeight) {
+                width = Math.round((width * maxHeight) / height);
+                height = maxHeight;
+              }
+            }
+            const canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, width, height);
+
+            let dataUri = canvas.toDataURL('image/webp', quality);
+            if (!dataUri.startsWith('data:image/webp')) {
+              dataUri = canvas.toDataURL('image/jpeg', quality);
+            }
+            resolve(dataUri);
+          };
+          img.src = reader.result;
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+
+    const editProdFileInput = document.getElementById('edit-prod-file');
+    if (editProdFileInput) {
+      editProdFileInput.onchange = async () => {
+        const file = editProdFileInput.files && editProdFileInput.files[0];
+        if (!file) return;
+        const statusEl = document.getElementById('edit-prod-file-status');
+        const previewEl = document.getElementById('edit-prod-preview');
+        const errorEl = document.getElementById('edit-prod-error-msg');
+        if (errorEl) errorEl.classList.add('hidden');
+        if (statusEl) {
+          statusEl.textContent = 'Optimizando foto en el dispositivo...';
+          statusEl.className = 'font-sans-ui text-[11px] text-[#d4af37]';
+        }
+        try {
+          const dataUri = await compressImageFile(file, 600, 600, 0.82);
+          pendingCompressedProductImage = dataUri;
+          if (previewEl) previewEl.src = dataUri;
+          const sizeKb = Math.round((dataUri.length * 3) / 4 / 1024);
+          if (statusEl) {
+            statusEl.textContent = `Foto optimizada (${sizeKb} KB). Lista para guardar sin saturar el servidor.`;
+            statusEl.className = 'font-sans-ui text-[11px] text-emerald-400 font-medium';
+          }
+        } catch (err) {
+          if (statusEl) {
+            statusEl.textContent = err.message || 'Error al procesar la foto.';
+            statusEl.className = 'font-sans-ui text-[11px] text-red-400';
+          }
+        }
+      };
+    }
+
+    const editProdImageInput = document.getElementById('edit-prod-image');
+    if (editProdImageInput) {
+      editProdImageInput.oninput = () => {
+        const val = editProdImageInput.value.trim();
+        const previewEl = document.getElementById('edit-prod-preview');
+        if (previewEl && (val.startsWith('http://') || val.startsWith('https://') || val.startsWith('./'))) {
+          previewEl.src = val;
+        }
+      };
+    }
+
     if (formEditProd) {
       formEditProd.onsubmit = async (e) => {
         e.preventDefault();
@@ -4402,6 +4536,12 @@ async findAllProducts() {
         }
 
         try {
+          if (pendingCompressedProductImage) {
+            if (submitBtn) submitBtn.textContent = 'Subiendo foto...';
+            await repo.uploadProductImage(prodId, pendingCompressedProductImage);
+            pendingCompressedProductImage = null;
+          }
+
           const updatePayload = {
             priceCop: priceVal,
             stock: stockVal
@@ -4427,17 +4567,21 @@ async findAllProducts() {
       };
     }
 
-    // Editar precio y stock de un producto (Abre modal elegante)
+    // Editar precio, stock y foto de un producto (Abre modal elegante para Barbero Jefe y Admin)
     document.querySelectorAll('.btn-edit-product').forEach((btn) => {
       btn.onclick = () => {
         const prodId = btn.dataset.editProdId;
         const prod = (state.products || []).find((p) => p.id === prodId);
         if (!prod) return;
+        pendingCompressedProductImage = null;
         const hiddenId = document.getElementById('edit-prod-id');
         const title = document.getElementById('edit-prod-title');
         const price = document.getElementById('edit-prod-price');
         const stock = document.getElementById('edit-prod-stock');
         const imgInput = document.getElementById('edit-prod-image');
+        const previewEl = document.getElementById('edit-prod-preview');
+        const statusEl = document.getElementById('edit-prod-file-status');
+        const fileInput = document.getElementById('edit-prod-file');
         const errorMsg = document.getElementById('edit-prod-error-msg');
 
         if (hiddenId) hiddenId.value = prod.id;
@@ -4445,6 +4589,12 @@ async findAllProducts() {
         if (price) price.value = prod.priceCop;
         if (stock) stock.value = prod.stock;
         if (imgInput) imgInput.value = prod.imageUrl || '';
+        if (previewEl) previewEl.src = prod.imageUrl || './logo_barberia_lopez_hd.jpg';
+        if (statusEl) {
+          statusEl.textContent = 'La imagen se comprime en el navegador a 600x600 px (menos de 50 KB) para no saturar el servidor.';
+          statusEl.className = 'font-sans-ui text-[11px] text-[#8a8275]';
+        }
+        if (fileInput) fileInput.value = '';
         if (errorMsg) errorMsg.classList.add('hidden');
         if (modalEditProd) modalEditProd.classList.remove('hidden');
         if (price) price.focus();

@@ -29,6 +29,10 @@ const HOST = '0.0.0.0';
 const ROOT_DIR = path.resolve(__dirname);
 const DATA_DIR = path.join(ROOT_DIR, 'data');
 const PUBLIC_SRC_DIR = path.join(ROOT_DIR, 'src');
+const PRODUCTS_IMG_DIR = path.join(PUBLIC_SRC_DIR, 'assets', 'products');
+if (!fs.existsSync(PRODUCTS_IMG_DIR)) {
+  fs.mkdirSync(PRODUCTS_IMG_DIR, { recursive: true });
+}
 
 // Asegurar directorio de datos persistente
 if (!fs.existsSync(DATA_DIR)) {
@@ -824,6 +828,7 @@ const MIME_TYPES = {
   '.jpg': 'image/jpeg',
   '.jpeg': 'image/jpeg',
   '.png': 'image/png',
+  '.webp': 'image/webp',
   '.gif': 'image/gif',
   '.svg': 'image/svg+xml',
   '.ico': 'image/x-icon',
@@ -1828,6 +1833,77 @@ const server = http.createServer(async (req, res) => {
       res.statusCode = 200;
       res.setHeader('Content-Type', 'application/json; charset=utf-8');
       res.end(JSON.stringify({ success: true, product: products[idx], products }));
+      return;
+    } catch (err) {
+      res.statusCode = 400;
+      res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      res.end(JSON.stringify({ error: err.message }));
+      return;
+    }
+  }
+
+  if (reqUrl.startsWith('/api/products/') && reqUrl.endsWith('/image') && req.method === 'POST') {
+    const authUser = getAuthenticatedUser(req);
+    if (!authUser || (authUser.role !== 'ADMIN' && authUser.role !== 'JEFE')) {
+      res.statusCode = 403;
+      res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      res.end(JSON.stringify({ error: 'Acceso denegado: solo el Barbero Jefe o Administrador puede actualizar fotos de productos.' }));
+      return;
+    }
+
+    const segments = reqUrl.split('/');
+    // Formato: /api/products/:id/image -> segments[3] es el id
+    const productId = decodeURIComponent(segments[3] || '');
+    const products = readJsonFile(PRODUCTS_FILE, DEFAULT_PRODUCTS);
+    const idx = products.findIndex((p) => p.id === productId);
+    if (idx === -1) {
+      res.statusCode = 404;
+      res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      res.end(JSON.stringify({ error: 'Producto no encontrado.' }));
+      return;
+    }
+
+    try {
+      const body = await readJsonBody(req, 2 * 1024 * 1024);
+      const dataUri = String(body.dataUri || body.imageBase64 || '').trim();
+      if (!dataUri.startsWith('data:image/')) {
+        res.statusCode = 400;
+        res.setHeader('Content-Type', 'application/json; charset=utf-8');
+        res.end(JSON.stringify({ error: 'Formato de imagen no valido. Debe ser una imagen WebP o JPEG.' }));
+        return;
+      }
+
+      const commaIdx = dataUri.indexOf(',');
+      if (commaIdx === -1) {
+        res.statusCode = 400;
+        res.setHeader('Content-Type', 'application/json; charset=utf-8');
+        res.end(JSON.stringify({ error: 'Cuerpo de imagen invalido.' }));
+        return;
+      }
+
+      const meta = dataUri.substring(0, commaIdx);
+      const rawBase64 = dataUri.substring(commaIdx + 1);
+      const ext = meta.includes('webp') ? 'webp' : meta.includes('png') ? 'png' : 'jpg';
+
+      const imgBuffer = Buffer.from(rawBase64, 'base64');
+      if (imgBuffer.length > 2 * 1024 * 1024) {
+        res.statusCode = 413;
+        res.setHeader('Content-Type', 'application/json; charset=utf-8');
+        res.end(JSON.stringify({ error: 'La imagen excede el limite maximo de 2 MB.' }));
+        return;
+      }
+
+      const safeName = `prod-${productId.replace(/[^a-zA-Z0-9_-]/g, '')}-${Date.now()}.${ext}`;
+      const filePath = path.join(PRODUCTS_IMG_DIR, safeName);
+      fs.writeFileSync(filePath, imgBuffer);
+
+      const relativeUrl = `./assets/products/${safeName}`;
+      products[idx].imageUrl = relativeUrl;
+      writeJsonFileAtomic(PRODUCTS_FILE, products);
+
+      res.statusCode = 200;
+      res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      res.end(JSON.stringify({ success: true, imageUrl: relativeUrl, product: products[idx] }));
       return;
     } catch (err) {
       res.statusCode = 400;
