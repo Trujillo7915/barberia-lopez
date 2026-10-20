@@ -1688,6 +1688,20 @@ async findAllProducts() {
   const loginUseCase = new LoginUseCase({ repo });
   const manageUsersUseCase = new ManageUsersUseCase({ repo });
 
+  // Desvanecimiento suave del cargado inicial con logo oficial
+  function dismissPreloader() {
+    const pl = document.getElementById('page-preloader');
+    if (pl && !pl.classList.contains('preloader-hidden')) {
+      pl.classList.add('preloader-hidden');
+      setTimeout(() => {
+        if (pl && pl.parentNode) {
+          pl.parentNode.removeChild(pl);
+        }
+      }, 650);
+    }
+  }
+  window.dismissPagePreloader = dismissPreloader;
+
   // --- RENDERIZADO PRINCIPAL (JOSH WARNER — BLACK VOID GALLERY WALL) ---
   async function renderApp() {
     const root = document.getElementById('app-root');
@@ -2023,17 +2037,28 @@ async findAllProducts() {
           
           <!-- Encabezado Editorial de la Tienda -->
           <div class="flex flex-col md:flex-row items-start md:items-end justify-between gap-6 mb-10 pb-8 border-b border-[rgba(212,175,55,0.22)]">
-            <div>
-              <div class="inline-flex items-center gap-2 mb-3 px-3.5 py-1 rounded-full bg-[#181c24] border border-[rgba(212,175,55,0.35)] text-[#f3e5ab] text-xs font-semibold tracking-wider uppercase">
-                <span class="w-2 h-2 rounded-full bg-[#d4af37] shadow-[0_0_8px_#d4af37]"></span>
-                <span>BOUTIQUE OFICIAL · PAGO EXCLUSIVO EN EFECTIVO</span>
+            <div class="flex items-start gap-4 sm:gap-5">
+              <div class="relative shrink-0 hidden sm:block mt-1">
+                <div class="absolute inset-0 rounded-full bg-[#d4af37]/20 blur-md"></div>
+                <img 
+                  src="./logo_barberia_lopez_hd.jpg" 
+                  alt="Logo Tienda Barberia Lopez" 
+                  class="relative w-16 h-16 sm:w-20 sm:h-20 rounded-full object-cover border-2 border-[rgba(212,175,55,0.45)] shadow-[0_0_20px_rgba(212,175,55,0.2)]"
+                  onerror="this.src='./logo_barberia_lopez.png'"
+                >
               </div>
-              <h1 class="type-display-editorial text-[36px] sm:text-[48px] leading-[1.05] text-[#ffffff] tracking-tight">
-                Tienda & Cuidado Masculino
-              </h1>
-              <p class="font-serif-editorial text-[#c5c0b6] max-w-2xl text-[17px] sm:text-[19px] mt-2 leading-relaxed">
-                Compra estando en la barbería o aparta desde casa. El sistema genera una <strong>Referencia Única de Pago (REF-BL-XXXX)</strong> y separa tus unidades del inventario para que pagues en efectivo al barbero en turno.
-              </p>
+              <div>
+                <div class="inline-flex items-center gap-2 mb-2 px-3.5 py-1 rounded-full bg-[#181c24] border border-[rgba(212,175,55,0.35)] text-[#f3e5ab] text-xs font-semibold tracking-wider uppercase">
+                  <span class="w-2 h-2 rounded-full bg-[#d4af37] shadow-[0_0_8px_#d4af37]"></span>
+                  <span>BOUTIQUE OFICIAL · PAGO EXCLUSIVO EN EFECTIVO</span>
+                </div>
+                <h1 class="type-display-editorial text-[32px] sm:text-[46px] leading-[1.05] text-[#ffffff] tracking-tight">
+                  Tienda & Cuidado Masculino
+                </h1>
+                <p class="font-serif-editorial text-[#c5c0b6] max-w-2xl text-[16px] sm:text-[18px] mt-2 leading-relaxed">
+                  Compra estando en la barberia o aparta desde casa. El sistema genera una <strong>Referencia Unica de Pago (REF-BL-XXXX)</strong> y separa tus unidades del inventario para que pagues en efectivo al barbero en turno.
+                </p>
+              </div>
             </div>
             <button type="button" id="btn-store-back-home" class="btn-stone-outline text-xs font-semibold py-2.5 px-5 whitespace-nowrap cursor-pointer">
               ← Volver a la agenda de cortes
@@ -3678,6 +3703,7 @@ async findAllProducts() {
     if (state.confirmationModalData) {
       showConfirmationModal(state.confirmationModalData);
     }
+    dismissPreloader();
   }
 
   // --- EVENTOS INTERACTIVOS ---

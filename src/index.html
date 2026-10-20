@@ -35,14 +35,160 @@
     .booking-price-summary { background-color: #141820 !important; border: 1px solid rgba(212, 175, 55, 0.35) !important; border-radius: 14px !important; padding: 16px !important; margin-top: 16px !important; margin-bottom: 16px !important; }
     .input-parchment { background-color: #161a22 !important; border: 1px solid rgba(212, 175, 55, 0.25) !important; border-radius: 8px !important; color: #ffffff !important; font-size: 15px !important; padding: 12px 16px !important; width: 100% !important; outline: none !important; }
     .input-parchment:focus { border-color: #d4af37 !important; box-shadow: 0 0 0 2px rgba(212, 175, 55, 0.2) !important; }
+
+    /* Cargado de Pagina / Preloader con Logo Oficial de la Tienda y Barberia */
+    #page-preloader {
+      position: fixed;
+      inset: 0;
+      z-index: 99999;
+      background-color: #0a0b0d;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      transition: opacity 0.55s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.55s ease, transform 0.55s ease;
+      will-change: opacity, transform;
+    }
+    #page-preloader.preloader-hidden {
+      opacity: 0;
+      visibility: hidden;
+      transform: scale(1.025);
+      pointer-events: none;
+    }
+    .preloader-halo {
+      position: absolute;
+      width: 320px;
+      height: 320px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(212, 175, 55, 0.18) 0%, rgba(212, 175, 55, 0.04) 55%, transparent 75%);
+      filter: blur(35px);
+      pointer-events: none;
+      animation: preloaderHaloPulse 3s ease-in-out infinite;
+    }
+    .preloader-emblem-wrap {
+      position: relative;
+      width: 128px;
+      height: 128px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .preloader-orbit-ring {
+      position: absolute;
+      inset: -6px;
+      border-radius: 50%;
+      border: 2px solid rgba(212, 175, 55, 0.16);
+      border-top-color: #d4af37;
+      border-right-color: rgba(212, 175, 55, 0.7);
+      animation: preloaderSpin 1.8s cubic-bezier(0.4, 0.1, 0.4, 0.9) infinite;
+    }
+    .preloader-orbit-ring-secondary {
+      position: absolute;
+      inset: -13px;
+      border-radius: 50%;
+      border: 1px dashed rgba(212, 175, 55, 0.25);
+      animation: preloaderSpinReverse 6s linear infinite;
+    }
+    .preloader-logo-img {
+      width: 128px;
+      height: 128px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 1.5px solid rgba(212, 175, 55, 0.5);
+      box-shadow: 0 0 35px rgba(0, 0, 0, 0.9), 0 0 18px rgba(212, 175, 55, 0.22);
+      display: block;
+    }
+    .preloader-bar-track {
+      width: 200px;
+      max-width: 80vw;
+      height: 3px;
+      background-color: #171b24;
+      border-radius: 9999px;
+      overflow: hidden;
+      border: 1px solid rgba(212, 175, 55, 0.28);
+      position: relative;
+      margin-top: 22px;
+    }
+    .preloader-bar-fill {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      width: 45%;
+      border-radius: 9999px;
+      background: linear-gradient(90deg, #b38f28 0%, #ffd700 50%, #b38f28 100%);
+      box-shadow: 0 0 10px rgba(212, 175, 55, 0.7);
+      animation: preloaderSlide 1.6s ease-in-out infinite;
+    }
+    @keyframes preloaderSpin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+    @keyframes preloaderSpinReverse {
+      from { transform: rotate(360deg); }
+      to { transform: rotate(0deg); }
+    }
+    @keyframes preloaderSlide {
+      0% { left: -45%; }
+      50% { left: 35%; width: 55%; }
+      100% { left: 105%; width: 45%; }
+    }
+    @keyframes preloaderHaloPulse {
+      0%, 100% { transform: scale(0.92); opacity: 0.65; }
+      50% { transform: scale(1.18); opacity: 1; }
+    }
   </style>
 </head>
 <body class="bg-[#0a0b0d] text-[#f5f3ef] min-h-screen antialiased selection:bg-[#d4af37] selection:text-[#0a0b0d]">
 
-  <!-- Contenedor Raíz de la Aplicación -->
+  <!-- Cargado de Pagina Inicial con Logo Oficial de la Tienda y Barberia -->
+  <div id="page-preloader" aria-label="Cargando Barberia Lopez" role="status">
+    <div class="preloader-halo"></div>
+
+    <div class="preloader-emblem-wrap">
+      <div class="preloader-orbit-ring-secondary"></div>
+      <div class="preloader-orbit-ring"></div>
+      <img 
+        src="./logo_barberia_lopez_hd.jpg" 
+        alt="Barberia Lopez Tienda Oficial" 
+        class="preloader-logo-img"
+        onerror="this.src='./logo_barberia_lopez.png'"
+      >
+    </div>
+
+    <div class="mt-6 text-center flex flex-col items-center">
+      <div class="font-serif-editorial text-lg sm:text-2xl font-normal tracking-[0.24em] text-[#ffffff] uppercase">
+        Barberia Lopez
+      </div>
+      <div class="font-sans-ui text-[11px] sm:text-xs text-[#d4af37] tracking-[0.28em] uppercase mt-1.5 font-semibold">
+        Tienda Oficial & Barberia Clasica
+      </div>
+
+      <div class="preloader-bar-track">
+        <div class="preloader-bar-fill"></div>
+      </div>
+
+      <span class="font-sans-ui text-[10px] text-[#8a8275] tracking-wider uppercase mt-3">
+        Iniciando tienda, catalogo y agenda...
+      </span>
+    </div>
+  </div>
+
+  <!-- Contenedor Raiz de la Aplicacion -->
   <div id="app-root"></div>
 
-  <!-- Bundle Transaccional Autónomo -->
+  <script>
+    // Temporizador de seguridad: previene bloqueo si la conexion es lenta o estatica
+    setTimeout(function() {
+      var pl = document.getElementById('page-preloader');
+      if (pl && !pl.classList.contains('preloader-hidden')) {
+        pl.classList.add('preloader-hidden');
+        setTimeout(function() { if (pl && pl.parentNode) pl.parentNode.removeChild(pl); }, 600);
+      }
+    }, 4000);
+  </script>
+
+  <!-- Bundle Transaccional Autonomo -->
   <script src="./bundle.js"></script>
 </body>
 </html>
