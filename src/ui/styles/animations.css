@@ -1,7 +1,7 @@
 /* ==========================================================================
-   ANIMATIONS.CSS — Air Motion & Interaction Engine
+   ANIMATIONS.CSS — Air Motion & 3D Interactive Perspective Engine
    Inspirado en: Raycast Air Style (Midnight Sky through Glass Sculpture)
-   Curvas: Spring Physics, Atmospheric Float, Tactile Press, Glass Shimmer
+   Física: 3D Card Tilt, Gyroscopic Orbitals, Depth Layers, Spring Feedback
    ========================================================================== */
 
 :root {
@@ -20,16 +20,36 @@
 }
 
 /* ==========================================================================
-   1. KEYFRAMES DE ATMÓSFERA Y FÍSICA FLOTANTE (AIR SYSTEM)
+   1. ANIMACIONES Y KEYFRAMES TRIDIMENSIONALES (3D AIR ENGINE)
    ========================================================================== */
 
-/* Movimiento orgánico flotante para elementos insignia y logo */
-@keyframes air-float {
+/* Rotación orbital 3D en el eje X y Z (Anillo horizontal inclinado) */
+@keyframes air-3d-orbit-x {
+  0% {
+    transform: rotateX(68deg) rotateZ(0deg);
+  }
+  100% {
+    transform: rotateX(68deg) rotateZ(360deg);
+  }
+}
+
+/* Rotación orbital 3D en el eje Y y Z (Anillo transversal contragiro) */
+@keyframes air-3d-orbit-y {
+  0% {
+    transform: rotateY(62deg) rotateZ(0deg);
+  }
+  100% {
+    transform: rotateY(62deg) rotateZ(-360deg);
+  }
+}
+
+/* Levitación física 3D con cabeceo y balanceo espacial (Pitch & Roll) */
+@keyframes air-3d-levitate {
   0%, 100% {
-    transform: translateY(0px) scale(1);
+    transform: perspective(1000px) rotateX(4deg) rotateY(-4deg) translateY(0px) translateZ(0px);
   }
   50% {
-    transform: translateY(-8px) scale(1.015);
+    transform: perspective(1000px) rotateX(-4deg) rotateY(4deg) translateY(-10px) translateZ(18px);
   }
 }
 
@@ -41,8 +61,8 @@
     transform: scale(0.96);
   }
   50% {
-    opacity: 0.8;
-    filter: blur(130px);
+    opacity: 0.85;
+    filter: blur(135px);
     transform: scale(1.08);
   }
 }
@@ -51,23 +71,13 @@
 @keyframes air-reveal-up {
   0% {
     opacity: 0;
-    transform: translateY(16px) scale(0.985);
+    transform: perspective(1000px) translateY(18px) rotateX(6deg) scale(0.98);
     filter: blur(6px);
   }
   100% {
     opacity: 1;
-    transform: translateY(0) scale(1);
+    transform: perspective(1000px) translateY(0) rotateX(0deg) scale(1);
     filter: blur(0);
-  }
-}
-
-/* Reflejo especular que cruza tarjetas y botones (Glass Shimmer) */
-@keyframes air-shimmer-sweep {
-  0% {
-    background-position: -200% 0;
-  }
-  100% {
-    background-position: 200% 0;
   }
 }
 
@@ -75,40 +85,132 @@
 @keyframes air-modal-spring {
   0% {
     opacity: 0;
-    transform: scale(0.92) translateY(12px);
+    transform: perspective(800px) scale(0.9) translateY(20px) rotateX(8deg);
     filter: blur(8px);
   }
   100% {
     opacity: 1;
-    transform: scale(1) translateY(0);
+    transform: perspective(800px) scale(1) translateY(0) rotateX(0deg);
     filter: blur(0);
   }
 }
 
-/* Pulso interactivo sutil para franjas horarias y badges en turno */
-@keyframes air-slot-breath {
-  0%, 100% {
-    box-shadow: 0 0 0 0 rgba(212, 175, 55, 0.35);
-  }
-  50% {
-    box-shadow: 0 0 12px 2px rgba(212, 175, 55, 0.45);
-  }
+/* ==========================================================================
+   2. ESTRUCTURA Y COMPONENTES 3D (PRESERVE-3D & DEPTH LAYERS)
+   ========================================================================== */
+
+/* Contenedor con perspectiva espacial 3D */
+.air-3d-stage {
+  perspective: 1200px;
+  transform-style: preserve-3d;
+}
+
+/* Tarjeta interactiva con inclinación 3D */
+.air-3d-card,
+.anthropic-card,
+.store-order-card,
+.service-modal-choice,
+.barber-modal-choice {
+  transform-style: preserve-3d;
+  will-change: transform, box-shadow;
+  border-radius: var(--radius-cards, 12px) !important;
+  position: relative;
+  transition: transform var(--duration-swift) var(--ease-air-spring),
+              box-shadow var(--duration-swift) var(--ease-air-smooth),
+              border-color var(--duration-swift) var(--ease-air-smooth) !important;
+}
+
+/* Capas internas de profundidad espacial (Z-Index en el espacio 3D) */
+.air-3d-layer-base {
+  transform: translateZ(0px);
+}
+
+.air-3d-layer-mid {
+  transform: translateZ(16px);
+  transform-style: preserve-3d;
+}
+
+.air-3d-layer-pop {
+  transform: translateZ(32px);
+  transform-style: preserve-3d;
+  text-shadow: 0 4px 12px rgba(0, 0, 0, 0.7);
+}
+
+/* Brillo especular dinámico que sigue el cursor sobre el vidrio (Specular Glare) */
+.air-3d-glare-overlay {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.16) 0%, transparent 65%);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  z-index: 20;
+  mix-blend-mode: overlay;
+}
+
+.air-3d-card:hover .air-3d-glare-overlay,
+.anthropic-card:hover .air-3d-glare-overlay {
+  opacity: 1;
 }
 
 /* ==========================================================================
-   2. CLASES APLICATIVAS DE MOVIMIENTO Y MICROINTERACCIONES
+   3. EMBLEMA HERO 3D CON GIROSCOPIO ORBITAL
    ========================================================================== */
 
-/* Entrada escalonada de elementos al cargar o scrolear */
+.air-3d-hero-wrap {
+  perspective: 1200px;
+  transform-style: preserve-3d;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.air-3d-emblem-holder {
+  transform-style: preserve-3d;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  animation: air-3d-levitate 6s ease-in-out infinite;
+  will-change: transform;
+}
+
+/* Anillo orbital horizontal en perspectiva 3D */
+.air-3d-ring-x {
+  position: absolute;
+  width: 126%;
+  height: 126%;
+  border-radius: 50%;
+  border: 1.5px solid rgba(212, 175, 55, 0.35);
+  border-top-color: #d4af37;
+  border-bottom-color: rgba(212, 175, 55, 0.7);
+  animation: air-3d-orbit-x 16s linear infinite;
+  pointer-events: none;
+  box-shadow: 0 0 15px rgba(212, 175, 55, 0.2);
+}
+
+/* Anillo orbital transversal inclinado en 3D */
+.air-3d-ring-y {
+  position: absolute;
+  width: 138%;
+  height: 138%;
+  border-radius: 50%;
+  border: 1px dashed rgba(212, 175, 55, 0.3);
+  border-left-color: #f3e5ab;
+  animation: air-3d-orbit-y 22s linear infinite;
+  pointer-events: none;
+}
+
+/* ==========================================================================
+   4. CLASES APLICATIVAS DE MOVIMIENTO Y MICROINTERACCIONES
+   ========================================================================== */
+
+/* Entrada escalonada con perspectiva */
 .air-reveal {
   animation: air-reveal-up var(--duration-float) var(--ease-air-spring) forwards;
   will-change: opacity, transform, filter;
-}
-
-/* Objeto flotante con suspensión aérea */
-.air-floating {
-  animation: air-float var(--duration-ambient) ease-in-out infinite;
-  will-change: transform;
 }
 
 /* Luz ambiental respirable */
@@ -117,10 +219,7 @@
   will-change: opacity, filter, transform;
 }
 
-/* ==========================================================================
-   3. FÍSICA DE INTERACCIÓN EN BOTONES (TACTILE SPRING FEEDBACK)
-   ========================================================================== */
-
+/* FÍSICA TÁCTIL EN BOTONES (Tactile Spring Feedback) */
 .btn-clay,
 .btn-stone-outline,
 .btn-buy-store-product,
@@ -131,27 +230,25 @@
   transition: transform var(--duration-swift) var(--ease-air-spring),
               box-shadow var(--duration-swift) var(--ease-air-smooth),
               background-color var(--duration-swift) var(--ease-air-smooth),
-              border-color var(--duration-swift) var(--ease-air-smooth),
-              filter var(--duration-swift) var(--ease-air-smooth) !important;
+              border-color var(--duration-swift) var(--ease-air-smooth) !important;
   will-change: transform, box-shadow;
 }
 
-/* Elevación táctil al posar el cursor */
 .btn-clay:hover,
 .btn-buy-store-product:hover,
 .btn-complete-cut:hover,
 .btn-deliver-store-order:hover {
-  transform: translateY(-2px) scale(1.02);
-  box-shadow: 0 8px 24px -4px rgba(212, 175, 55, 0.4), 0 0 16px rgba(212, 175, 55, 0.25);
+  transform: perspective(600px) translateZ(8px) translateY(-2px);
+  box-shadow: 0 12px 28px -4px rgba(212, 175, 55, 0.45), 0 0 16px rgba(212, 175, 55, 0.25);
 }
 
 .btn-stone-outline:hover,
 .btn-sync-mobile-calendar:hover {
-  transform: translateY(-2px) scale(1.015);
-  box-shadow: 0 8px 20px -4px rgba(0, 0, 0, 0.6), 0 0 12px rgba(212, 175, 55, 0.2);
+  transform: perspective(600px) translateZ(6px) translateY(-2px);
+  box-shadow: 0 10px 24px -4px rgba(0, 0, 0, 0.7), 0 0 14px rgba(212, 175, 55, 0.22);
 }
 
-/* Compresión física instantánea al hacer clic o tocar en pantalla móvil */
+/* Compresión física instantánea al hacer clic o tocar */
 .btn-clay:active,
 .btn-stone-outline:active,
 .btn-buy-store-product:active,
@@ -159,86 +256,35 @@
 .btn-toggle-barber-shift:active,
 .btn-complete-cut:active,
 .btn-deliver-store-order:active {
-  transform: translateY(0px) scale(0.96) !important;
+  transform: scale(0.96) translateZ(0px) !important;
   transition-duration: var(--duration-instant) !important;
 }
 
-/* ==========================================================================
-   4. FÍSICA DE TARJETAS Y ESCULTURAS DE VIDRIO (GLASS ELEVATION)
-   ========================================================================== */
-
-.anthropic-card,
-.store-order-card,
-.service-modal-choice,
-.barber-modal-choice,
-.extra-option-choice {
-  transition: transform var(--duration-normal) var(--ease-air-spring),
-              border-color var(--duration-swift) var(--ease-air-smooth),
-              box-shadow var(--duration-normal) var(--ease-air-spring),
-              background-color var(--duration-swift) var(--ease-air-smooth) !important;
-  will-change: transform, box-shadow, border-color;
-  border-radius: var(--radius-cards, 12px) !important;
-}
-
-/* Efecto de elevación con cristal traslúcido */
+/* Elevación de tarjetas al hover */
 .anthropic-card:hover,
 .store-order-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 18px 36px -10px rgba(0, 0, 0, 0.8), 0 0 24px rgba(212, 175, 55, 0.14);
+  box-shadow: 0 24px 48px -12px rgba(0, 0, 0, 0.85), 0 0 28px rgba(212, 175, 55, 0.16);
 }
 
-/* Selección interactiva con rebote elástico suave */
-.service-modal-choice:hover,
-.barber-modal-choice:hover,
-.extra-option-choice:hover {
-  transform: translateY(-2px) scale(1.01);
-}
-
-.service-modal-choice.selected,
-.barber-modal-choice.selected,
-.extra-option-choice.selected {
-  transform: scale(1.015);
-  box-shadow: 0 0 20px rgba(212, 175, 55, 0.28) !important;
-}
-
-/* ==========================================================================
-   5. INTERACCIÓN EN FRANJAS HORARIAS DE AGENDA (TIME SLOTS)
-   ========================================================================== */
-
-.time-slot-btn:not(.booked),
-.origin-slot-btn:not(.booked),
-.slot-journal-btn:not(.booked) {
-  transition: transform var(--duration-swift) var(--ease-air-spring),
-              background-color var(--duration-swift) var(--ease-air-smooth),
-              border-color var(--duration-swift) var(--ease-air-smooth),
-              box-shadow var(--duration-swift) var(--ease-air-spring) !important;
-  border-radius: var(--radius-buttons, 8px) !important;
-}
-
+/* Interacción en franjas horarias con elevación 3D */
 .time-slot-btn:not(.booked):hover,
 .origin-slot-btn:not(.booked):hover,
 .slot-journal-btn:not(.booked):hover {
-  transform: translateY(-2px) scale(1.03);
-  box-shadow: 0 6px 18px rgba(212, 175, 55, 0.25);
+  transform: perspective(500px) translateZ(6px) translateY(-2px);
+  box-shadow: 0 8px 20px rgba(212, 175, 55, 0.3);
   border-color: #d4af37 !important;
 }
 
 .time-slot-btn:not(.booked):active,
 .origin-slot-btn:not(.booked):active,
 .slot-journal-btn:not(.booked):active {
-  transform: scale(0.96) !important;
+  transform: scale(0.96) translateZ(0px) !important;
 }
 
-/* ==========================================================================
-   6. VENTANAS MODALES CON ENTRADA ELÁSTICA (AIR MODAL SPRING)
-   ========================================================================== */
-
+/* Entrada de modal elástica en 3D */
 .modal-window-custom {
-  animation: air-modal-spring 0.38s var(--ease-air-spring) forwards !important;
+  animation: air-modal-spring 0.42s var(--ease-air-spring) forwards !important;
   border-radius: var(--radius-cards, 12px) !important;
   will-change: transform, opacity, filter;
-}
-
-.modal-backdrop-custom {
-  transition: opacity 0.3s var(--ease-air-smooth), backdrop-filter 0.3s var(--ease-air-smooth);
+  transform-style: preserve-3d;
 }
