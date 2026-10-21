@@ -4,7 +4,7 @@
     "name": "Pomada Clasica Brillo Imperial",
     "category": "Ceras & Fijacion",
     "priceCop": 20000,
-    "stock": 10,
+    "stock": 9,
     "description": "Formula a base de agua de facil lavado. Perfecta para peinados clasicos, slick back y pompadour con brillo elegante.",
     "image": "https://images.unsplash.com/photo-1585751119414-ef2636f8aede?auto=format&fit=crop&w=600&q=80",
     "active": true,
@@ -57,7 +57,7 @@
     "description": "CERA QUE TE HARA VER MEJOR EL PELO",
     "priceCop": 20000,
     "stock": 8,
-    "imageUrl": "https://images.unsplash.com/photo-1621607512214-68297480165e?w=600&auto=format&fit=crop&q=80",
+    "imageUrl": "./assets/products/prod-prod-1792531997757-cix2-1792537022312.jpg",
     "active": true,
     "createdAt": "2026-10-20T21:33:17.757Z"
   }

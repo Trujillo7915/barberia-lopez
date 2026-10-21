@@ -1863,66 +1863,72 @@ async findAllProducts() {
 
           <div class="relative z-10 max-w-[1240px] mx-auto px-6 md:px-12">
             
-            <!-- Layout Centrado con Titular, Subtitulo y Botones -->
+            <!-- Layout Centrado con Titular, Subtitulo y Acciones Directas -->
             <div class="max-w-3xl mx-auto text-center flex flex-col items-center justify-center py-4 sm:py-6">
               
-              <div class="inline-flex items-center gap-2 mb-6 px-3.5 py-1 rounded-full bg-[#d4af37]/15 text-[#f3e5ab] border border-[#d4af37]/35 text-xs font-sans-ui font-semibold tracking-wide w-fit backdrop-blur-sm">
+              <div class="inline-flex items-center gap-2 mb-4 px-3.5 py-1 rounded-full bg-[#d4af37]/15 text-[#f3e5ab] border border-[#d4af37]/35 text-xs font-sans-ui font-semibold tracking-wide w-fit backdrop-blur-sm">
                 <span class="w-2 h-2 rounded-full bg-[#d4af37] shadow-[0_0_8px_#d4af37]"></span>
-                <span>NEIVA, HUILA · AGENDA EN VIVO 2026</span>
+                <span>NEIVA, HUILA · AGENDA EN VIVO</span>
               </div>
 
               <!-- Titular Display en blanco cálido y oro metálico -->
-              <h2 class="type-display-editorial mb-6 text-[#ffffff] tracking-tight text-[36px] sm:text-[48px] md:text-[54px] leading-[1.08]">
+              <h2 class="type-display-editorial mb-4 text-[#ffffff] tracking-tight text-[32px] sm:text-[44px] md:text-[50px] leading-[1.1]">
                 Arquitectos de tu imagen.<br>
                 <span class="text-[#d4af37] italic font-normal">Precisión en cada corte.</span>
               </h2>
 
-              <!-- Subtítulo descriptivo -->
-              <p class="font-serif-editorial text-[#c5c0b6] max-w-xl mx-auto text-[18px] sm:text-[20px] mb-8 font-normal leading-relaxed">
-                Estudio de barbería tradicional y alta peluquería masculina. Agenda tu turno directamente en nuestro registro en vivo y sincronízalo de inmediato en tu calendario personal.
+              <!-- Subtítulo conciso y sin relleno -->
+              <p class="font-sans-ui text-[#c5c0b6] max-w-lg mx-auto text-sm sm:text-base mb-6 leading-relaxed">
+                Agenda tu cita en vivo en menos de 1 minuto, selecciona a tu barbero y asegura tu turno sin filas ni esperas.
               </p>
 
-              <!-- Botones de Acción en Oro y Borde Bruñido -->
-              <div class="flex flex-wrap items-center justify-center gap-4">
-                <a href="#calendario" class="btn-clay">
-                  Reservar turno →
+              <!-- Botones de Acción Directos -->
+              <div class="flex flex-wrap items-center justify-center gap-3">
+                <a href="#calendario" class="btn-clay py-3 px-6 text-xs sm:text-sm font-bold shadow-lg">
+                  Reservar turno ahora →
                 </a>
-                <button type="button" id="btn-hero-open-store" class="btn-stone-outline text-[#f3e5ab] border-[#d4af37]/40 cursor-pointer">
-                  Explorar Tienda de Productos →
+                <button type="button" id="btn-hero-open-store" class="btn-stone-outline text-[#f3e5ab] border-[#d4af37]/40 py-3 px-5 text-xs sm:text-sm font-semibold cursor-pointer">
+                  Tienda de productos →
                 </button>
-                <button type="button" id="btn-open-client-sync" class="btn-stone-outline text-[#f3e5ab] cursor-pointer">
-                  Sincronizar mi calendario iPhone
-                </button>
-                <a href="https://wa.me/573219897910" target="_blank" rel="noopener noreferrer" class="btn-stone-outline">
-                  Línea WhatsApp (+57 321 989 7910)
+                <a href="https://wa.me/573219897910" target="_blank" rel="noopener noreferrer" class="btn-stone-outline py-3 px-4 text-xs font-semibold inline-flex items-center gap-2">
+                  <span>WhatsApp</span>
                 </a>
                 <a 
                   href="https://www.tiktok.com/@barber_lopez_neiva" 
                   target="_blank" 
                   rel="noopener noreferrer" 
-                  class="btn-stone-outline inline-flex items-center gap-2 text-[#f3e5ab] hover:text-[#ffffff] hover:border-[#d4af37] transition-all"
+                  class="btn-stone-outline inline-flex items-center gap-2 text-[#f3e5ab] hover:text-[#ffffff] hover:border-[#d4af37] py-3 px-4 text-xs font-semibold transition-all"
                 >
-                  <svg class="w-4 h-4 fill-current shrink-0" viewBox="0 0 24 24" aria-hidden="true">
+                  <svg class="w-3.5 h-3.5 fill-current shrink-0" viewBox="0 0 24 24" aria-hidden="true">
                     <path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.63.41-1.11 1.04-1.36 1.75-.21.51-.24 1.07-.14 1.61.24 1.64 1.82 3.02 3.5 2.87 1.12-.01 2.19-.66 2.77-1.61.19-.33.4-.67.41-1.06.1-1.79.06-3.57.07-5.36.01-4.03-.01-8.05.02-12.07z"/>
                   </svg>
-                  <span>TikTok @barber_lopez_neiva</span>
+                  <span>TikTok</span>
                 </a>
               </div>
             </div>
 
-            <!-- TRES PILARES / ESTÁNDARES EN ORO & OBSIDIANA -->
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 pt-10">
-              <div class="bg-[#12151b]/85 backdrop-blur-md border border-[#d4af37]/25 rounded-[22px] p-7 flex flex-col justify-between shadow-lg hover:border-[#d4af37]/50 transition-all">
-                <div class="font-serif-editorial text-[44px] sm:text-[52px] font-normal leading-none text-[#d4af37] mb-3">100%</div>
-                <p class="font-sans-ui text-[14px] text-[#c5c0b6] leading-snug">Cero esperas en sala. Tu turno reservado en agenda es atendido al minuto exacto.</p>
+            <!-- PASO A PASO INTUITIVO (3 PASOS CLAROS EN LUGAR DE TEXTO DE RELLENO) -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-5 pt-8">
+              <div class="bg-[#12151b]/85 backdrop-blur-md border border-[#d4af37]/25 rounded-[18px] p-6 flex flex-col justify-between shadow-lg hover:border-[#d4af37]/50 transition-all">
+                <div>
+                  <div class="font-mono-tech text-xs font-bold text-[#d4af37] tracking-wider uppercase mb-2">PASO 01</div>
+                  <h3 class="font-serif-editorial text-lg text-[#ffffff] font-normal mb-1.5">Elige tu servicio</h3>
+                  <p class="font-sans-ui text-xs text-[#c5c0b6] leading-relaxed">Cortes clásicos, degradados, combos spa o cuidado de barba con toalla caliente.</p>
+                </div>
               </div>
-              <div class="bg-[#12151b]/85 backdrop-blur-md border border-[#d4af37]/25 rounded-[22px] p-7 flex flex-col justify-between shadow-lg hover:border-[#d4af37]/50 transition-all">
-                <div class="font-serif-editorial text-[44px] sm:text-[52px] font-normal leading-none text-[#d4af37] mb-3">+12 Años</div>
-                <p class="font-sans-ui text-[14px] text-[#c5c0b6] leading-snug">Alta escuela de peluquería clásica, cortes de autor y visagismo en Neiva, Huila.</p>
+              <div class="bg-[#12151b]/85 backdrop-blur-md border border-[#d4af37]/25 rounded-[18px] p-6 flex flex-col justify-between shadow-lg hover:border-[#d4af37]/50 transition-all">
+                <div>
+                  <div class="font-mono-tech text-xs font-bold text-[#d4af37] tracking-wider uppercase mb-2">PASO 02</div>
+                  <h3 class="font-serif-editorial text-lg text-[#ffffff] font-normal mb-1.5">Escoge barbero y hora</h3>
+                  <p class="font-sans-ui text-xs text-[#c5c0b6] leading-relaxed">Revisa la disponibilidad en vivo en el calendario y aparta la hora exacta que prefieras.</p>
+                </div>
               </div>
-              <div class="bg-[#12151b]/85 backdrop-blur-md border border-[#d4af37]/25 rounded-[22px] p-7 flex flex-col justify-between shadow-lg hover:border-[#d4af37]/50 transition-all">
-                <div class="font-serif-editorial text-[44px] sm:text-[52px] font-normal leading-none text-[#d4af37] mb-3">4.9 / 5.0</div>
-                <p class="font-sans-ui text-[14px] text-[#c5c0b6] leading-snug">Visagismo anatómico, toallas calientes y satisfacción absoluta en cada estación.</p>
+              <div class="bg-[#12151b]/85 backdrop-blur-md border border-[#d4af37]/25 rounded-[18px] p-6 flex flex-col justify-between shadow-lg hover:border-[#d4af37]/50 transition-all">
+                <div>
+                  <div class="font-mono-tech text-xs font-bold text-[#d4af37] tracking-wider uppercase mb-2">PASO 03</div>
+                  <h3 class="font-serif-editorial text-lg text-[#ffffff] font-normal mb-1.5">Asiste y paga en efectivo</h3>
+                  <p class="font-sans-ui text-xs text-[#c5c0b6] leading-relaxed">Atención puntual en la estación. Pagas directamente al finalizar tu servicio.</p>
+                </div>
               </div>
             </div>
 
@@ -1933,15 +1939,15 @@ async findAllProducts() {
         <section id="calendario" class="max-w-[1240px] mx-auto px-6 md:px-12 py-[72px]">
           
           <!-- Encabezado de la Sección -->
-          <div class="flex flex-col md:flex-row md:items-end justify-between mb-10 gap-6">
+          <div class="flex flex-col md:flex-row md:items-end justify-between mb-8 gap-4">
             <div>
-              <div class="font-sans-ui text-xs font-semibold uppercase tracking-wider text-[#d4af37] mb-2">02 / CALENDARIO EN VIVO</div>
-              <h2 class="type-display-editorial text-[36px] sm:text-[46px] leading-[1.05] text-[#ffffff]">
-                Agenda de turnos en tiempo real
+              <div class="font-sans-ui text-xs font-semibold uppercase tracking-wider text-[#d4af37] mb-1.5">RESERVA EN LÍNEA</div>
+              <h2 class="type-display-editorial text-[30px] sm:text-[40px] leading-tight text-[#ffffff]">
+                Agenda en tiempo real
               </h2>
             </div>
-            <p class="font-serif-editorial text-[#c5c0b6] max-w-md text-[16px] sm:text-[17px] leading-relaxed">
-              Explora las fechas disponibles y haz clic sobre el día u hora que desees. Se abrirá el formulario para registrar tus datos, conectar tu calendario y apartar tu corte con tu barbero favorito.
+            <p class="font-sans-ui text-[#c5c0b6] max-w-sm text-xs sm:text-sm leading-relaxed">
+              Toca la hora libre que prefieras para apartar tu turno en menos de 1 minuto.
             </p>
           </div>
 
@@ -2010,13 +2016,14 @@ async findAllProducts() {
 
         </section>
 
-        <!-- SECTION 03: SERVICIOS & FILOSOFÍA -->
+        <!-- SECTION 03: SERVICIOS & PRECIOS -->
         <section id="servicios" class="max-w-[1240px] mx-auto px-6 md:px-12 py-[72px] border-t border-[#d4af37]/20">
-          <div class="mb-10">
-            <div class="font-sans-ui text-xs font-semibold uppercase tracking-wider text-[#d4af37] mb-2">03 / CATÁLOGO OFICIAL & SERVICIOS</div>
-            <h2 class="type-display-editorial text-[36px] sm:text-[46px] leading-[1.05] text-[#ffffff]">
-              Servicios de autor & combos insignia
+          <div class="mb-8">
+            <div class="font-sans-ui text-xs font-semibold uppercase tracking-wider text-[#d4af37] mb-1.5">CATÁLOGO DE SERVICIOS</div>
+            <h2 class="type-display-editorial text-[30px] sm:text-[40px] leading-tight text-[#ffffff]">
+              Servicios & Combos
             </h2>
+            <p class="font-sans-ui text-xs sm:text-sm text-[#c5c0b6] mt-1">Precios en efectivo sin costos ocultos.</p>
           </div>
 
           <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -2468,9 +2475,9 @@ async findAllProducts() {
                   ${isMyStationOnShift ? 'Pasar mi estación a Fuera de Turno' : 'Activar mi estación (Entrar en Turno)'}
                 </button>
               ` : ''}
-              ${isJefe ? `
+              ${isAdmin ? `
                 <button id="btn-clear-control-tests" class="btn-stone-outline text-xs text-red-400 hover:text-red-300 hover:border-red-500 font-medium py-2 px-3">
-                  Limpiar solicitudes de prueba
+                  Limpiar registros de prueba
                 </button>
               ` : ''}
               <button type="button" data-user-id="${state.currentUser.id}" data-username="${escapeHtml(state.currentUser.username)}" class="btn-change-password btn-stone-outline text-xs font-medium py-2 px-3.5 cursor-pointer">
@@ -3110,7 +3117,7 @@ async findAllProducts() {
                                   Finalizar corte y guardar en historial →
                                 </button>
                                 <button data-delete-appt-id="${appt.id}" class="btn-delete-appt btn-stone-outline w-full py-1.5 px-3 text-xs text-red-400 hover:text-red-300 hover:border-red-500 justify-center cursor-pointer mt-2">
-                                  Cancelar / Eliminar turno de prueba
+                                  Cancelar turno
                                 </button>
                               ` : `
                                 <div class="text-xs font-semibold text-[#d4af37] py-2.5 px-3 text-center bg-[#181c24] border border-[rgba(212,175,55,0.3)] rounded-[8px] flex items-center justify-center gap-2">
