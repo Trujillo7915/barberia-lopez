@@ -1810,25 +1810,22 @@ async findAllProducts() {
           <!-- Halo de luz ambiental dorada en el centro (Air Ambient Glow) -->
           <div class="absolute w-[360px] sm:w-[580px] md:w-[720px] h-[360px] sm:h-[580px] md:h-[720px] rounded-full bg-[#d4af37]/12 blur-[120px] pointer-events-none -translate-y-4 air-glow-pulse"></div>
           
-          <!-- Contenedor central del Logo con doble anillo orbital giroscópico y física 3D -->
-          <div class="relative z-10 flex flex-col items-center justify-center max-w-xl mx-auto py-8 air-3d-stage">
+          <!-- Contenedor central del Logo con doble anillo orbital y halo de lujo -->
+          <div class="relative z-10 flex flex-col items-center justify-center max-w-xl mx-auto py-8">
             
-            <div class="air-3d-hero-wrap mb-6">
-              <div class="air-3d-emblem-holder air-3d-tilt cursor-pointer relative flex items-center justify-center">
-                <!-- Anillos giroscópicos 3D en órbita continua -->
-                <div class="air-3d-ring-x pointer-events-none"></div>
-                <div class="air-3d-ring-y pointer-events-none"></div>
-                <div class="air-3d-glare-overlay"></div>
-                
-                <!-- Imagen oficial del Logo en HD con profundidad Z -->
-                <img 
-                  src="./logo_barberia_lopez_hd.jpg" 
-                  alt="Barbería López" 
-                  class="air-3d-layer-mid w-[200px] h-[200px] sm:w-[280px] sm:h-[280px] md:w-[320px] md:h-[320px] rounded-full object-cover border-2 border-[#d4af37]/60 shadow-[0_0_50px_rgba(212,175,55,0.25),0_0_80px_rgba(0,0,0,0.9)] pointer-events-none"
-                  loading="eager"
-                  onerror="this.src='./logo_barberia_lopez.png'"
-                >
-              </div>
+            <div class="relative flex items-center justify-center mb-6 air-floating">
+              <!-- Doble anillo orbital dorado sutil -->
+              <div class="absolute -inset-4 sm:-inset-6 rounded-full border border-[#d4af37]/25 animate-[spin_24s_linear_infinite] pointer-events-none"></div>
+              <div class="absolute -inset-8 sm:-inset-10 rounded-full border border-dashed border-[#d4af37]/15 animate-[spin_36s_linear_infinite_reverse] pointer-events-none"></div>
+              
+              <!-- Imagen oficial del Logo en HD -->
+              <img 
+                src="./logo_barberia_lopez_hd.jpg" 
+                alt="Barbería López" 
+                class="w-[200px] h-[200px] sm:w-[280px] sm:h-[280px] md:w-[320px] md:h-[320px] rounded-full object-cover border-2 border-[#d4af37]/60 shadow-[0_0_50px_rgba(212,175,55,0.25),0_0_80px_rgba(0,0,0,0.9)]"
+                loading="eager"
+                onerror="this.src='./logo_barberia_lopez.png'"
+              >
             </div>
 
             <!-- Titular de la Marca y Ubicación -->
@@ -1911,29 +1908,26 @@ async findAllProducts() {
               </div>
             </div>
 
-            <!-- PASO A PASO INTUITIVO (3 PASOS CLAROS CON PROFUNDIDAD 3D AIR) -->
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-5 pt-8 air-3d-stage">
-              <div class="air-3d-card air-3d-tilt bg-[#12151b]/85 backdrop-blur-md border border-[#d4af37]/25 rounded-[18px] p-6 flex flex-col justify-between shadow-lg hover:border-[#d4af37]/50 transition-all cursor-pointer">
-                <div class="air-3d-glare-overlay"></div>
-                <div class="air-3d-layer-mid">
-                  <div class="font-mono-tech text-xs font-bold text-[#d4af37] tracking-wider uppercase mb-2 air-3d-layer-pop">PASO 01</div>
-                  <h3 class="font-serif-editorial text-lg text-[#ffffff] font-normal mb-1.5 air-3d-layer-pop">Elige tu servicio</h3>
+            <!-- PASO A PASO INTUITIVO (3 PASOS CLAROS EN LUGAR DE TEXTO DE RELLENO) -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-5 pt-8">
+              <div class="bg-[#12151b]/85 backdrop-blur-md border border-[#d4af37]/25 rounded-[18px] p-6 flex flex-col justify-between shadow-lg hover:border-[#d4af37]/50 transition-all">
+                <div>
+                  <div class="font-mono-tech text-xs font-bold text-[#d4af37] tracking-wider uppercase mb-2">PASO 01</div>
+                  <h3 class="font-serif-editorial text-lg text-[#ffffff] font-normal mb-1.5">Elige tu servicio</h3>
                   <p class="font-sans-ui text-xs text-[#c5c0b6] leading-relaxed">Cortes clásicos, degradados, combos spa o cuidado de barba con toalla caliente.</p>
                 </div>
               </div>
-              <div class="air-3d-card air-3d-tilt bg-[#12151b]/85 backdrop-blur-md border border-[#d4af37]/25 rounded-[18px] p-6 flex flex-col justify-between shadow-lg hover:border-[#d4af37]/50 transition-all cursor-pointer">
-                <div class="air-3d-glare-overlay"></div>
-                <div class="air-3d-layer-mid">
-                  <div class="font-mono-tech text-xs font-bold text-[#d4af37] tracking-wider uppercase mb-2 air-3d-layer-pop">PASO 02</div>
-                  <h3 class="font-serif-editorial text-lg text-[#ffffff] font-normal mb-1.5 air-3d-layer-pop">Escoge barbero y hora</h3>
+              <div class="bg-[#12151b]/85 backdrop-blur-md border border-[#d4af37]/25 rounded-[18px] p-6 flex flex-col justify-between shadow-lg hover:border-[#d4af37]/50 transition-all">
+                <div>
+                  <div class="font-mono-tech text-xs font-bold text-[#d4af37] tracking-wider uppercase mb-2">PASO 02</div>
+                  <h3 class="font-serif-editorial text-lg text-[#ffffff] font-normal mb-1.5">Escoge barbero y hora</h3>
                   <p class="font-sans-ui text-xs text-[#c5c0b6] leading-relaxed">Revisa la disponibilidad en vivo en el calendario y aparta la hora exacta que prefieras.</p>
                 </div>
               </div>
-              <div class="air-3d-card air-3d-tilt bg-[#12151b]/85 backdrop-blur-md border border-[#d4af37]/25 rounded-[18px] p-6 flex flex-col justify-between shadow-lg hover:border-[#d4af37]/50 transition-all cursor-pointer">
-                <div class="air-3d-glare-overlay"></div>
-                <div class="air-3d-layer-mid">
-                  <div class="font-mono-tech text-xs font-bold text-[#d4af37] tracking-wider uppercase mb-2 air-3d-layer-pop">PASO 03</div>
-                  <h3 class="font-serif-editorial text-lg text-[#ffffff] font-normal mb-1.5 air-3d-layer-pop">Asiste y paga en efectivo</h3>
+              <div class="bg-[#12151b]/85 backdrop-blur-md border border-[#d4af37]/25 rounded-[18px] p-6 flex flex-col justify-between shadow-lg hover:border-[#d4af37]/50 transition-all">
+                <div>
+                  <div class="font-mono-tech text-xs font-bold text-[#d4af37] tracking-wider uppercase mb-2">PASO 03</div>
+                  <h3 class="font-serif-editorial text-lg text-[#ffffff] font-normal mb-1.5">Asiste y paga en efectivo</h3>
                   <p class="font-sans-ui text-xs text-[#c5c0b6] leading-relaxed">Atención puntual en la estación. Pagas directamente al finalizar tu servicio.</p>
                 </div>
               </div>
@@ -2033,94 +2027,88 @@ async findAllProducts() {
             <p class="font-sans-ui text-xs sm:text-sm text-[#c5c0b6] mt-1">Precios en efectivo sin costos ocultos.</p>
           </div>
 
-          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 air-3d-stage">
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             
             <!-- Card 1: Corte Básico -->
-            <div class="air-3d-card air-3d-tilt bg-[#12151b] border border-[#d4af37]/25 rounded-[24px] p-7 flex flex-col justify-between min-h-[240px] hover:border-[#d4af37]/50 transition-all shadow-lg cursor-pointer">
-              <div class="air-3d-glare-overlay"></div>
-              <div class="air-3d-layer-mid">
-                <span class="font-sans-ui text-xs font-semibold uppercase tracking-wider text-[#a39578] block mb-2 air-3d-layer-pop">01 / CORTE TRADICIONAL</span>
-                <h3 class="font-serif-editorial text-[26px] font-normal text-[#ffffff] mb-2 air-3d-layer-pop">Corte Básico</h3>
+            <div class="bg-[#12151b] border border-[#d4af37]/25 rounded-[24px] p-7 flex flex-col justify-between min-h-[240px] hover:border-[#d4af37]/50 transition-all shadow-lg">
+              <div>
+                <span class="font-sans-ui text-xs font-semibold uppercase tracking-wider text-[#a39578] block mb-2">01 / CORTE TRADICIONAL</span>
+                <h3 class="font-serif-editorial text-[26px] font-normal text-[#ffffff] mb-2">Corte Básico</h3>
                 <p class="font-sans-ui text-[14px] text-[#c5c0b6] leading-relaxed font-normal">
                   Corte tradicional o degradado a máquina y tijera + masaje capilar relajante al finalizar.
                 </p>
               </div>
-              <div class="flex items-center justify-between pt-4 mt-4 border-t border-[#d4af37]/20 air-3d-layer-mid">
+              <div class="flex items-center justify-between pt-4 mt-4 border-t border-[#d4af37]/20">
                 <span class="font-mono-tech text-[20px] font-bold text-[#d4af37]">$20.000 COP</span>
                 <span class="font-sans-ui text-xs text-[#a39578]">30 MINUTOS</span>
               </div>
             </div>
 
             <!-- Card 2: Combo 1 -->
-            <div class="air-3d-card air-3d-tilt bg-[#12151b] border border-[#d4af37]/25 rounded-[24px] p-7 flex flex-col justify-between min-h-[240px] hover:border-[#d4af37]/50 transition-all shadow-lg cursor-pointer">
-              <div class="air-3d-glare-overlay"></div>
-              <div class="air-3d-layer-mid">
-                <span class="font-sans-ui text-xs font-semibold uppercase tracking-wider text-[#a39578] block mb-2 air-3d-layer-pop">02 / CORTE + RELAJACIÓN</span>
-                <h3 class="font-serif-editorial text-[26px] font-normal text-[#ffffff] mb-2 air-3d-layer-pop">Combo 1</h3>
+            <div class="bg-[#12151b] border border-[#d4af37]/25 rounded-[24px] p-7 flex flex-col justify-between min-h-[240px] hover:border-[#d4af37]/50 transition-all shadow-lg">
+              <div>
+                <span class="font-sans-ui text-xs font-semibold uppercase tracking-wider text-[#a39578] block mb-2">02 / CORTE + RELAJACIÓN</span>
+                <h3 class="font-serif-editorial text-[26px] font-normal text-[#ffffff] mb-2">Combo 1</h3>
                 <p class="font-sans-ui text-[14px] text-[#c5c0b6] leading-relaxed font-normal">
                   Corte de cabello completo + masaje de espalda descontracturante + mascarilla negra purificante + perfilado de cejas.
                 </p>
               </div>
-              <div class="flex items-center justify-between pt-4 mt-4 border-t border-[#d4af37]/20 air-3d-layer-mid">
+              <div class="flex items-center justify-between pt-4 mt-4 border-t border-[#d4af37]/20">
                 <span class="font-mono-tech text-[20px] font-bold text-[#d4af37]">$25.000 COP</span>
                 <span class="font-sans-ui text-xs text-[#a39578]">30 MINUTOS</span>
               </div>
             </div>
 
             <!-- Card 3: Combo 2 -->
-            <div class="air-3d-card air-3d-tilt bg-[#12151b] border border-[#d4af37]/25 rounded-[24px] p-7 flex flex-col justify-between min-h-[240px] hover:border-[#d4af37]/50 transition-all shadow-lg cursor-pointer">
-              <div class="air-3d-glare-overlay"></div>
-              <div class="air-3d-layer-mid">
-                <span class="font-sans-ui text-xs font-semibold uppercase tracking-wider text-[#a39578] block mb-2 air-3d-layer-pop">03 / CORTE + BARBA + SPA</span>
-                <h3 class="font-serif-editorial text-[26px] font-normal text-[#ffffff] mb-2 air-3d-layer-pop">Combo 2</h3>
+            <div class="bg-[#12151b] border border-[#d4af37]/25 rounded-[24px] p-7 flex flex-col justify-between min-h-[240px] hover:border-[#d4af37]/50 transition-all shadow-lg">
+              <div>
+                <span class="font-sans-ui text-xs font-semibold uppercase tracking-wider text-[#a39578] block mb-2">03 / CORTE + BARBA + SPA</span>
+                <h3 class="font-serif-editorial text-[26px] font-normal text-[#ffffff] mb-2">Combo 2</h3>
                 <p class="font-sans-ui text-[14px] text-[#c5c0b6] leading-relaxed font-normal">
                   Corte de cabello + masaje capilar + mascarilla facial + ritual de barba con toalla caliente + perfilado de cejas.
                 </p>
               </div>
-              <div class="flex items-center justify-between pt-4 mt-4 border-t border-[#d4af37]/20 air-3d-layer-mid">
+              <div class="flex items-center justify-between pt-4 mt-4 border-t border-[#d4af37]/20">
                 <span class="font-mono-tech text-[20px] font-bold text-[#d4af37]">$35.000 COP</span>
                 <span class="font-sans-ui text-xs text-[#a39578]">30 MINUTOS</span>
               </div>
             </div>
 
             <!-- Card 4: Combo 3 -->
-            <div class="air-3d-card air-3d-tilt bg-[#12151b] border border-[#d4af37]/25 rounded-[24px] p-7 flex flex-col justify-between min-h-[240px] hover:border-[#d4af37]/50 transition-all shadow-lg cursor-pointer">
-              <div class="air-3d-glare-overlay"></div>
-              <div class="air-3d-layer-mid">
-                <span class="font-sans-ui text-xs font-semibold uppercase tracking-wider text-[#a39578] block mb-2 air-3d-layer-pop">04 / SPA FACIAL COMPLETO</span>
-                <h3 class="font-serif-editorial text-[26px] font-normal text-[#ffffff] mb-2 air-3d-layer-pop">Combo 3</h3>
+            <div class="bg-[#12151b] border border-[#d4af37]/25 rounded-[24px] p-7 flex flex-col justify-between min-h-[240px] hover:border-[#d4af37]/50 transition-all shadow-lg">
+              <div>
+                <span class="font-sans-ui text-xs font-semibold uppercase tracking-wider text-[#a39578] block mb-2">04 / SPA FACIAL COMPLETO</span>
+                <h3 class="font-serif-editorial text-[26px] font-normal text-[#ffffff] mb-2">Combo 3</h3>
                 <p class="font-sans-ui text-[14px] text-[#c5c0b6] leading-relaxed font-normal">
                   Corte + masaje + mascarilla + barba completa + perfilado de cejas + lavado de cabello con shampoo refrescante.
                 </p>
               </div>
-              <div class="flex items-center justify-between pt-4 mt-4 border-t border-[#d4af37]/20 air-3d-layer-mid">
+              <div class="flex items-center justify-between pt-4 mt-4 border-t border-[#d4af37]/20">
                 <span class="font-mono-tech text-[20px] font-bold text-[#d4af37]">$40.000 COP</span>
                 <span class="font-sans-ui text-xs text-[#a39578]">30 MINUTOS</span>
               </div>
             </div>
 
             <!-- Card 5: Combi Completa VIP -->
-            <div class="air-3d-card air-3d-tilt bg-[#12151b] border border-[#d4af37]/25 rounded-[24px] p-7 flex flex-col justify-between min-h-[240px] hover:border-[#d4af37]/50 transition-all shadow-lg cursor-pointer">
-              <div class="air-3d-glare-overlay"></div>
-              <div class="air-3d-layer-mid">
-                <span class="font-sans-ui text-xs font-semibold uppercase tracking-wider text-[#a39578] block mb-2 air-3d-layer-pop">05 / EXPERIENCIA TOTAL VIP</span>
-                <h3 class="font-serif-editorial text-[26px] font-normal text-[#ffffff] mb-2 air-3d-layer-pop">Combi Completa VIP</h3>
+            <div class="bg-[#12151b] border border-[#d4af37]/25 rounded-[24px] p-7 flex flex-col justify-between min-h-[240px] hover:border-[#d4af37]/50 transition-all shadow-lg">
+              <div>
+                <span class="font-sans-ui text-xs font-semibold uppercase tracking-wider text-[#a39578] block mb-2">05 / EXPERIENCIA TOTAL VIP</span>
+                <h3 class="font-serif-editorial text-[26px] font-normal text-[#ffffff] mb-2">Combi Completa VIP</h3>
                 <p class="font-sans-ui text-[14px] text-[#c5c0b6] leading-relaxed font-normal">
                   Corte + masaje + mascarilla + barba spa + cejas + lavado de cabello + granizado artesanal de cortesía.
                 </p>
               </div>
-              <div class="flex items-center justify-between pt-4 mt-4 border-t border-[#d4af37]/20 air-3d-layer-mid">
+              <div class="flex items-center justify-between pt-4 mt-4 border-t border-[#d4af37]/20">
                 <span class="font-mono-tech text-[20px] font-bold text-[#d4af37]">$65.000 COP</span>
                 <span class="font-sans-ui text-xs text-[#a39578]">30 MINUTOS</span>
               </div>
             </div>
 
             <!-- Card 6: Adicionales & Pigmentación -->
-            <div class="air-3d-card air-3d-tilt bg-gradient-to-br from-[#161a22] to-[#101217] border border-[#d4af37]/45 rounded-[24px] p-7 flex flex-col justify-between min-h-[240px] shadow-xl cursor-pointer">
-              <div class="air-3d-glare-overlay"></div>
-              <div class="air-3d-layer-mid">
-                <span class="font-sans-ui text-xs font-semibold uppercase tracking-wider text-[#d4af37] block mb-2 air-3d-layer-pop">OPCIONALES / PERSONALIZACIÓN</span>
-                <h3 class="font-serif-editorial text-[26px] font-normal text-[#ffffff] mb-2 air-3d-layer-pop">Adicionales de Autor</h3>
+            <div class="bg-gradient-to-br from-[#161a22] to-[#101217] border border-[#d4af37]/45 rounded-[24px] p-7 flex flex-col justify-between min-h-[240px] shadow-xl">
+              <div>
+                <span class="font-sans-ui text-xs font-semibold uppercase tracking-wider text-[#d4af37] block mb-2">OPCIONALES / PERSONALIZACIÓN</span>
+                <h3 class="font-serif-editorial text-[26px] font-normal text-[#ffffff] mb-2">Adicionales de Autor</h3>
                 <div class="font-sans-ui text-[13px] text-[#c5c0b6] space-y-1.5 leading-relaxed">
                   <div class="flex justify-between"><span>Pigmentación Aerógrafo:</span><strong class="text-[#f3e5ab] font-mono-tech">$18.000</strong></div>
                   <div class="flex justify-between"><span>Pigmentación Manual:</span><strong class="text-[#f3e5ab] font-mono-tech">$22.000</strong></div>
@@ -2129,7 +2117,7 @@ async findAllProducts() {
                   <div class="flex justify-between"><span>Afeitado tradicional:</span><strong class="text-[#f3e5ab] font-mono-tech">$6.000</strong></div>
                 </div>
               </div>
-              <div class="pt-4 mt-4 border-t border-[#d4af37]/20 text-xs text-[#a39578] air-3d-layer-mid">
+              <div class="pt-4 mt-4 border-t border-[#d4af37]/20 text-xs text-[#a39578]">
                 Añádelos al agendar tu turno
               </div>
             </div>
@@ -2289,12 +2277,11 @@ async findAllProducts() {
               <p class="text-sm text-[#c5c0b6]">Selecciona otra categoría o consulta nuevamente más tarde.</p>
             </div>
           ` : `
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-7 air-3d-stage">
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-7">
               ${filteredProducts.map((p) => {
                 const outOfStock = (Number(p.stock) || 0) <= 0;
                 return `
-                  <div class="air-3d-card air-3d-tilt bg-[#12151b] border ${outOfStock ? 'border-stone-800 opacity-75' : 'border-[rgba(212,175,55,0.28)] hover:border-[#d4af37]'} rounded-[22px] overflow-hidden flex flex-col justify-between transition-all shadow-xl">
-                    <div class="air-3d-glare-overlay"></div>
+                  <div class="bg-[#12151b] border ${outOfStock ? 'border-stone-800 opacity-75' : 'border-[rgba(212,175,55,0.28)] hover:border-[#d4af37]'} rounded-[22px] overflow-hidden flex flex-col justify-between transition-all shadow-xl">
                     <div>
                       <div class="relative h-56 w-full bg-[#0a0b0d] overflow-hidden border-b border-[rgba(212,175,55,0.18)]">
                         <img
@@ -2315,8 +2302,8 @@ async findAllProducts() {
                         </div>
                       </div>
 
-                      <div class="p-6 air-3d-layer-mid">
-                        <h3 class="font-serif-editorial text-[24px] font-normal text-[#ffffff] leading-snug mb-2 air-3d-layer-pop">
+                      <div class="p-6">
+                        <h3 class="font-serif-editorial text-[24px] font-normal text-[#ffffff] leading-snug mb-2">
                           ${escapeHtml(p.name)}
                         </h3>
                         <p class="font-sans-ui text-xs sm:text-sm text-[#c5c0b6] leading-relaxed">
@@ -2325,7 +2312,7 @@ async findAllProducts() {
                       </div>
                     </div>
 
-                    <div class="px-6 pb-6 pt-4 border-t border-[rgba(212,175,55,0.16)] flex items-center justify-between gap-4 air-3d-layer-mid">
+                    <div class="px-6 pb-6 pt-4 border-t border-[rgba(212,175,55,0.16)] flex items-center justify-between gap-4">
                       <div>
                         <span class="block text-[10px] font-semibold uppercase tracking-wider text-[#8a8275]">Pago en efectivo</span>
                         <span class="font-mono-tech text-[22px] font-bold text-[#d4af37]">$${Number(p.priceCop || 0).toLocaleString('es-CO')} <span class="text-xs font-sans-ui text-[#f3e5ab]">COP</span></span>
@@ -4161,66 +4148,7 @@ async findAllProducts() {
     if (state.confirmationModalData) {
       showConfirmationModal(state.confirmationModalData);
     }
-    init3DTiltEngine();
     dismissPreloader();
-  }
-
-  // --- MOTOR DE FISICA INTERACTIVA 3D TILT (RAYCAST AIR SYSTEM) ---
-  function init3DTiltEngine() {
-    const tiltElements = document.querySelectorAll('.air-3d-tilt, .air-3d-card');
-    if (!tiltElements || tiltElements.length === 0) return;
-
-    tiltElements.forEach((el) => {
-      if (el.dataset.tiltActive === 'true') return;
-      el.dataset.tiltActive = 'true';
-
-      let isHovering = false;
-      const glare = el.querySelector('.air-3d-glare-overlay');
-
-      const onMouseMove = (e) => {
-        if (!isHovering) return;
-        const rect = el.getBoundingClientRect();
-        if (rect.width === 0 || rect.height === 0) return;
-
-        const xPos = e.clientX - rect.left;
-        const yPos = e.clientY - rect.top;
-        const xPct = (xPos / rect.width) - 0.5;
-        const yPct = (yPos / rect.height) - 0.5;
-
-        // Inclinacion proporcional suave (hasta 15 grados)
-        const rotX = (-yPct * 15).toFixed(2);
-        const rotY = (xPct * 15).toFixed(2);
-
-        el.style.transform = `perspective(1000px) rotateX(${rotX}deg) rotateY(${rotY}deg) scale3d(1.025, 1.025, 1.025)`;
-
-        if (glare) {
-          glare.style.opacity = '1';
-          glare.style.background = `radial-gradient(circle at ${xPos}px ${yPos}px, rgba(255, 255, 255, 0.22) 0%, rgba(212, 175, 55, 0.14) 40%, transparent 70%)`;
-        }
-      };
-
-      const onMouseEnter = () => {
-        isHovering = true;
-        el.style.transition = 'transform 0.08s ease-out';
-        if (glare) {
-          glare.style.transition = 'none';
-        }
-      };
-
-      const onMouseLeave = () => {
-        isHovering = false;
-        el.style.transition = 'transform 0.5s cubic-bezier(0.25, 1, 0.5, 1)';
-        el.style.transform = 'perspective(1000px) rotateX(0deg) rotateY(0deg) scale3d(1, 1, 1)';
-        if (glare) {
-          glare.style.transition = 'opacity 0.5s ease';
-          glare.style.opacity = '0';
-        }
-      };
-
-      el.addEventListener('mouseenter', onMouseEnter);
-      el.addEventListener('mousemove', onMouseMove);
-      el.addEventListener('mouseleave', onMouseLeave);
-    });
   }
 
   // --- EVENTOS INTERACTIVOS ---
