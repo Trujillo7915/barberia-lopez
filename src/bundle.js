@@ -1704,6 +1704,7 @@ async findAllProducts() {
     storeCategoryFilter: 'ALL',
     storeOrderSearch: '',
     storeOrderStatusFilter: 'ALL',
+    storeOrderDateFilter: 'ALL',
     calendarYear: initialNow.getFullYear(),
     calendarMonth: initialNow.getMonth(),
     selectedDate: initialDateStr,
@@ -2650,53 +2651,154 @@ async findAllProducts() {
               </div>
             `}
 
-            <!-- BUSCADOR DE REFERENCIA RÁPIDA Y FILTRO DE ESTADO -->
-            <div class="anthropic-card p-4 mb-5 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
-              <div class="flex flex-wrap items-center gap-2">
-                <span class="text-xs font-semibold text-[#8a8275] uppercase tracking-wider mr-1">Estado:</span>
-                <button type="button" data-order-status-filter="ALL" class="btn-order-status-filter px-3 py-1.5 rounded-[8px] text-xs font-semibold cursor-pointer ${state.storeOrderStatusFilter === 'ALL' ? 'btn-clay' : 'btn-stone-outline'}">
-                  Todos (${state.storeOrders.length})
-                </button>
-                <button type="button" data-order-status-filter="PENDIENTE" class="btn-order-status-filter px-3 py-1.5 rounded-[8px] text-xs font-semibold cursor-pointer ${state.storeOrderStatusFilter === 'PENDIENTE' ? 'btn-clay' : 'btn-stone-outline'}">
-                  Pendientes de cobro (${state.storeOrders.filter((o) => o.status === 'PENDIENTE').length})
-                </button>
-                <button type="button" data-order-status-filter="ENTREGADO" class="btn-order-status-filter px-3 py-1.5 rounded-[8px] text-xs font-semibold cursor-pointer ${state.storeOrderStatusFilter === 'ENTREGADO' ? 'btn-clay' : 'btn-stone-outline'}">
-                  Entregados (${state.storeOrders.filter((o) => o.status === 'ENTREGADO').length})
-                </button>
-              </div>
-              <div class="relative flex-1 md:max-w-xs">
-                <input
-                  type="text"
-                  id="input-store-order-search"
-                  placeholder="Buscar referencia REF-BL-... o cliente"
-                  value="${escapeHtml(state.storeOrderSearch || '')}"
-                  class="input-parchment py-1.5 px-3 text-xs font-mono-tech uppercase"
-                >
-              </div>
-            </div>
+            <!-- BUSCADOR DE REFERENCIA RÁPIDA, FILTRO DE ESTADO Y FILTRO POR DÍA -->
+            ${(() => {
+              const todayDayStr = getLocalDateString();
+              const yesterdayDateObj = new Date();
+              yesterdayDateObj.setDate(yesterdayDateObj.getDate() - 1);
+              const yesterdayDayStr = getLocalDateString(yesterdayDateObj);
+
+              const countAllDates = state.storeOrders.length;
+              const countToday = state.storeOrders.filter((o) => {
+                const d = o.deliveredDate || o.date || (o.createdAt ? o.createdAt.substring(0, 10) : '');
+                return d === todayDayStr;
+              }).length;
+              const countYesterday = state.storeOrders.filter((o) => {
+                const d = o.deliveredDate || o.date || (o.createdAt ? o.createdAt.substring(0, 10) : '');
+                return d === yesterdayDayStr;
+              }).length;
+
+              const isCustomDate = state.storeOrderDateFilter !== 'ALL' && state.storeOrderDateFilter !== 'TODAY' && state.storeOrderDateFilter !== 'YESTERDAY';
+
+              const activeDateLabel = state.storeOrderDateFilter === 'TODAY'
+                ? `Hoy (${todayDayStr})`
+                : state.storeOrderDateFilter === 'YESTERDAY'
+                ? `Ayer (${yesterdayDayStr})`
+                : isCustomDate
+                ? `Día seleccionado: ${state.storeOrderDateFilter}`
+                : 'Todos los días';
+
+              return `
+                <div class="anthropic-card p-4 mb-5 space-y-3.5">
+                  <!-- FILA 1: FILTRO DE ESTADO Y BUSCADOR -->
+                  <div class="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
+                    <div class="flex flex-wrap items-center gap-2">
+                      <span class="text-xs font-semibold text-[#8a8275] uppercase tracking-wider mr-1">Estado:</span>
+                      <button type="button" data-order-status-filter="ALL" class="btn-order-status-filter px-3 py-1.5 rounded-[8px] text-xs font-semibold cursor-pointer ${state.storeOrderStatusFilter === 'ALL' ? 'btn-clay' : 'btn-stone-outline'}">
+                        Todos (${state.storeOrders.length})
+                      </button>
+                      <button type="button" data-order-status-filter="PENDIENTE" class="btn-order-status-filter px-3 py-1.5 rounded-[8px] text-xs font-semibold cursor-pointer ${state.storeOrderStatusFilter === 'PENDIENTE' ? 'btn-clay' : 'btn-stone-outline'}">
+                        Pendientes de cobro (${state.storeOrders.filter((o) => o.status === 'PENDIENTE').length})
+                      </button>
+                      <button type="button" data-order-status-filter="ENTREGADO" class="btn-order-status-filter px-3 py-1.5 rounded-[8px] text-xs font-semibold cursor-pointer ${state.storeOrderStatusFilter === 'ENTREGADO' ? 'btn-clay' : 'btn-stone-outline'}">
+                        Entregados (${state.storeOrders.filter((o) => o.status === 'ENTREGADO').length})
+                      </button>
+                    </div>
+                    <div class="relative flex-1 md:max-w-xs">
+                      <input
+                        type="text"
+                        id="input-store-order-search"
+                        placeholder="Buscar referencia o cliente..."
+                        value="${escapeHtml(state.storeOrderSearch || '')}"
+                        class="input-parchment py-1.5 px-3 text-xs font-mono-tech uppercase"
+                      >
+                    </div>
+                  </div>
+
+                  <!-- FILA 2: FILTRO POR DÍA / FECHA Y TOTALES EN VIVO -->
+                  <div class="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3 pt-3 border-t border-[rgba(212,175,55,0.14)]">
+                    <div class="flex flex-wrap items-center gap-2">
+                      <span class="text-xs font-semibold text-[#8a8275] uppercase tracking-wider mr-1">Filtrar por día:</span>
+                      <button type="button" data-order-date-filter="ALL" class="btn-order-date-filter px-3 py-1.5 rounded-[8px] text-xs font-semibold cursor-pointer ${state.storeOrderDateFilter === 'ALL' ? 'btn-clay' : 'btn-stone-outline'}">
+                        Todos los días (${countAllDates})
+                      </button>
+                      <button type="button" data-order-date-filter="TODAY" class="btn-order-date-filter px-3 py-1.5 rounded-[8px] text-xs font-semibold cursor-pointer ${state.storeOrderDateFilter === 'TODAY' ? 'btn-clay' : 'btn-stone-outline'}">
+                        Hoy (${countToday})
+                      </button>
+                      <button type="button" data-order-date-filter="YESTERDAY" class="btn-order-date-filter px-3 py-1.5 rounded-[8px] text-xs font-semibold cursor-pointer ${state.storeOrderDateFilter === 'YESTERDAY' ? 'btn-clay' : 'btn-stone-outline'}">
+                        Ayer (${countYesterday})
+                      </button>
+
+                      <div class="flex items-center gap-1.5">
+                        <input
+                          type="date"
+                          id="input-store-order-date"
+                          value="${isCustomDate ? escapeHtml(state.storeOrderDateFilter) : ''}"
+                          class="input-parchment py-1 px-2.5 text-xs font-mono-tech w-auto cursor-pointer"
+                          title="Seleccionar fecha específica en el calendario"
+                        >
+                        ${state.storeOrderDateFilter !== 'ALL' ? `
+                          <button type="button" id="btn-clear-order-date" class="btn-stone-outline py-1 px-2 text-[11px] text-[#c5c0b6] hover:text-white cursor-pointer" title="Ver todos los días">
+                            Limpiar día
+                          </button>
+                        ` : ''}
+                      </div>
+                    </div>
+
+                    <div class="inline-flex items-center gap-2 self-start lg:self-auto px-3 py-1.5 rounded-[8px] bg-[#161a22] border border-[rgba(212,175,55,0.3)]">
+                      <span class="text-[11px] font-semibold text-[#c5c0b6]">${escapeHtml(activeDateLabel)}</span>
+                      <span class="text-stone-600">·</span>
+                      <span id="store-orders-summary-total" class="font-mono-tech text-xs font-bold text-[#d4af37]">Calculando...</span>
+                    </div>
+                  </div>
+                </div>
+              `;
+            })()}
 
             <!-- TABLA / TARJETAS DE PEDIDOS DE TIENDA -->
             ${(() => {
+              const todayDayStr = getLocalDateString();
+              const yesterdayDateObj = new Date();
+              yesterdayDateObj.setDate(yesterdayDateObj.getDate() - 1);
+              const yesterdayDayStr = getLocalDateString(yesterdayDateObj);
+
               const filteredOrders = state.storeOrders.filter((o) => {
                 if (state.storeOrderStatusFilter !== 'ALL' && o.status !== state.storeOrderStatusFilter) return false;
+
+                const orderDay = o.deliveredDate || o.date || (o.createdAt ? o.createdAt.substring(0, 10) : '');
+                if (state.storeOrderDateFilter === 'TODAY') {
+                  if (orderDay !== todayDayStr) return false;
+                } else if (state.storeOrderDateFilter === 'YESTERDAY') {
+                  if (orderDay !== yesterdayDayStr) return false;
+                } else if (state.storeOrderDateFilter && state.storeOrderDateFilter !== 'ALL') {
+                  if (orderDay !== state.storeOrderDateFilter) return false;
+                }
+
                 if (state.storeOrderSearch && state.storeOrderSearch.trim() !== '') {
                   const q = state.storeOrderSearch.toLowerCase().trim();
                   const matchRef = (o.referenceCode || '').toLowerCase().includes(q);
                   const matchClient = (o.clientName || '').toLowerCase().includes(q);
                   const matchPhone = (o.clientPhone || '').toLowerCase().includes(q);
                   const matchProd = (o.productName || '').toLowerCase().includes(q);
-                  return matchRef || matchClient || matchPhone || matchProd;
+                  const matchDeliveredBy = (o.deliveredByName || o.deliveredBy || '').toLowerCase().includes(q);
+                  return matchRef || matchClient || matchPhone || matchProd || matchDeliveredBy;
                 }
                 return true;
               });
 
+              const totalDeliveredCop = filteredOrders
+                .filter((o) => o.status === 'ENTREGADO')
+                .reduce((sum, o) => sum + (Number(o.totalCop) || 0), 0);
+              const totalDeliveredUnits = filteredOrders
+                .filter((o) => o.status === 'ENTREGADO')
+                .reduce((sum, o) => sum + (Number(o.quantity) || 1), 0);
+
+              // Actualización reactiva del badge de total
+              setTimeout(() => {
+                const badge = document.getElementById('store-orders-summary-total');
+                if (badge) {
+                  badge.textContent = `$${totalDeliveredCop.toLocaleString('es-CO')} COP (${totalDeliveredUnits} ${totalDeliveredUnits === 1 ? 'unidad' : 'unidades'})`;
+                }
+              }, 0);
+
               if (filteredOrders.length === 0) {
                 return `
                   <div class="bg-[#12151b] rounded-[14px] border border-dashed border-[rgba(212,175,55,0.2)] p-8 text-center">
-                    <p class="font-serif-editorial text-lg text-[#c5c0b6]">No hay pedidos de tienda que coincidan con el filtro actual</p>
-                    <p class="text-xs text-[#8a8275] mt-1">Cuando un cliente compre un producto en el apartado TIENDA o registres una venta directa, aparecerá aquí al instante.</p>
+                    <p class="font-serif-editorial text-lg text-[#c5c0b6]">No hay pedidos ni productos vendidos para este día o filtro</p>
+                    <p class="text-xs text-[#8a8275] mt-1">Prueba seleccionando "Todos los días" o escoge otra fecha en el calendario.</p>
                   </div>
                 `;
+              }
               }
 
               return `
@@ -4311,6 +4413,30 @@ async findAllProducts() {
         renderApp();
       };
     });
+
+    // Filtros de día / fecha de pedidos en Dashboard
+    document.querySelectorAll('.btn-order-date-filter').forEach((btn) => {
+      btn.onclick = () => {
+        state.storeOrderDateFilter = btn.dataset.orderDateFilter || 'ALL';
+        renderApp();
+      };
+    });
+
+    const inputStoreOrderDate = document.getElementById('input-store-order-date');
+    if (inputStoreOrderDate) {
+      inputStoreOrderDate.onchange = (e) => {
+        state.storeOrderDateFilter = e.target.value || 'ALL';
+        renderApp();
+      };
+    }
+
+    const btnClearOrderDate = document.getElementById('btn-clear-order-date');
+    if (btnClearOrderDate) {
+      btnClearOrderDate.onclick = () => {
+        state.storeOrderDateFilter = 'ALL';
+        renderApp();
+      };
+    }
 
     const inputStoreOrderSearch = document.getElementById('input-store-order-search');
     if (inputStoreOrderSearch) {
