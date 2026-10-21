@@ -1,1 +1,13 @@
-[]
+[
+  {
+    "id": "test-collision-01",
+    "barberId": "b-david-01",
+    "serviceId": "s-01",
+    "date": "2026-11-20",
+    "startTime": "14:00",
+    "endTime": "14:30",
+    "clientName": "Cliente Test A",
+    "clientPhone": "3210001122",
+    "status": "CANCELADA"
+  }
+]

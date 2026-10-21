@@ -1807,13 +1807,13 @@ async findAllProducts() {
         <!-- SECTION 1: PORTADA MAJESTUOSA DEL LOGO (FULL VIEWPORT COVER) -->
         <section id="hero" class="relative min-h-[85vh] sm:min-h-[88vh] flex flex-col items-center justify-center overflow-hidden bg-[#0a0b0d] px-6 text-center border-b border-[#d4af37]/20 select-none">
           
-          <!-- Halo de luz ambiental dorada en el centro -->
-          <div class="absolute w-[360px] sm:w-[580px] md:w-[720px] h-[360px] sm:h-[580px] md:h-[720px] rounded-full bg-[#d4af37]/12 blur-[120px] pointer-events-none -translate-y-4"></div>
+          <!-- Halo de luz ambiental dorada en el centro (Air Ambient Glow) -->
+          <div class="absolute w-[360px] sm:w-[580px] md:w-[720px] h-[360px] sm:h-[580px] md:h-[720px] rounded-full bg-[#d4af37]/12 blur-[120px] pointer-events-none -translate-y-4 air-glow-pulse"></div>
           
           <!-- Contenedor central del Logo con doble anillo orbital y halo de lujo -->
           <div class="relative z-10 flex flex-col items-center justify-center max-w-xl mx-auto py-8">
             
-            <div class="relative flex items-center justify-center mb-6">
+            <div class="relative flex items-center justify-center mb-6 air-floating">
               <!-- Doble anillo orbital dorado sutil -->
               <div class="absolute -inset-4 sm:-inset-6 rounded-full border border-[#d4af37]/25 animate-[spin_24s_linear_infinite] pointer-events-none"></div>
               <div class="absolute -inset-8 sm:-inset-10 rounded-full border border-dashed border-[#d4af37]/15 animate-[spin_36s_linear_infinite_reverse] pointer-events-none"></div>
