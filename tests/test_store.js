@@ -327,7 +327,13 @@ async function runTests() {
     if (testProd && authToken) {
       try { await request('DELETE', `/api/products/${testProd.id}`, null, authToken); } catch (_) {}
     }
-    fs.writeFileSync(ORDERS_FILE, originalOrders, 'utf8');
+    await new Promise((r) => setTimeout(r, 150));
+    try {
+      fs.writeFileSync(ORDERS_FILE, originalOrders, 'utf8');
+    } catch (_) {
+      await new Promise((r) => setTimeout(r, 200));
+      try { fs.writeFileSync(ORDERS_FILE, originalOrders, 'utf8'); } catch (__) {}
+    }
   }
 }
 
