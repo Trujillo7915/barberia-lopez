@@ -2341,6 +2341,8 @@ async findAllProducts() {
                         <img
                           src="${escapeHtml(p.imageUrl || './logo_barberia_lopez_hd.jpg')}"
                           alt="${escapeHtml(p.name)}"
+                          loading="lazy"
+                          decoding="async"
                           class="w-full h-full object-cover object-center transition-transform duration-500 hover:scale-105"
                           onerror="this.src='./logo_barberia_lopez_hd.jpg'"
                         >
@@ -3019,9 +3021,26 @@ async findAllProducts() {
                       <label class="block text-xs font-semibold text-[#c5c0b6] mb-1">Precio en Efectivo (COP) *</label>
                       <input type="number" id="new-prod-price" required min="1000" step="500" placeholder="Ej. 32000" class="input-parchment text-xs font-mono-tech">
                     </div>
-                    <div>
-                      <label class="block text-xs font-semibold text-[#c5c0b6] mb-1">URL de Imagen (opcional)</label>
-                      <input type="url" id="new-prod-image" placeholder="https://..." class="input-parchment text-xs">
+                    <!-- FOTO DEL PRODUCTO (SUBIR O TOMAR FOTO) -->
+                    <div class="p-3 bg-[#12151b] rounded-[12px] border border-[rgba(212,175,55,0.22)]">
+                      <label class="block font-sans-ui text-xs font-semibold text-[#f3e5ab] mb-2">Foto del producto</label>
+                      <div class="flex items-center gap-3">
+                        <img id="new-prod-preview" src="./logo_barberia_lopez_hd.jpg" alt="Foto producto" class="w-14 h-14 rounded-[8px] object-cover border border-[rgba(212,175,55,0.35)] bg-[#0a0b0d] shrink-0">
+                        <div class="flex-1 space-y-1.5">
+                          <label for="new-prod-file" class="btn-clay py-1.5 px-3 text-xs font-medium cursor-pointer inline-flex items-center gap-1.5 shadow-sm">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                            <span>Subir o tomar foto</span>
+                          </label>
+                          <input type="file" id="new-prod-file" accept="image/*" class="hidden">
+                          <p class="font-sans-ui text-[10px] text-[#8a8275]" id="new-prod-file-status">
+                            Comprime y optimiza la foto en el dispositivo.
+                          </p>
+                        </div>
+                      </div>
+                      <div class="mt-2.5 pt-2 border-t border-[rgba(212,175,55,0.12)]">
+                        <label class="block font-sans-ui text-[10px] text-[#c5c0b6] mb-1">O pegar enlace web directo (URL):</label>
+                        <input type="url" id="new-prod-image" placeholder="https://..." class="input-parchment text-xs font-mono-tech">
+                      </div>
                     </div>
                     <div>
                       <label class="block text-xs font-semibold text-[#c5c0b6] mb-1">Descripción breve</label>
@@ -3053,8 +3072,13 @@ async findAllProducts() {
                         ${products.map((p) => `
                           <tr class="hover:bg-[#181c24] transition-colors">
                             <td class="p-3">
-                              <div class="font-semibold text-[#ffffff]">${escapeHtml(p.name)}</div>
-                              <div class="text-[11px] text-[#8a8275]">${escapeHtml(p.category || 'General')}</div>
+                              <div class="flex items-center gap-2.5">
+                                <img src="${escapeHtml(p.imageUrl || './logo_barberia_lopez_hd.jpg')}" alt="${escapeHtml(p.name)}" loading="lazy" decoding="async" class="w-8 h-8 rounded-[6px] object-cover border border-[rgba(212,175,55,0.3)] bg-[#0a0b0d] shrink-0" onerror="this.src='./logo_barberia_lopez_hd.jpg'">
+                                <div>
+                                  <div class="font-semibold text-[#ffffff]">${escapeHtml(p.name)}</div>
+                                  <div class="text-[11px] text-[#8a8275]">${escapeHtml(p.category || 'General')}</div>
+                                </div>
+                              </div>
                             </td>
                             <td class="p-3 font-mono-tech font-bold text-[#d4af37]">
                               $${Number(p.priceCop || 0).toLocaleString('es-CO')}
@@ -3667,9 +3691,26 @@ async findAllProducts() {
                     <label class="block text-xs font-semibold text-[#c5c0b6] mb-1">Precio en Efectivo (COP) *</label>
                     <input type="number" id="new-prod-price" required min="1000" step="500" placeholder="Ej. 32000" class="input-parchment text-xs font-mono-tech">
                   </div>
-                  <div>
-                    <label class="block text-xs font-semibold text-[#c5c0b6] mb-1">URL de Imagen (opcional)</label>
-                    <input type="url" id="new-prod-image" placeholder="https://..." class="input-parchment text-xs">
+                  <!-- FOTO DEL PRODUCTO (SUBIR O TOMAR FOTO) -->
+                  <div class="p-3 bg-[#12151b] rounded-[12px] border border-[rgba(212,175,55,0.22)]">
+                    <label class="block font-sans-ui text-xs font-semibold text-[#f3e5ab] mb-2">Foto del producto</label>
+                    <div class="flex items-center gap-3">
+                      <img id="new-prod-preview" src="./logo_barberia_lopez_hd.jpg" alt="Foto producto" class="w-14 h-14 rounded-[8px] object-cover border border-[rgba(212,175,55,0.35)] bg-[#0a0b0d] shrink-0">
+                      <div class="flex-1 space-y-1.5">
+                        <label for="new-prod-file" class="btn-clay py-1.5 px-3 text-xs font-medium cursor-pointer inline-flex items-center gap-1.5 shadow-sm">
+                          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                          <span>Subir o tomar foto</span>
+                        </label>
+                        <input type="file" id="new-prod-file" accept="image/*" class="hidden">
+                        <p class="font-sans-ui text-[10px] text-[#8a8275]" id="new-prod-file-status">
+                          Comprime y optimiza la foto en el dispositivo.
+                        </p>
+                      </div>
+                    </div>
+                    <div class="mt-2.5 pt-2 border-t border-[rgba(212,175,55,0.12)]">
+                      <label class="block font-sans-ui text-[10px] text-[#c5c0b6] mb-1">O pegar enlace web directo (URL):</label>
+                      <input type="url" id="new-prod-image" placeholder="https://..." class="input-parchment text-xs font-mono-tech">
+                    </div>
                   </div>
                   <div>
                     <label class="block text-xs font-semibold text-[#c5c0b6] mb-1">Descripción breve</label>
@@ -3699,8 +3740,13 @@ async findAllProducts() {
                       ${products.map((p) => `
                         <tr class="hover:bg-[#181c24] transition-colors">
                           <td class="p-3">
-                            <div class="font-semibold text-[#ffffff]">${escapeHtml(p.name)}</div>
-                            <div class="text-[11px] text-[#8a8275]">${escapeHtml(p.category || 'General')}</div>
+                            <div class="flex items-center gap-2.5">
+                              <img src="${escapeHtml(p.imageUrl || './logo_barberia_lopez_hd.jpg')}" alt="${escapeHtml(p.name)}" loading="lazy" decoding="async" class="w-8 h-8 rounded-[6px] object-cover border border-[rgba(212,175,55,0.3)] bg-[#0a0b0d] shrink-0" onerror="this.src='./logo_barberia_lopez_hd.jpg'">
+                              <div>
+                                <div class="font-semibold text-[#ffffff]">${escapeHtml(p.name)}</div>
+                                <div class="text-[11px] text-[#8a8275]">${escapeHtml(p.category || 'General')}</div>
+                              </div>
+                            </div>
                           </td>
                           <td class="p-3 font-mono-tech font-bold text-[#d4af37]">
                             $${Number(p.priceCop || 0).toLocaleString('es-CO')}
@@ -4641,6 +4687,120 @@ async findAllProducts() {
       };
     });
 
+    // Motor de compresión y optimización de imágenes en el cliente (Memory-safe para móviles)
+    let pendingCompressedNewProductImage = null;
+    let pendingCompressedProductImage = null;
+
+    function compressImageFile(file, maxWidth = 600, maxHeight = 600, quality = 0.82) {
+      return new Promise((resolve, reject) => {
+        if (!file) {
+          return reject(new Error('No se seleccionó ningún archivo de imagen.'));
+        }
+        const isImage = (file.type && file.type.startsWith('image/')) ||
+          /\.(jpe?g|png|webp|gif|bmp|heic|heif)$/i.test(file.name || '');
+        if (!isImage) {
+          return reject(new Error('El archivo seleccionado no es una imagen válida (debe ser JPG, PNG o WebP).'));
+        }
+
+        const runCanvasCompress = (img) => {
+          let width = img.naturalWidth || img.width || 600;
+          let height = img.naturalHeight || img.height || 600;
+          if (width > height) {
+            if (width > maxWidth) {
+              height = Math.round((height * maxWidth) / width);
+              width = maxWidth;
+            }
+          } else {
+            if (height > maxHeight) {
+              width = Math.round((width * maxHeight) / height);
+              height = maxHeight;
+            }
+          }
+          const canvas = document.createElement('canvas');
+          canvas.width = Math.max(1, width);
+          canvas.height = Math.max(1, height);
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+
+          let dataUri = canvas.toDataURL('image/webp', quality);
+          if (!dataUri.startsWith('data:image/webp')) {
+            dataUri = canvas.toDataURL('image/jpeg', quality);
+          }
+          return dataUri;
+        };
+
+        if (window.URL && typeof URL.createObjectURL === 'function') {
+          const blobUrl = URL.createObjectURL(file);
+          const img = new Image();
+          img.onload = () => {
+            URL.revokeObjectURL(blobUrl);
+            try {
+              resolve(runCanvasCompress(img));
+            } catch (err) {
+              reject(err);
+            }
+          };
+          img.onerror = () => {
+            URL.revokeObjectURL(blobUrl);
+            readWithFileReader(file, runCanvasCompress, resolve, reject);
+          };
+          img.src = blobUrl;
+        } else {
+          readWithFileReader(file, runCanvasCompress, resolve, reject);
+        }
+      });
+    }
+
+    function readWithFileReader(file, runCanvasCompress, resolve, reject) {
+      const reader = new FileReader();
+      reader.onerror = () => reject(new Error('No fue posible leer la imagen seleccionada.'));
+      reader.onload = () => {
+        const img = new Image();
+        img.onerror = () => reject(new Error('No fue posible procesar la imagen seleccionada.'));
+        img.onload = () => {
+          try {
+            resolve(runCanvasCompress(img));
+          } catch (err) {
+            reject(err);
+          }
+        };
+        img.src = reader.result;
+      };
+      reader.readAsDataURL(file);
+    }
+
+    // Selector de archivo / foto para Crear Nuevo Producto
+    const newProdFileInput = document.getElementById('new-prod-file');
+    if (newProdFileInput) {
+      newProdFileInput.onchange = async () => {
+        const file = newProdFileInput.files && newProdFileInput.files[0];
+        if (!file) return;
+        const statusEl = document.getElementById('new-prod-file-status');
+        const previewEl = document.getElementById('new-prod-preview');
+        const imgUrlInput = document.getElementById('new-prod-image');
+        if (statusEl) {
+          statusEl.textContent = 'Optimizando foto en el dispositivo...';
+          statusEl.className = 'font-sans-ui text-[10px] text-[#d4af37]';
+        }
+        try {
+          const dataUri = await compressImageFile(file, 600, 600, 0.82);
+          pendingCompressedNewProductImage = dataUri;
+          if (previewEl) previewEl.src = dataUri;
+          if (imgUrlInput) imgUrlInput.value = '';
+          const sizeKb = Math.round((dataUri.length * 3) / 4 / 1024);
+          if (statusEl) {
+            statusEl.textContent = `Foto lista (${sizeKb} KB). Se guardará con el producto.`;
+            statusEl.className = 'font-sans-ui text-[10px] text-emerald-400 font-medium';
+          }
+        } catch (err) {
+          if (statusEl) {
+            statusEl.textContent = err.message || 'Error al procesar la foto.';
+            statusEl.className = 'font-sans-ui text-[10px] text-red-400';
+          }
+        }
+      };
+    }
+
     // Crear nuevo producto (Administrador o Barbero Jefe)
     const formCreateProduct = document.getElementById('form-create-product');
     if (formCreateProduct) {
@@ -4650,6 +4810,11 @@ async findAllProducts() {
           alert('Acceso denegado: solo el Administrador o el Barbero Jefe pueden agregar nuevos productos al catálogo.');
           return;
         }
+        const submitBtn = formCreateProduct.querySelector('button[type="submit"]');
+        if (submitBtn) {
+          submitBtn.disabled = true;
+          submitBtn.textContent = 'Guardando producto...';
+        }
         try {
           const name = document.getElementById('new-prod-name').value.trim();
           const category = document.getElementById('new-prod-category').value.trim() || 'Cuidado Personal';
@@ -4658,7 +4823,7 @@ async findAllProducts() {
           const imageUrl = document.getElementById('new-prod-image').value.trim();
           const description = document.getElementById('new-prod-desc').value.trim();
 
-          await repo.saveProduct({
+          const created = await repo.saveProduct({
             name,
             category,
             stock,
@@ -4666,10 +4831,22 @@ async findAllProducts() {
             imageUrl: imageUrl || undefined,
             description
           });
+
+          if (pendingCompressedNewProductImage && created && created.id) {
+            if (submitBtn) submitBtn.textContent = 'Subiendo foto del producto...';
+            await repo.uploadProductImage(created.id, pendingCompressedNewProductImage);
+            pendingCompressedNewProductImage = null;
+          }
+
           alert('Producto publicado exitosamente en el apartado TIENDA.');
           renderApp();
         } catch (err) {
           alert(err.message);
+        } finally {
+          if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Publicar producto en Tienda →';
+          }
         }
       };
     }
@@ -4704,50 +4881,6 @@ async findAllProducts() {
       btnCancelEditProd.onclick = () => modalEditProd.classList.add('hidden');
     }
 
-    let pendingCompressedProductImage = null;
-
-    function compressImageFile(file, maxWidth = 600, maxHeight = 600, quality = 0.82) {
-      return new Promise((resolve, reject) => {
-        if (!file || !file.type.startsWith('image/')) {
-          return reject(new Error('El archivo seleccionado no es una imagen valida.'));
-        }
-        const reader = new FileReader();
-        reader.onerror = () => reject(new Error('No fue posible leer la imagen seleccionada.'));
-        reader.onload = () => {
-          const img = new Image();
-          img.onerror = () => reject(new Error('No fue posible procesar la imagen seleccionada.'));
-          img.onload = () => {
-            let width = img.width;
-            let height = img.height;
-            if (width > height) {
-              if (width > maxWidth) {
-                height = Math.round((height * maxWidth) / width);
-                width = maxWidth;
-              }
-            } else {
-              if (height > maxHeight) {
-                width = Math.round((width * maxHeight) / height);
-                height = maxHeight;
-              }
-            }
-            const canvas = document.createElement('canvas');
-            canvas.width = width;
-            canvas.height = height;
-            const ctx = canvas.getContext('2d');
-            ctx.drawImage(img, 0, 0, width, height);
-
-            let dataUri = canvas.toDataURL('image/webp', quality);
-            if (!dataUri.startsWith('data:image/webp')) {
-              dataUri = canvas.toDataURL('image/jpeg', quality);
-            }
-            resolve(dataUri);
-          };
-          img.src = reader.result;
-        };
-        reader.readAsDataURL(file);
-      });
-    }
-
     const editProdFileInput = document.getElementById('edit-prod-file');
     if (editProdFileInput) {
       editProdFileInput.onchange = async () => {
@@ -4756,6 +4889,7 @@ async findAllProducts() {
         const statusEl = document.getElementById('edit-prod-file-status');
         const previewEl = document.getElementById('edit-prod-preview');
         const errorEl = document.getElementById('edit-prod-error-msg');
+        const imgInput = document.getElementById('edit-prod-image');
         if (errorEl) errorEl.classList.add('hidden');
         if (statusEl) {
           statusEl.textContent = 'Optimizando foto en el dispositivo...';
@@ -4765,6 +4899,7 @@ async findAllProducts() {
           const dataUri = await compressImageFile(file, 600, 600, 0.82);
           pendingCompressedProductImage = dataUri;
           if (previewEl) previewEl.src = dataUri;
+          if (imgInput) imgInput.value = '';
           const sizeKb = Math.round((dataUri.length * 3) / 4 / 1024);
           if (statusEl) {
             statusEl.textContent = `Foto optimizada (${sizeKb} KB). Lista para guardar sin saturar el servidor.`;
@@ -4822,9 +4957,13 @@ async findAllProducts() {
         }
 
         try {
+          let uploadedImageUrl = null;
           if (pendingCompressedProductImage) {
             if (submitBtn) submitBtn.textContent = 'Subiendo foto...';
-            await repo.uploadProductImage(prodId, pendingCompressedProductImage);
+            const uploadRes = await repo.uploadProductImage(prodId, pendingCompressedProductImage);
+            if (uploadRes && uploadRes.imageUrl) {
+              uploadedImageUrl = uploadRes.imageUrl;
+            }
             pendingCompressedProductImage = null;
           }
 
@@ -4832,9 +4971,13 @@ async findAllProducts() {
             priceCop: priceVal,
             stock: stockVal
           };
-          const imgInput = document.getElementById('edit-prod-image');
-          if (imgInput && imgInput.value.trim()) {
-            updatePayload.imageUrl = imgInput.value.trim();
+          if (uploadedImageUrl) {
+            updatePayload.imageUrl = uploadedImageUrl;
+          } else {
+            const imgInput = document.getElementById('edit-prod-image');
+            if (imgInput && imgInput.value.trim()) {
+              updatePayload.imageUrl = imgInput.value.trim();
+            }
           }
           await repo.updateProduct(prodId, updatePayload);
           if (modalEditProd) modalEditProd.classList.add('hidden');

@@ -38,7 +38,7 @@
     "description": "RELOJ QUE TE DA PRESENCIA",
     "priceCop": 50000,
     "stock": 1,
-    "imageUrl": "https://images.unsplash.com/photo-1621607512214-68297480165e?w=600&auto=format&fit=crop&q=80",
+    "imageUrl": "./assets/products/prod-prod-1792548932306-2041-1792636799696.webp",
     "active": true,
     "createdAt": "2026-10-21T02:15:32.306Z"
   }
