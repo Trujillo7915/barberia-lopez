@@ -85,6 +85,29 @@ Si en lugar de tenerla solo en la red local de la barberia desea que cualquier c
 
 ---
 
-### 6. Cierre de Entrega y Acta de Conformidad
+### 6. Politica de Alcance, Cambios y Nuevas Funcionalidades
 
-Con este documento y los scripts de ejecucion incluidos, **Barberia Lopez** asume la propiedad, operacion y mantenimiento pleno del software. El sistema no requiere intervenciones periodicas de programacion ni mantenimiento externo para su funcionamiento diario normal.
+Para garantizar una relacion comercial transparente y definir claramente los limites del servicio prestado:
+
+1. **Alcance Cubierto por el Pago Anterior:**
+   El valor acordado y cancelado previamente cubrio de forma exclusiva el diseno, desarrollo, pruebas, configuracion y entrega formal del sistema con las funcionalidades actuales (agenda de turnos, catalogo de tienda, gestion de inventario, perfiles de barberos, comprobantes con codigo unico, reproductor de video en movil y reportes de caja).
+
+2. **Exclusion Explicita de Cambios y Modificaciones Futuras:**
+   Cualquier solicitud posterior a esta entrega que involucre:
+   * Desarrollo de nuevas funciones o modulos adicionales.
+   * Pasarelas de pago electronico online (Wompi, Mercado Pago, ePayco, tarjetas de credito/debito).
+   * Modificaciones en el diseno visual, flujos de navegacion o logica de negocio preexistente.
+   * Integraciones con sistemas de terceros, facturacion electronica DIAN o mensajeria SMS/WhatsApp automatizada con APIs de pago.
+   * Migraciones de servidor, configuraciones de dominios personalizados o mantenimiento de infraestructura externa.
+   * Reparaciones derivadas de manipulacion indebida del codigo fuente, borrado accidental de archivos o fallas en el hardware del cliente.
+   
+   **NO estan incluidas en el pago anterior bajo ninguna circunstancia.**
+
+3. **Procedimiento para Nuevas Solicitudes:**
+   Toda nueva necesidad, ajuste estetico o funcionalidad adicional debera solicitarse formalmente para ser cotizada como un servicio independiente. Dicho trabajo solo se iniciara una vez acordado y cancelado el anticipo correspondiente del nuevo presupuesto.
+
+---
+
+### 7. Cierre de Entrega y Acta de Conformidad
+
+Con la entrega de este documento, los accesos administrativos y los scripts de ejecucion incluidos, **Barberia Lopez** declara recibir el software en estado operativo y a entera satisfaccion, asumiendo la propiedad, operacion y custodia plena del sistema y sus bases de datos. El sistema no requiere pagos recurrentes obligatorios al desarrollador para continuar operando en su estado actual.
