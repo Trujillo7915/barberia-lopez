@@ -1,37 +1,5 @@
 [
   {
-    "id": "p-05",
-    "name": "Polvo Texturizador de Volumen",
-    "category": "Ceras & Fijacion",
-    "priceCop": 28000,
-    "stock": 9,
-    "description": "Polvo ultraligero que aporta volumen instantaneo desde la raiz y control mate de larga duracion sin apelmazar.",
-    "image": "https://images.unsplash.com/photo-1526947425960-945c6e72858f?auto=format&fit=crop&w=600&q=80",
-    "active": true,
-    "imageUrl": "./assets/products/prod-p-05-1792548746966.webp"
-  },
-  {
-    "id": "p-06",
-    "name": "Cepillo Fade Cerdas Naturales",
-    "category": "Accesorios",
-    "priceCop": 18000,
-    "stock": 15,
-    "description": "Cepillo ergonomico en madera con cerdas firmes para peinar degradados, limpiar contornos y distribuir aceites en la barba.",
-    "image": "https://images.unsplash.com/photo-1590159763121-7c9fd312190d?auto=format&fit=crop&w=600&q=80",
-    "active": true
-  },
-  {
-    "id": "prod-1792531997757-cix2",
-    "name": "CERA",
-    "category": "Cuidado Capilar",
-    "description": "CERA QUE TE HARA VER MEJOR EL PELO",
-    "priceCop": 20000,
-    "stock": 8,
-    "imageUrl": "./assets/products/prod-prod-1792531997757-cix2-1792537022312.jpg",
-    "active": true,
-    "createdAt": "2026-10-20T21:33:17.757Z"
-  },
-  {
     "id": "prod-1792548932306-2041",
     "name": "Reloj GFORX",
     "category": "Accesorio",
