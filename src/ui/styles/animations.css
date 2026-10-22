@@ -242,3 +242,164 @@
 .modal-backdrop-custom {
   transition: opacity 0.3s var(--ease-air-smooth), backdrop-filter 0.3s var(--ease-air-smooth);
 }
+
+/* ==========================================================================
+   7. EFECTO SPOTLIGHT Y BORDES LUMINOSOS (DARK LUXURY SPOTLIGHT)
+   ========================================================================== */
+
+.spotlight-card {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  background-color: #12151b;
+  transition: transform var(--duration-swift) var(--ease-air-spring),
+              border-color var(--duration-swift) var(--ease-air-smooth),
+              box-shadow var(--duration-swift) var(--ease-air-smooth) !important;
+}
+
+/* Resplandor radial interactivo interno */
+.spotlight-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: radial-gradient(
+    520px circle at var(--mouse-x, -999px) var(--mouse-y, -999px),
+    rgba(212, 175, 55, 0.16),
+    transparent 65%
+  );
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.35s var(--ease-air-smooth);
+  z-index: 1;
+}
+
+.spotlight-card:hover::before {
+  opacity: 1;
+}
+
+/* Borde perimetral luminoso de oro imperial */
+.spotlight-card::after {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  padding: 1.5px;
+  background: radial-gradient(
+    360px circle at var(--mouse-x, -999px) var(--mouse-y, -999px),
+    rgba(212, 175, 55, 0.85),
+    rgba(212, 175, 55, 0.25) 40%,
+    transparent 70%
+  );
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.35s var(--ease-air-smooth);
+  z-index: 2;
+}
+
+.spotlight-card:hover::after {
+  opacity: 1;
+}
+
+.spotlight-card:hover {
+  transform: translateY(-3px) scale(1.008);
+  box-shadow: 0 16px 36px -8px rgba(0, 0, 0, 0.85), 0 0 24px rgba(212, 175, 55, 0.18) !important;
+}
+
+/* ==========================================================================
+   8. TRANSICIONES DE VISTA Y CONTENIDO (VIEW TRANSITION ENGINE)
+   ========================================================================== */
+
+@keyframes viewFadeIn {
+  0% {
+    opacity: 0;
+    transform: translateY(10px) scale(0.995);
+    filter: blur(4px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+
+.view-fade-enter {
+  animation: viewFadeIn 0.36s var(--ease-air-spring) forwards;
+  will-change: opacity, transform, filter;
+}
+
+/* ==========================================================================
+   9. BARRIDO METÁLICO ESPECULAR (GOLD SHIMMER)
+   ========================================================================== */
+
+@keyframes goldShimmerEffect {
+  0% {
+    background-position: -200% center;
+  }
+  100% {
+    background-position: 200% center;
+  }
+}
+
+.shimmer-gold {
+  background: linear-gradient(
+    90deg,
+    #d4af37 0%,
+    #fff4cc 35%,
+    #d4af37 60%,
+    #b38828 100%
+  );
+  background-size: 200% auto;
+  color: transparent !important;
+  -webkit-background-clip: text !important;
+  background-clip: text !important;
+  animation: goldShimmerEffect 4s linear infinite;
+}
+
+/* ==========================================================================
+   10. INDICADORES DE TURNO Y PULSO HÁPTICO
+   ========================================================================== */
+
+@keyframes shiftPulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.45);
+    transform: scale(1);
+  }
+  50% {
+    box-shadow: 0 0 10px 3px rgba(74, 222, 128, 0.65);
+    transform: scale(1.08);
+  }
+}
+
+.indicator-on-shift {
+  animation: shiftPulse 2.4s ease-in-out infinite;
+}
+
+/* ==========================================================================
+   11. BARRA DE DESPLAZAMIENTO CINEMÁTICA (LUXURY SCROLLBAR)
+   ========================================================================== */
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #0a0b0d;
+  border-left: 1px solid rgba(212, 175, 55, 0.12);
+}
+
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #b38828 0%, #d4af37 50%, #b38828 100%);
+  border-radius: 9999px;
+  border: 2px solid #0a0b0d;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #ffd700;
+  box-shadow: 0 0 10px rgba(212, 175, 55, 0.6);
+}
+

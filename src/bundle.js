@@ -1832,7 +1832,7 @@ async findAllProducts() {
             <h1 class="font-serif-editorial text-2xl sm:text-4xl md:text-5xl font-normal tracking-[0.22em] text-[#ffffff] uppercase drop-shadow-[0_4px_16px_rgba(0,0,0,0.8)]">
               Barbería López
             </h1>
-            <p class="font-sans-ui text-xs sm:text-sm text-[#d4af37] tracking-[0.3em] uppercase font-semibold mt-2.5">
+            <p class="shimmer-gold font-sans-ui text-xs sm:text-sm tracking-[0.3em] uppercase font-semibold mt-2.5">
               Estudio Tradicional · Neiva, Huila
             </p>
             <p class="font-serif-editorial text-[#c5c0b6] italic text-sm sm:text-base mt-2 max-w-md">
@@ -2030,7 +2030,7 @@ async findAllProducts() {
           <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             
             <!-- Card 1: Corte Básico -->
-            <div class="bg-[#12151b] border border-[#d4af37]/25 rounded-[24px] p-7 flex flex-col justify-between min-h-[240px] hover:border-[#d4af37]/50 transition-all shadow-lg">
+            <div class="spotlight-card bg-[#12151b] border border-[#d4af37]/25 rounded-[24px] p-7 flex flex-col justify-between min-h-[240px] hover:border-[#d4af37]/50 transition-all shadow-lg">
               <div>
                 <span class="font-sans-ui text-xs font-semibold uppercase tracking-wider text-[#a39578] block mb-2">01 / CORTE TRADICIONAL</span>
                 <h3 class="font-serif-editorial text-[26px] font-normal text-[#ffffff] mb-2">Corte Básico</h3>
@@ -2045,7 +2045,7 @@ async findAllProducts() {
             </div>
 
             <!-- Card 2: Combo 1 -->
-            <div class="bg-[#12151b] border border-[#d4af37]/25 rounded-[24px] p-7 flex flex-col justify-between min-h-[240px] hover:border-[#d4af37]/50 transition-all shadow-lg">
+            <div class="spotlight-card bg-[#12151b] border border-[#d4af37]/25 rounded-[24px] p-7 flex flex-col justify-between min-h-[240px] hover:border-[#d4af37]/50 transition-all shadow-lg">
               <div>
                 <span class="font-sans-ui text-xs font-semibold uppercase tracking-wider text-[#a39578] block mb-2">02 / CORTE + RELAJACIÓN</span>
                 <h3 class="font-serif-editorial text-[26px] font-normal text-[#ffffff] mb-2">Combo 1</h3>
@@ -2060,7 +2060,7 @@ async findAllProducts() {
             </div>
 
             <!-- Card 3: Combo 2 -->
-            <div class="bg-[#12151b] border border-[#d4af37]/25 rounded-[24px] p-7 flex flex-col justify-between min-h-[240px] hover:border-[#d4af37]/50 transition-all shadow-lg">
+            <div class="spotlight-card bg-[#12151b] border border-[#d4af37]/25 rounded-[24px] p-7 flex flex-col justify-between min-h-[240px] hover:border-[#d4af37]/50 transition-all shadow-lg">
               <div>
                 <span class="font-sans-ui text-xs font-semibold uppercase tracking-wider text-[#a39578] block mb-2">03 / CORTE + BARBA + SPA</span>
                 <h3 class="font-serif-editorial text-[26px] font-normal text-[#ffffff] mb-2">Combo 2</h3>
@@ -2075,7 +2075,7 @@ async findAllProducts() {
             </div>
 
             <!-- Card 4: Combo 3 -->
-            <div class="bg-[#12151b] border border-[#d4af37]/25 rounded-[24px] p-7 flex flex-col justify-between min-h-[240px] hover:border-[#d4af37]/50 transition-all shadow-lg">
+            <div class="spotlight-card bg-[#12151b] border border-[#d4af37]/25 rounded-[24px] p-7 flex flex-col justify-between min-h-[240px] hover:border-[#d4af37]/50 transition-all shadow-lg">
               <div>
                 <span class="font-sans-ui text-xs font-semibold uppercase tracking-wider text-[#a39578] block mb-2">04 / SPA FACIAL COMPLETO</span>
                 <h3 class="font-serif-editorial text-[26px] font-normal text-[#ffffff] mb-2">Combo 3</h3>
@@ -2090,7 +2090,7 @@ async findAllProducts() {
             </div>
 
             <!-- Card 5: Combi Completa VIP -->
-            <div class="bg-[#12151b] border border-[#d4af37]/25 rounded-[24px] p-7 flex flex-col justify-between min-h-[240px] hover:border-[#d4af37]/50 transition-all shadow-lg">
+            <div class="spotlight-card bg-[#12151b] border border-[#d4af37]/25 rounded-[24px] p-7 flex flex-col justify-between min-h-[240px] hover:border-[#d4af37]/50 transition-all shadow-lg">
               <div>
                 <span class="font-sans-ui text-xs font-semibold uppercase tracking-wider text-[#a39578] block mb-2">05 / EXPERIENCIA TOTAL VIP</span>
                 <h3 class="font-serif-editorial text-[26px] font-normal text-[#ffffff] mb-2">Combi Completa VIP</h3>
@@ -2105,7 +2105,7 @@ async findAllProducts() {
             </div>
 
             <!-- Card 6: Adicionales & Pigmentación -->
-            <div class="bg-gradient-to-br from-[#161a22] to-[#101217] border border-[#d4af37]/45 rounded-[24px] p-7 flex flex-col justify-between min-h-[240px] shadow-xl">
+            <div class="spotlight-card bg-gradient-to-br from-[#161a22] to-[#101217] border border-[#d4af37]/45 rounded-[24px] p-7 flex flex-col justify-between min-h-[240px] shadow-xl">
               <div>
                 <span class="font-sans-ui text-xs font-semibold uppercase tracking-wider text-[#d4af37] block mb-2">OPCIONALES / PERSONALIZACIÓN</span>
                 <h3 class="font-serif-editorial text-[26px] font-normal text-[#ffffff] mb-2">Adicionales de Autor</h3>
@@ -2281,7 +2281,7 @@ async findAllProducts() {
               ${filteredProducts.map((p) => {
                 const outOfStock = (Number(p.stock) || 0) <= 0;
                 return `
-                  <div class="bg-[#12151b] border ${outOfStock ? 'border-stone-800 opacity-75' : 'border-[rgba(212,175,55,0.28)] hover:border-[#d4af37]'} rounded-[22px] overflow-hidden flex flex-col justify-between transition-all shadow-xl">
+                  <div class="spotlight-card bg-[#12151b] border ${outOfStock ? 'border-stone-800 opacity-75' : 'border-[rgba(212,175,55,0.28)] hover:border-[#d4af37]'} rounded-[22px] overflow-hidden flex flex-col justify-between transition-all shadow-xl">
                     <div>
                       <div class="relative h-56 w-full bg-[#0a0b0d] overflow-hidden border-b border-[rgba(212,175,55,0.18)]">
                         <img
@@ -3747,7 +3747,7 @@ async findAllProducts() {
       </header>
 
       <!-- MAIN CANVAS -->
-      <main>${mainContent}</main>
+      <main class="view-fade-enter">${mainContent}</main>
 
       <!-- FOOTER INVERSION (Charcoal Deep & Imperial Gold) -->
       <footer class="anthropic-footer mt-20">
@@ -3958,7 +3958,7 @@ async findAllProducts() {
                     <div 
                       data-modal-barber-id="${b.id}" 
                       data-busy="${isBarberBusy ? 'true' : 'false'}"
-                      class="barber-modal-choice p-3.5 rounded-[12px] border cursor-pointer flex items-center gap-3 transition-all ${isBarberBusy ? 'opacity-50 border-red-500/30 bg-[#12151b]' : (isSelected ? 'selected border-[#d4af37] bg-[rgba(212,175,55,0.14)] shadow-[0_0_15px_rgba(212,175,55,0.2)]' : 'border-[rgba(212,175,55,0.22)] bg-[#161a22] hover:border-[#d4af37]')}">
+                      class="spotlight-card barber-modal-choice p-3.5 rounded-[12px] border cursor-pointer flex items-center gap-3 transition-all ${isBarberBusy ? 'opacity-50 border-red-500/30 bg-[#12151b]' : (isSelected ? 'selected border-[#d4af37] bg-[rgba(212,175,55,0.14)] shadow-[0_0_15px_rgba(212,175,55,0.2)]' : 'border-[rgba(212,175,55,0.22)] bg-[#161a22] hover:border-[#d4af37]')}">
                       <img src="${b.avatar || './logo_barberia_lopez_hd.jpg'}" alt="${escapeHtml(b.name)}" class="w-11 h-11 rounded-full object-cover border border-[rgba(212,175,55,0.35)]">
                       <div class="flex-1">
                         <div class="font-sans-ui font-semibold text-[#ffffff] text-[14px] flex items-center justify-between">
@@ -3985,7 +3985,7 @@ async findAllProducts() {
                   return `
                     <div 
                       data-modal-service-id="${s.id}" 
-                      class="service-modal-choice p-3.5 rounded-[12px] border cursor-pointer flex flex-col justify-between transition-all ${isSelected ? 'selected border-[#d4af37] bg-[rgba(212,175,55,0.14)] shadow-[0_0_15px_rgba(212,175,55,0.2)]' : 'border-[rgba(212,175,55,0.22)] bg-[#161a22] hover:border-[#d4af37]'}">
+                      class="spotlight-card service-modal-choice p-3.5 rounded-[12px] border cursor-pointer flex flex-col justify-between transition-all ${isSelected ? 'selected border-[#d4af37] bg-[rgba(212,175,55,0.14)] shadow-[0_0_15px_rgba(212,175,55,0.2)]' : 'border-[rgba(212,175,55,0.22)] bg-[#161a22] hover:border-[#d4af37]'}">
                       <div class="flex items-center justify-between gap-1 mb-1">
                         <span class="font-sans-ui font-semibold text-[#ffffff] text-[14px]">${s.name}</span>
                         <span class="font-mono-tech font-bold text-[#d4af37] text-sm">$${s.priceCop.toLocaleString('es-CO')}</span>
@@ -5870,6 +5870,32 @@ async findAllProducts() {
     container.innerHTML = renderClientSyncContent(savedPhone);
     attachListeners();
   }
+
+  // Motor global de Spotlight interactivo con iluminacion perimetral y haz radial
+  function setupGlobalSpotlightEngine() {
+    if (typeof window === 'undefined' || window.__spotlightEngineActive) return;
+    window.__spotlightEngineActive = true;
+
+    function handlePointerMove(e) {
+      const clientX = e.touches && e.touches[0] ? e.touches[0].clientX : e.clientX;
+      const clientY = e.touches && e.touches[0] ? e.touches[0].clientY : e.clientY;
+      if (typeof clientX !== 'number' || typeof clientY !== 'number') return;
+      const targetCard = e.target && e.target.closest ? e.target.closest('.spotlight-card') : null;
+
+      if (targetCard) {
+        const rect = targetCard.getBoundingClientRect();
+        const x = clientX - rect.left;
+        const y = clientY - rect.top;
+        targetCard.style.setProperty('--mouse-x', `${x}px`);
+        targetCard.style.setProperty('--mouse-y', `${y}px`);
+      }
+    }
+
+    window.addEventListener('mousemove', handlePointerMove, { passive: true });
+    window.addEventListener('touchmove', handlePointerMove, { passive: true });
+  }
+
+  setupGlobalSpotlightEngine();
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', renderApp);
