@@ -785,6 +785,7 @@ function applySecurityHeaders(res) {
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "font-src 'self' data: https://fonts.gstatic.com",
     "img-src 'self' data: blob: https://images.unsplash.com https:",
+    "media-src 'self' blob: data:",
     "connect-src 'self' https://fonts.googleapis.com https://fonts.gstatic.com",
     "frame-ancestors 'self'"
   ].join('; '));
@@ -833,7 +834,11 @@ const MIME_TYPES = {
   '.svg': 'image/svg+xml',
   '.ico': 'image/x-icon',
   '.ics': 'text/calendar; charset=utf-8',
-  '.pdf': 'application/pdf'
+  '.pdf': 'application/pdf',
+  '.mp4': 'video/mp4',
+  '.webm': 'video/webm',
+  '.mov': 'video/quicktime',
+  '.ogg': 'video/ogg'
 };
 
 // ============================================================================

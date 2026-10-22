@@ -1862,75 +1862,120 @@ async findAllProducts() {
             <div class="absolute w-[600px] h-[600px] rounded-full bg-[#d4af37]/6 blur-[140px]"></div>
           </div>
 
-          <div class="relative z-10 max-w-[1240px] mx-auto px-6 md:px-12">
+          <div class="relative z-10 max-w-[1240px] mx-auto px-6 md:px-12 py-4 sm:py-6">
             
-            <!-- Layout Centrado con Titular, Subtitulo y Acciones Directas -->
-            <div class="max-w-3xl mx-auto text-center flex flex-col items-center justify-center py-4 sm:py-6">
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
               
-              <div class="inline-flex items-center gap-2 mb-4 px-3.5 py-1 rounded-full bg-[#d4af37]/15 text-[#f3e5ab] border border-[#d4af37]/35 text-xs font-sans-ui font-semibold tracking-wide w-fit backdrop-blur-sm">
-                <span class="w-2 h-2 rounded-full bg-[#d4af37] shadow-[0_0_8px_#d4af37]"></span>
-                <span>NEIVA, HUILA · AGENDA EN VIVO</span>
+              <!-- COLUMNA IZQUIERDA: INFORMACION Y BOTONES -->
+              <div class="lg:col-span-7 flex flex-col items-start text-left">
+                
+                <div class="inline-flex items-center gap-2 mb-4 px-3.5 py-1 rounded-full bg-[#d4af37]/15 text-[#f3e5ab] border border-[#d4af37]/35 text-xs font-sans-ui font-semibold tracking-wide w-fit backdrop-blur-sm">
+                  <span class="w-2 h-2 rounded-full bg-[#d4af37] shadow-[0_0_8px_#d4af37]"></span>
+                  <span>NEIVA, HUILA · AGENDA EN VIVO</span>
+                </div>
+
+                <!-- Titular Display en blanco cálido y oro metálico -->
+                <h2 class="type-display-editorial mb-4 text-[#ffffff] tracking-tight text-[32px] sm:text-[44px] md:text-[50px] leading-[1.1]">
+                  Arquitectos de tu imagen.<br>
+                  <span class="text-[#d4af37] italic font-normal">Precisión en cada corte.</span>
+                </h2>
+
+                <!-- Subtítulo conciso -->
+                <p class="font-sans-ui text-[#c5c0b6] text-sm sm:text-base mb-6 leading-relaxed max-w-xl">
+                  Agenda tu cita en vivo en menos de 1 minuto, selecciona a tu barbero y asegura tu turno sin filas ni esperas.
+                </p>
+
+                <!-- Botones de Acción Directos (Botones) -->
+                <div class="flex flex-wrap items-center gap-3 mb-8 w-full sm:w-auto">
+                  <a href="#calendario" class="btn-clay py-3 px-6 text-xs sm:text-sm font-bold shadow-lg">
+                    Reservar turno ahora →
+                  </a>
+                  <button type="button" id="btn-hero-open-store" class="btn-stone-outline text-[#f3e5ab] border-[#d4af37]/40 py-3 px-5 text-xs sm:text-sm font-semibold cursor-pointer">
+                    Tienda de productos →
+                  </button>
+                  <a href="https://wa.me/573219897910" target="_blank" rel="noopener noreferrer" class="btn-stone-outline py-3 px-4 text-xs font-semibold inline-flex items-center gap-2">
+                    <span>WhatsApp</span>
+                  </a>
+                  <a 
+                    href="https://www.tiktok.com/@barber_lopez_neiva" 
+                    target="_blank" 
+                    rel="noopener noreferrer" 
+                    class="btn-stone-outline inline-flex items-center gap-2 text-[#f3e5ab] hover:text-[#ffffff] hover:border-[#d4af37] py-3 px-4 text-xs font-semibold transition-all"
+                  >
+                    <svg class="w-3.5 h-3.5 fill-current shrink-0" viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.63.41-1.11 1.04-1.36 1.75-.21.51-.24 1.07-.14 1.61.24 1.64 1.82 3.02 3.5 2.87 1.12-.01 2.19-.66 2.77-1.61.19-.33.4-.67.41-1.06.1-1.79.06-3.57.07-5.36.01-4.03-.01-8.05.02-12.07z"/>
+                    </svg>
+                    <span>TikTok</span>
+                  </a>
+                </div>
+
+                <!-- Pasos Rápidos en Horizontal / Compactos -->
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 w-full">
+                  <div class="spotlight-card bg-[#12151b]/80 border border-[#d4af37]/25 rounded-[14px] p-3.5">
+                    <div class="font-mono-tech text-[10px] font-bold text-[#d4af37] uppercase">01 / SERVICIO</div>
+                    <div class="font-serif-editorial text-sm text-[#ffffff] font-normal mt-0.5">Elige tu corte</div>
+                    <p class="font-sans-ui text-[11px] text-[#c5c0b6] mt-1 leading-snug">Clásico, degradado o combo spa.</p>
+                  </div>
+                  <div class="spotlight-card bg-[#12151b]/80 border border-[#d4af37]/25 rounded-[14px] p-3.5">
+                    <div class="font-mono-tech text-[10px] font-bold text-[#d4af37] uppercase">02 / AGENDA</div>
+                    <div class="font-serif-editorial text-sm text-[#ffffff] font-normal mt-0.5">Barbero & hora</div>
+                    <p class="font-sans-ui text-[11px] text-[#c5c0b6] mt-1 leading-snug">Turnos en vivo sin esperas.</p>
+                  </div>
+                  <div class="spotlight-card bg-[#12151b]/80 border border-[#d4af37]/25 rounded-[14px] p-3.5">
+                    <div class="font-mono-tech text-[10px] font-bold text-[#d4af37] uppercase">03 / ATENCIÓN</div>
+                    <div class="font-serif-editorial text-sm text-[#ffffff] font-normal mt-0.5">Paga en efectivo</div>
+                    <p class="font-sans-ui text-[11px] text-[#c5c0b6] mt-1 leading-snug">Puntual en la estación de corte.</p>
+                  </div>
+                </div>
+
               </div>
 
-              <!-- Titular Display en blanco cálido y oro metálico -->
-              <h2 class="type-display-editorial mb-4 text-[#ffffff] tracking-tight text-[32px] sm:text-[44px] md:text-[50px] leading-[1.1]">
-                Arquitectos de tu imagen.<br>
-                <span class="text-[#d4af37] italic font-normal">Precisión en cada corte.</span>
-              </h2>
+              <!-- COLUMNA DERECHA: REPRODUCTOR DE VIDEOS OFICIAL (VIDEOS) -->
+              <div class="lg:col-span-5 flex flex-col items-center justify-center w-full">
+                <div class="spotlight-card relative w-full max-w-[360px] sm:max-w-[380px] aspect-[9/16] max-h-[520px] bg-[#12151b] border-2 border-[#d4af37]/45 rounded-[28px] overflow-hidden shadow-[0_25px_60px_rgba(0,0,0,0.95),0_0_35px_rgba(212,175,55,0.25)] flex items-center justify-center">
+                  
+                  <!-- Video Element Oficial -->
+                  <video 
+                    id="hero-reel-video"
+                    src="./assets/videos/Download.mp4"
+                    autoplay 
+                    muted 
+                    loop 
+                    playsinline 
+                    class="w-full h-full object-cover object-center"
+                  ></video>
 
-              <!-- Subtítulo conciso y sin relleno -->
-              <p class="font-sans-ui text-[#c5c0b6] max-w-lg mx-auto text-sm sm:text-base mb-6 leading-relaxed">
-                Agenda tu cita en vivo en menos de 1 minuto, selecciona a tu barbero y asegura tu turno sin filas ni esperas.
-              </p>
+                  <!-- Sombreado de contraste para lectura -->
+                  <div class="absolute inset-0 bg-gradient-to-t from-[#0a0b0d] via-transparent to-[#0a0b0d]/70 pointer-events-none"></div>
 
-              <!-- Botones de Acción Directos -->
-              <div class="flex flex-wrap items-center justify-center gap-3">
-                <a href="#calendario" class="btn-clay py-3 px-6 text-xs sm:text-sm font-bold shadow-lg">
-                  Reservar turno ahora →
-                </a>
-                <button type="button" id="btn-hero-open-store" class="btn-stone-outline text-[#f3e5ab] border-[#d4af37]/40 py-3 px-5 text-xs sm:text-sm font-semibold cursor-pointer">
-                  Tienda de productos →
-                </button>
-                <a href="https://wa.me/573219897910" target="_blank" rel="noopener noreferrer" class="btn-stone-outline py-3 px-4 text-xs font-semibold inline-flex items-center gap-2">
-                  <span>WhatsApp</span>
-                </a>
-                <a 
-                  href="https://www.tiktok.com/@barber_lopez_neiva" 
-                  target="_blank" 
-                  rel="noopener noreferrer" 
-                  class="btn-stone-outline inline-flex items-center gap-2 text-[#f3e5ab] hover:text-[#ffffff] hover:border-[#d4af37] py-3 px-4 text-xs font-semibold transition-all"
-                >
-                  <svg class="w-3.5 h-3.5 fill-current shrink-0" viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.63.41-1.11 1.04-1.36 1.75-.21.51-.24 1.07-.14 1.61.24 1.64 1.82 3.02 3.5 2.87 1.12-.01 2.19-.66 2.77-1.61.19-.33.4-.67.41-1.06.1-1.79.06-3.57.07-5.36.01-4.03-.01-8.05.02-12.07z"/>
-                  </svg>
-                  <span>TikTok</span>
-                </a>
-              </div>
-            </div>
+                  <!-- Barra Superior con Badge y Control de Audio -->
+                  <div class="absolute top-4 inset-x-4 flex items-center justify-between z-20">
+                    <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#0a0b0d]/85 backdrop-blur-md border border-[#d4af37]/40 text-[11px] font-sans-ui font-semibold text-[#f3e5ab]">
+                      <span class="w-2 h-2 rounded-full bg-emerald-400 indicator-on-shift"></span>
+                      <span id="hero-reel-title">Corte & Degradado</span>
+                    </div>
+                    <button type="button" id="btn-toggle-video-sound" class="w-9 h-9 rounded-full bg-[#0a0b0d]/85 backdrop-blur-md border border-[#d4af37]/40 text-[#f3e5ab] hover:text-[#ffffff] hover:border-[#d4af37] flex items-center justify-center transition-all cursor-pointer shadow-md" title="Activar / Desactivar sonido">
+                      <svg id="icon-sound-off" class="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"/></svg>
+                      <svg id="icon-sound-on" class="w-4 h-4 fill-current hidden" viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>
+                    </button>
+                  </div>
 
-            <!-- PASO A PASO INTUITIVO (3 PASOS CLAROS EN LUGAR DE TEXTO DE RELLENO) -->
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-5 pt-8">
-              <div class="bg-[#12151b]/85 backdrop-blur-md border border-[#d4af37]/25 rounded-[18px] p-6 flex flex-col justify-between shadow-lg hover:border-[#d4af37]/50 transition-all">
-                <div>
-                  <div class="font-mono-tech text-xs font-bold text-[#d4af37] tracking-wider uppercase mb-2">PASO 01</div>
-                  <h3 class="font-serif-editorial text-lg text-[#ffffff] font-normal mb-1.5">Elige tu servicio</h3>
-                  <p class="font-sans-ui text-xs text-[#c5c0b6] leading-relaxed">Cortes clásicos, degradados, combos spa o cuidado de barba con toalla caliente.</p>
+                  <!-- Botones de Cambio Rápido de Video -->
+                  <div class="absolute bottom-4 inset-x-3 sm:inset-x-4 flex items-center justify-center gap-1.5 sm:gap-2 z-20">
+                    <button type="button" class="btn-reel-select active py-1.5 px-3 rounded-full text-[11px] font-sans-ui font-semibold bg-[#d4af37] text-[#0a0b0d] border border-[#d4af37] shadow-lg transition-all cursor-pointer" data-video-src="./assets/videos/Download.mp4" data-video-title="Corte & Degradado">
+                      Video 1
+                    </button>
+                    <button type="button" class="btn-reel-select py-1.5 px-3 rounded-full text-[11px] font-sans-ui font-semibold bg-[#12151b]/85 backdrop-blur-md text-[#f3e5ab] border border-[#d4af37]/35 hover:border-[#d4af37] transition-all cursor-pointer" data-video-src="./assets/videos/Download%20(2).mp4" data-video-title="Perfilado & Estilo">
+                      Video 2
+                    </button>
+                    <button type="button" class="btn-reel-select py-1.5 px-3 rounded-full text-[11px] font-sans-ui font-semibold bg-[#12151b]/85 backdrop-blur-md text-[#f3e5ab] border border-[#d4af37]/35 hover:border-[#d4af37] transition-all cursor-pointer" data-video-src="./assets/videos/Download%20(3).mp4" data-video-title="Ambiente & Acabado">
+                      Video 3
+                    </button>
+                  </div>
+
                 </div>
               </div>
-              <div class="bg-[#12151b]/85 backdrop-blur-md border border-[#d4af37]/25 rounded-[18px] p-6 flex flex-col justify-between shadow-lg hover:border-[#d4af37]/50 transition-all">
-                <div>
-                  <div class="font-mono-tech text-xs font-bold text-[#d4af37] tracking-wider uppercase mb-2">PASO 02</div>
-                  <h3 class="font-serif-editorial text-lg text-[#ffffff] font-normal mb-1.5">Escoge barbero y hora</h3>
-                  <p class="font-sans-ui text-xs text-[#c5c0b6] leading-relaxed">Revisa la disponibilidad en vivo en el calendario y aparta la hora exacta que prefieras.</p>
-                </div>
-              </div>
-              <div class="bg-[#12151b]/85 backdrop-blur-md border border-[#d4af37]/25 rounded-[18px] p-6 flex flex-col justify-between shadow-lg hover:border-[#d4af37]/50 transition-all">
-                <div>
-                  <div class="font-mono-tech text-xs font-bold text-[#d4af37] tracking-wider uppercase mb-2">PASO 03</div>
-                  <h3 class="font-serif-editorial text-lg text-[#ffffff] font-normal mb-1.5">Asiste y paga en efectivo</h3>
-                  <p class="font-sans-ui text-xs text-[#c5c0b6] leading-relaxed">Atención puntual en la estación. Pagas directamente al finalizar tu servicio.</p>
-                </div>
-              </div>
+
             </div>
 
           </div>
@@ -4153,6 +4198,59 @@ async findAllProducts() {
 
   // --- EVENTOS INTERACTIVOS ---
   function bindEvents(users, barbers, services) {
+    // Controlador interactivo del reproductor de video (Reel Showcase)
+    const heroVideo = document.getElementById('hero-reel-video');
+    const heroTitle = document.getElementById('hero-reel-title');
+    const btnSound = document.getElementById('btn-toggle-video-sound');
+    const iconSoundOff = document.getElementById('icon-sound-off');
+    const iconSoundOn = document.getElementById('icon-sound-on');
+    const reelButtons = document.querySelectorAll('.btn-reel-select');
+
+    if (btnSound && heroVideo) {
+      btnSound.onclick = () => {
+        heroVideo.muted = !heroVideo.muted;
+        if (heroVideo.muted) {
+          iconSoundOff?.classList.remove('hidden');
+          iconSoundOn?.classList.add('hidden');
+        } else {
+          iconSoundOff?.classList.add('hidden');
+          iconSoundOn?.classList.remove('hidden');
+        }
+      };
+    }
+
+    if (heroVideo && reelButtons.length > 0) {
+      reelButtons.forEach((btn) => {
+        btn.onclick = () => {
+          reelButtons.forEach((b) => {
+            b.classList.remove('active', 'bg-[#d4af37]', 'text-[#0a0b0d]', 'border-[#d4af37]');
+            b.classList.add('bg-[#12151b]/85', 'text-[#f3e5ab]', 'border-[#d4af37]/35');
+          });
+          btn.classList.add('active', 'bg-[#d4af37]', 'text-[#0a0b0d]', 'border-[#d4af37]');
+          btn.classList.remove('bg-[#12151b]/85', 'text-[#f3e5ab]', 'border-[#d4af37]/35');
+
+          const newSrc = btn.dataset.videoSrc;
+          const newTitle = btn.dataset.videoTitle;
+          if (newSrc) {
+            heroVideo.src = newSrc;
+            heroVideo.play().catch(() => {});
+          }
+          if (heroTitle && newTitle) {
+            heroTitle.textContent = newTitle;
+          }
+        };
+      });
+
+      heroVideo.onended = () => {
+        const activeBtn = document.querySelector('.btn-reel-select.active');
+        let nextBtn = activeBtn ? activeBtn.nextElementSibling : null;
+        if (!nextBtn || !nextBtn.classList.contains('btn-reel-select')) {
+          nextBtn = reelButtons[0];
+        }
+        if (nextBtn) nextBtn.click();
+      };
+    }
+
     const btnLoginTrigger = document.getElementById('btn-login-trigger');
     const modalAuth = document.getElementById('modal-auth');
     const btnCloseAuth = document.getElementById('btn-close-auth');
