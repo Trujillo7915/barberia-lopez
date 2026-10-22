@@ -2312,6 +2312,8 @@ const server = http.createServer(async (req, res) => {
     reqUrl = '/src/index.html';
   } else if (reqUrl.startsWith('/ui/')) {
     reqUrl = `/src${reqUrl}`;
+  } else if (reqUrl.startsWith('/assets/')) {
+    reqUrl = `/src${reqUrl}`;
   } else if (reqUrl === '/theme.css' || reqUrl === '/animations.css') {
     reqUrl = `/src/ui/styles${reqUrl}`;
   } else if (reqUrl === '/bundle.js') {

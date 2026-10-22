@@ -1930,47 +1930,56 @@ async findAllProducts() {
 
               </div>
 
-              <!-- COLUMNA DERECHA: REPRODUCTOR DE VIDEOS OFICIAL (VIDEOS) -->
-              <div class="lg:col-span-5 flex flex-col items-center justify-center w-full">
-                <div class="spotlight-card relative w-full max-w-[360px] sm:max-w-[380px] aspect-[9/16] max-h-[520px] bg-[#12151b] border-2 border-[#d4af37]/45 rounded-[28px] overflow-hidden shadow-[0_25px_60px_rgba(0,0,0,0.95),0_0_35px_rgba(212,175,55,0.25)] flex items-center justify-center">
+              <!-- COLUMNA DERECHA: REPRODUCTOR DE VIDEOS OFICIAL (VIDEOS CON GESTO DESLIZABLE) -->
+              <div class="lg:col-span-5 flex flex-col items-center justify-center w-full mt-4 lg:mt-0">
+                <div id="hero-reel-card" class="spotlight-card relative w-full max-w-[340px] sm:max-w-[370px] h-[460px] sm:h-[500px] bg-[#12151b] border-2 border-[#d4af37]/45 rounded-[26px] overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.92),0_0_30px_rgba(212,175,55,0.22)] flex items-center justify-center select-none cursor-grab active:cursor-grabbing">
                   
-                  <!-- Video Element Oficial -->
+                  <!-- Video Principal Optimizado para Rendimiento Móvil -->
                   <video 
                     id="hero-reel-video"
-                    src="./assets/videos/Download.mp4"
+                    src="/assets/videos/Download.mp4"
                     autoplay 
                     muted 
                     loop 
                     playsinline 
-                    class="w-full h-full object-cover object-center"
+                    webkit-playsinline
+                    preload="metadata"
+                    class="w-full h-full object-cover object-center pointer-events-none"
                   ></video>
 
-                  <!-- Sombreado de contraste para lectura -->
+                  <!-- Sombreado de contraste ligero sin filtros pesados -->
                   <div class="absolute inset-0 bg-gradient-to-t from-[#0a0b0d] via-transparent to-[#0a0b0d]/70 pointer-events-none"></div>
 
-                  <!-- Barra Superior con Badge y Control de Audio -->
-                  <div class="absolute top-4 inset-x-4 flex items-center justify-between z-20">
-                    <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#0a0b0d]/85 backdrop-blur-md border border-[#d4af37]/40 text-[11px] font-sans-ui font-semibold text-[#f3e5ab]">
+                  <!-- Barra Superior con Badge de Corte y Control de Audio -->
+                  <div class="absolute top-3.5 inset-x-3.5 flex items-center justify-between z-20">
+                    <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#0a0b0d]/90 border border-[#d4af37]/40 text-[11px] font-sans-ui font-semibold text-[#f3e5ab]">
                       <span class="w-2 h-2 rounded-full bg-emerald-400 indicator-on-shift"></span>
-                      <span id="hero-reel-title">Corte & Degradado</span>
+                      <span id="hero-reel-title">Corte Tradicional & Degradado</span>
                     </div>
-                    <button type="button" id="btn-toggle-video-sound" class="w-9 h-9 rounded-full bg-[#0a0b0d]/85 backdrop-blur-md border border-[#d4af37]/40 text-[#f3e5ab] hover:text-[#ffffff] hover:border-[#d4af37] flex items-center justify-center transition-all cursor-pointer shadow-md" title="Activar / Desactivar sonido">
-                      <svg id="icon-sound-off" class="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"/></svg>
-                      <svg id="icon-sound-on" class="w-4 h-4 fill-current hidden" viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>
+                    <button type="button" id="btn-toggle-video-sound" class="w-8 h-8 rounded-full bg-[#0a0b0d]/90 border border-[#d4af37]/40 text-[#f3e5ab] hover:text-[#ffffff] hover:border-[#d4af37] flex items-center justify-center transition-all cursor-pointer shadow-md" title="Activar / Desactivar sonido">
+                      <svg id="icon-sound-off" class="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24"><path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"/></svg>
+                      <svg id="icon-sound-on" class="w-3.5 h-3.5 fill-current hidden" viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>
                     </button>
                   </div>
 
-                  <!-- Botones de Cambio Rápido de Video -->
-                  <div class="absolute bottom-4 inset-x-3 sm:inset-x-4 flex items-center justify-center gap-1.5 sm:gap-2 z-20">
-                    <button type="button" class="btn-reel-select active py-1.5 px-3 rounded-full text-[11px] font-sans-ui font-semibold bg-[#d4af37] text-[#0a0b0d] border border-[#d4af37] shadow-lg transition-all cursor-pointer" data-video-src="./assets/videos/Download.mp4" data-video-title="Corte & Degradado">
-                      Video 1
-                    </button>
-                    <button type="button" class="btn-reel-select py-1.5 px-3 rounded-full text-[11px] font-sans-ui font-semibold bg-[#12151b]/85 backdrop-blur-md text-[#f3e5ab] border border-[#d4af37]/35 hover:border-[#d4af37] transition-all cursor-pointer" data-video-src="./assets/videos/Download%20(2).mp4" data-video-title="Perfilado & Estilo">
-                      Video 2
-                    </button>
-                    <button type="button" class="btn-reel-select py-1.5 px-3 rounded-full text-[11px] font-sans-ui font-semibold bg-[#12151b]/85 backdrop-blur-md text-[#f3e5ab] border border-[#d4af37]/35 hover:border-[#d4af37] transition-all cursor-pointer" data-video-src="./assets/videos/Download%20(3).mp4" data-video-title="Ambiente & Acabado">
-                      Video 3
-                    </button>
+                  <!-- Botones Discretos de Navegación Lateral -->
+                  <button type="button" id="btn-reel-prev" class="absolute left-2.5 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-[#0a0b0d]/75 border border-[#d4af37]/35 text-[#f3e5ab] hover:border-[#d4af37] flex items-center justify-center transition-all z-20 cursor-pointer text-xs select-none" aria-label="Video anterior">
+                    &#10094;
+                  </button>
+                  <button type="button" id="btn-reel-next" class="absolute right-2.5 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-[#0a0b0d]/75 border border-[#d4af37]/35 text-[#f3e5ab] hover:border-[#d4af37] flex items-center justify-center transition-all z-20 cursor-pointer text-xs select-none" aria-label="Siguiente video">
+                    &#10095;
+                  </button>
+
+                  <!-- Indicador de Paginación Minimalista (Deslizable / Puntos) -->
+                  <div class="absolute bottom-3.5 inset-x-3 flex flex-col items-center justify-center gap-1.5 z-20 pointer-events-none">
+                    <span class="text-[10px] font-sans-ui text-[#f3e5ab]/80 tracking-widest uppercase font-medium">
+                      Desliza para cambiar de video
+                    </span>
+                    <div id="reel-dots-container" class="flex items-center gap-1.5 pointer-events-auto">
+                      <button type="button" class="reel-dot w-6 h-1.5 rounded-full bg-[#d4af37] transition-all cursor-pointer" data-video-index="0" aria-label="Ver video 1"></button>
+                      <button type="button" class="reel-dot w-2 h-1.5 rounded-full bg-white/40 transition-all cursor-pointer" data-video-index="1" aria-label="Ver video 2"></button>
+                      <button type="button" class="reel-dot w-2 h-1.5 rounded-full bg-white/40 transition-all cursor-pointer" data-video-index="2" aria-label="Ver video 3"></button>
+                    </div>
                   </div>
 
                 </div>
@@ -4198,13 +4207,56 @@ async findAllProducts() {
 
   // --- EVENTOS INTERACTIVOS ---
   function bindEvents(users, barbers, services) {
-    // Controlador interactivo del reproductor de video (Reel Showcase)
+    // Controlador interactivo del reproductor de video (Reel Showcase con gestos táctiles Swipe)
     const heroVideo = document.getElementById('hero-reel-video');
     const heroTitle = document.getElementById('hero-reel-title');
+    const heroCard = document.getElementById('hero-reel-card');
     const btnSound = document.getElementById('btn-toggle-video-sound');
     const iconSoundOff = document.getElementById('icon-sound-off');
     const iconSoundOn = document.getElementById('icon-sound-on');
-    const reelButtons = document.querySelectorAll('.btn-reel-select');
+    const btnReelPrev = document.getElementById('btn-reel-prev');
+    const btnReelNext = document.getElementById('btn-reel-next');
+    const reelDots = document.querySelectorAll('.reel-dot');
+
+    const REEL_VIDEOS = [
+      {
+        src: '/assets/videos/Download.mp4',
+        title: 'Corte Tradicional & Degradado'
+      },
+      {
+        src: '/assets/videos/Download%20(2).mp4',
+        title: 'Perfilado de Barba & Estilo'
+      },
+      {
+        src: '/assets/videos/Download%20(3).mp4',
+        title: 'Ambiente & Acabado Maestro'
+      }
+    ];
+
+    let currentReelIndex = 0;
+
+    function switchReelVideo(index) {
+      if (!heroVideo) return;
+      if (index < 0) index = REEL_VIDEOS.length - 1;
+      if (index >= REEL_VIDEOS.length) index = 0;
+      currentReelIndex = index;
+
+      const item = REEL_VIDEOS[currentReelIndex];
+      heroVideo.src = item.src;
+      heroVideo.play().catch(() => {});
+
+      if (heroTitle) {
+        heroTitle.textContent = item.title;
+      }
+
+      reelDots.forEach((dot, idx) => {
+        if (idx === currentReelIndex) {
+          dot.className = 'reel-dot w-6 h-1.5 rounded-full bg-[#d4af37] transition-all cursor-pointer';
+        } else {
+          dot.className = 'reel-dot w-2 h-1.5 rounded-full bg-white/40 transition-all cursor-pointer';
+        }
+      });
+    }
 
     if (btnSound && heroVideo) {
       btnSound.onclick = () => {
@@ -4219,35 +4271,45 @@ async findAllProducts() {
       };
     }
 
-    if (heroVideo && reelButtons.length > 0) {
-      reelButtons.forEach((btn) => {
-        btn.onclick = () => {
-          reelButtons.forEach((b) => {
-            b.classList.remove('active', 'bg-[#d4af37]', 'text-[#0a0b0d]', 'border-[#d4af37]');
-            b.classList.add('bg-[#12151b]/85', 'text-[#f3e5ab]', 'border-[#d4af37]/35');
-          });
-          btn.classList.add('active', 'bg-[#d4af37]', 'text-[#0a0b0d]', 'border-[#d4af37]');
-          btn.classList.remove('bg-[#12151b]/85', 'text-[#f3e5ab]', 'border-[#d4af37]/35');
+    if (btnReelPrev) btnReelPrev.onclick = () => switchReelVideo(currentReelIndex - 1);
+    if (btnReelNext) btnReelNext.onclick = () => switchReelVideo(currentReelIndex + 1);
 
-          const newSrc = btn.dataset.videoSrc;
-          const newTitle = btn.dataset.videoTitle;
-          if (newSrc) {
-            heroVideo.src = newSrc;
-            heroVideo.play().catch(() => {});
-          }
-          if (heroTitle && newTitle) {
-            heroTitle.textContent = newTitle;
-          }
-        };
-      });
+    reelDots.forEach((dot) => {
+      dot.onclick = () => {
+        const idx = Number(dot.dataset.videoIndex) || 0;
+        switchReelVideo(idx);
+      };
+    });
 
-      heroVideo.onended = () => {
-        const activeBtn = document.querySelector('.btn-reel-select.active');
-        let nextBtn = activeBtn ? activeBtn.nextElementSibling : null;
-        if (!nextBtn || !nextBtn.classList.contains('btn-reel-select')) {
-          nextBtn = reelButtons[0];
+    // Soporte de gestos táctiles Swipe (deslizar a la izquierda o derecha en móviles)
+    if (heroCard) {
+      let touchStartX = 0;
+      let touchStartY = 0;
+
+      heroCard.addEventListener('touchstart', (e) => {
+        if (!e.touches || !e.touches[0]) return;
+        touchStartX = e.touches[0].clientX;
+        touchStartY = e.touches[0].clientY;
+      }, { passive: true });
+
+      heroCard.addEventListener('touchend', (e) => {
+        if (!e.changedTouches || !e.changedTouches[0]) return;
+        const diffX = e.changedTouches[0].clientX - touchStartX;
+        const diffY = e.changedTouches[0].clientY - touchStartY;
+        // Solo actuar si el desplazamiento horizontal es significativo y mayor al vertical
+        if (Math.abs(diffX) > 40 && Math.abs(diffX) > Math.abs(diffY)) {
+          if (diffX < 0) {
+            switchReelVideo(currentReelIndex + 1); // Deslizar hacia la izquierda -> siguiente
+          } else {
+            switchReelVideo(currentReelIndex - 1); // Deslizar hacia la derecha -> anterior
+          }
         }
-        if (nextBtn) nextBtn.click();
+      }, { passive: true });
+    }
+
+    if (heroVideo) {
+      heroVideo.onended = () => {
+        switchReelVideo(currentReelIndex + 1);
       };
     }
 
