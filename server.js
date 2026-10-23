@@ -74,8 +74,8 @@ const IS_RENDER = Boolean(process.env.RENDER || process.env.RENDER_EXTERNAL_URL 
 const RENDER_EXTERNAL_URL = process.env.RENDER_EXTERNAL_URL || 'https://barberia-lopez.onrender.com';
 
 // Claves y canales cifrados AES-256-GCM para respaldo continuo en la nube ante reinicios de Render
-const CLOUD_VAULT_KEY = crypto.createHash('sha256').update(AUTH_SECRET + '_aes256_vault_key_v2').digest();
-const CLOUD_VAULT_ID = crypto.createHash('sha256').update(AUTH_SECRET + '_vault_channel_v2').digest('hex').substring(0, 20);
+const CLOUD_VAULT_KEY = crypto.createHash('sha256').update(AUTH_SECRET + '_aes256_vault_key_v3').digest();
+const CLOUD_VAULT_ID = crypto.createHash('sha256').update(AUTH_SECRET + '_vault_channel_v3').digest('hex').substring(0, 20);
 const CLOUD_CHANNEL_AUTH = `blopez_auth_${CLOUD_VAULT_ID}`;
 const CLOUD_CHANNEL_OPS = `blopez_ops_${CLOUD_VAULT_ID}`;
 const CLOUD_CHANNEL_STORE = `blopez_store_${CLOUD_VAULT_ID}`;
@@ -555,20 +555,37 @@ const cloudVaultReadyPromise = (async () => {
       console.warn('[CLOUD-VAULT] Fallo de conexion en citas/historial. Se preserva estado local sin sobrescribir la nube.');
     }
 
-    // 3. Restaurar o sembrar catalogo y pedidos de tienda
+    // 3. Restaurar o sembrar catalogo y pedidos de tienda (con consolidacion segura por ID)
     if (storeRes.status === 'ok' && storeRes.data && Array.isArray(storeRes.data.products)) {
-      writeJsonFileAtomic(PRODUCTS_FILE, storeRes.data.products, true);
+      const currentProducts = readJsonFile(PRODUCTS_FILE, DEFAULT_PRODUCTS);
+      const prodMap = new Map();
+      currentProducts.forEach((p) => prodMap.set(p.id, p));
+      storeRes.data.products.forEach((p) => {
+        const existing = prodMap.get(p.id) || {};
+        prodMap.set(p.id, { ...existing, ...p });
+      });
+      const mergedProducts = Array.from(prodMap.values());
+      writeJsonFileAtomic(PRODUCTS_FILE, mergedProducts, true);
+
+      const currentOrders = readJsonFile(STORE_ORDERS_FILE, DEFAULT_STORE_ORDERS);
+      const orderMap = new Map();
+      currentOrders.forEach((o) => orderMap.set(o.id, o));
       if (Array.isArray(storeRes.data.storeOrders)) {
-        writeJsonFileAtomic(STORE_ORDERS_FILE, storeRes.data.storeOrders, true);
+        storeRes.data.storeOrders.forEach((o) => {
+          const existing = orderMap.get(o.id) || {};
+          orderMap.set(o.id, { ...existing, ...o });
+        });
       }
-      console.log('[CLOUD-VAULT] Catalogo y pedidos de tienda restaurados con exito desde la nube.');
+      const mergedOrders = Array.from(orderMap.values());
+      writeJsonFileAtomic(STORE_ORDERS_FILE, mergedOrders, true);
+      console.log(`[CLOUD-VAULT] Catalogo (${mergedProducts.length} productos) consolidado con exito.`);
     } else if (storeRes.status === 'empty') {
       pushCloudChannel(CLOUD_CHANNEL_STORE, {
         ts: Date.now(),
         products: readJsonFile(PRODUCTS_FILE, DEFAULT_PRODUCTS),
         storeOrders: readJsonFile(STORE_ORDERS_FILE, DEFAULT_STORE_ORDERS)
       });
-      console.log('[CLOUD-VAULT] Canal de tienda inicializado en la nube.');
+      console.log('[CLOUD-VAULT] Canal de tienda inicializado en la nube con catalogo completo.');
     } else if (storeRes.status === 'error') {
       console.warn('[CLOUD-VAULT] Fallo de conexion en tienda. Se preserva estado local sin sobrescribir la nube.');
     }
