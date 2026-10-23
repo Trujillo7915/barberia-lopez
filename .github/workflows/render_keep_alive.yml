@@ -1,0 +1,17 @@
+name: Render Keep-Alive 24/7
+
+on:
+  schedule:
+    # Se ejecuta cada 10 minutos para evitar que el contenedor de Render entre en suspension (inactividad tras 15 min)
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+
+jobs:
+  keep-alive:
+    name: Ping Barberia Lopez on Render
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Health Endpoint
+        run: |
+          echo "Enviando ping de actividad continua a Render..."
+          curl -fsSL -m 30 -A "GitHubActions-KeepAlive/2.0" "https://barberia-lopez.onrender.com/api/health" || echo "Servidor en proceso de actualizacion o reinicio"
