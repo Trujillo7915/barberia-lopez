@@ -3990,13 +3990,9 @@ async findAllProducts() {
       <header class="anthropic-nav sticky top-0 z-40 bg-[#0a0b0d]/95 backdrop-blur-md border-b border-[rgba(212,175,55,0.25)] px-3 sm:px-6 py-2.5 sm:py-3 shadow-lg">
         <div class="max-w-[1240px] mx-auto flex items-center justify-between gap-2 sm:gap-4">
           
-          <!-- Far Left: Logo + Wordmark -->
-          <a href="#hero" class="flex items-center gap-2 sm:gap-3 no-underline shrink-0" id="nav-brand">
-            <img src="./logo_barberia_lopez_hd.jpg" alt="Barbería Lopez" class="w-8 h-8 sm:w-9 sm:h-9 rounded-full object-cover border border-[rgba(212,175,55,0.4)]">
-            <div class="flex flex-col">
-              <span class="font-serif-editorial text-lg sm:text-xl font-normal tracking-tight text-[#ffffff] leading-none">Barbería Lopez</span>
-              <span class="font-sans-ui text-[10px] sm:text-[11px] font-semibold text-[#d4af37] tracking-wider mt-0.5">NEIVA · 2026</span>
-            </div>
+          <!-- Far Left: Logo Brand Button -->
+          <a href="#hero" class="flex items-center no-underline shrink-0" id="nav-brand" aria-label="Barbería López">
+            <img src="./logo_barberia_lopez_hd.jpg" alt="Barbería Lopez" class="w-8 h-8 sm:w-9 sm:h-9 rounded-full object-cover border border-[rgba(212,175,55,0.4)] hover:border-[#d4af37] transition-all">
           </a>
 
           <!-- Center: Navigation Links (Reservar y Tienda siempre visibles) -->
