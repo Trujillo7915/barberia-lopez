@@ -16,6 +16,7 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const zlib = require('zlib');
 
 process.on('uncaughtException', (err) => {
   console.error('[CRITICAL] Uncaught exception:', err);
@@ -47,8 +48,9 @@ const HISTORY_FILE = path.join(DATA_DIR, 'history.json');
 const PRODUCTS_FILE = path.join(DATA_DIR, 'products.json');
 const STORE_ORDERS_FILE = path.join(DATA_DIR, 'store_orders.json');
 
-// Clave secreta para tokens de sesion HMAC-SHA256 persistente
+// Clave secreta para tokens de sesion HMAC-SHA256 deterministica y persistente
 const AUTH_SECRET_FILE = path.join(DATA_DIR, '.auth_secret');
+const MASTER_DETERMINISTIC_SECRET = crypto.createHash('sha256').update('barberia_lopez_neiva_master_hmac_secret_2026').digest('hex');
 let AUTH_SECRET = process.env.AUTH_SECRET;
 if (!AUTH_SECRET) {
   if (fs.existsSync(AUTH_SECRET_FILE)) {
@@ -60,10 +62,52 @@ if (!AUTH_SECRET) {
     } catch (e) {}
   }
   if (!AUTH_SECRET) {
-    AUTH_SECRET = crypto.randomBytes(32).toString('hex');
+    AUTH_SECRET = MASTER_DETERMINISTIC_SECRET;
     try {
       fs.writeFileSync(AUTH_SECRET_FILE, AUTH_SECRET, { encoding: 'utf8' });
     } catch (e) {}
+  }
+}
+
+// Identificacion de entorno de ejecucion en la nube (Render)
+const IS_RENDER = Boolean(process.env.RENDER || process.env.RENDER_EXTERNAL_URL || process.env.ENABLE_CLOUD_BACKUP === 'true');
+const RENDER_EXTERNAL_URL = process.env.RENDER_EXTERNAL_URL || 'https://barberia-lopez.onrender.com';
+
+// Claves y canales cifrados AES-256-GCM para respaldo continuo en la nube ante reinicios de Render
+const CLOUD_VAULT_KEY = crypto.createHash('sha256').update(AUTH_SECRET + '_aes256_vault_key_v2').digest();
+const CLOUD_VAULT_ID = crypto.createHash('sha256').update(AUTH_SECRET + '_vault_channel_v2').digest('hex').substring(0, 20);
+const CLOUD_CHANNEL_AUTH = `blopez_auth_${CLOUD_VAULT_ID}`;
+const CLOUD_CHANNEL_OPS = `blopez_ops_${CLOUD_VAULT_ID}`;
+const CLOUD_CHANNEL_STORE = `blopez_store_${CLOUD_VAULT_ID}`;
+
+function encryptVaultPayload(obj) {
+  try {
+    const iv = crypto.randomBytes(12);
+    const compressed = zlib.deflateRawSync(Buffer.from(JSON.stringify(obj), 'utf8'));
+    const cipher = crypto.createCipheriv('aes-256-gcm', CLOUD_VAULT_KEY, iv);
+    const enc = Buffer.concat([cipher.update(compressed), cipher.final()]);
+    const tag = cipher.getAuthTag();
+    return Buffer.concat([iv, tag, enc]).toString('base64');
+  } catch (err) {
+    return null;
+  }
+}
+
+function decryptVaultPayload(b64) {
+  try {
+    if (!b64 || typeof b64 !== 'string') return null;
+    const raw = Buffer.from(b64.trim(), 'base64');
+    if (raw.length < 29) return null;
+    const iv = raw.subarray(0, 12);
+    const tag = raw.subarray(12, 28);
+    const enc = raw.subarray(28);
+    const decipher = crypto.createDecipheriv('aes-256-gcm', CLOUD_VAULT_KEY, iv);
+    decipher.setAuthTag(tag);
+    const dec = Buffer.concat([decipher.update(enc), decipher.final()]);
+    const jsonStr = zlib.inflateRawSync(dec).toString('utf8');
+    return JSON.parse(jsonStr);
+  } catch (err) {
+    return null;
   }
 }
 
@@ -207,7 +251,70 @@ function readJsonFile(filePath, defaultValue) {
   }
 }
 
-function writeJsonFileAtomic(filePath, data) {
+let cloudAuthTimer = null;
+let cloudOpsTimer = null;
+let cloudStoreTimer = null;
+
+async function pushCloudChannel(channel, payloadObj) {
+  if (!IS_RENDER) return;
+  try {
+    const encrypted = encryptVaultPayload(payloadObj);
+    if (!encrypted) return;
+    if (encrypted.length > 3900) {
+      console.warn(`[CLOUD-VAULT] Advertencia: Snapshot para canal ${channel} supera limite de 3900 caracteres (${encrypted.length}).`);
+      // Podar historial antiguo para mantener el payload compacto si es el canal operativo
+      if (payloadObj && Array.isArray(payloadObj.history) && payloadObj.history.length > 50) {
+        const compactPayload = {
+          ...payloadObj,
+          history: payloadObj.history.slice(-50)
+        };
+        const retryEncrypted = encryptVaultPayload(compactPayload);
+        if (retryEncrypted && retryEncrypted.length <= 3900) {
+          await fetch(`https://ntfy.sh/${channel}`, {
+            method: 'POST',
+            body: retryEncrypted,
+            headers: { 'Priority': 'low', 'Title': 'Snapshot' }
+          });
+          return;
+        }
+      }
+      return;
+    }
+    await fetch(`https://ntfy.sh/${channel}`, {
+      method: 'POST',
+      body: encrypted,
+      headers: { 'Priority': 'low', 'Title': 'Snapshot' }
+    });
+  } catch (err) {}
+}
+
+function scheduleCloudBackup(filePath) {
+  if (!IS_RENDER) return;
+  if (filePath === USERS_FILE || filePath === BARBERS_FILE) {
+    if (cloudAuthTimer) clearTimeout(cloudAuthTimer);
+    cloudAuthTimer = setTimeout(() => {
+      const users = readJsonFile(USERS_FILE, DEFAULT_USERS);
+      const barbers = readJsonFile(BARBERS_FILE, DEFAULT_BARBERS);
+      pushCloudChannel(CLOUD_CHANNEL_AUTH, { ts: Date.now(), users, barbers });
+    }, 200);
+  } else if (filePath === APPOINTMENTS_FILE || filePath === HISTORY_FILE) {
+    if (cloudOpsTimer) clearTimeout(cloudOpsTimer);
+    cloudOpsTimer = setTimeout(() => {
+      const appointments = readJsonFile(APPOINTMENTS_FILE, DEFAULT_APPOINTMENTS);
+      const history = readJsonFile(HISTORY_FILE, DEFAULT_HISTORY);
+      pushCloudChannel(CLOUD_CHANNEL_OPS, { ts: Date.now(), appointments, history });
+    }, 200);
+  } else if (filePath === PRODUCTS_FILE || filePath === STORE_ORDERS_FILE) {
+    if (cloudStoreTimer) clearTimeout(cloudStoreTimer);
+    cloudStoreTimer = setTimeout(() => {
+      const products = readJsonFile(PRODUCTS_FILE, DEFAULT_PRODUCTS);
+      const storeOrders = readJsonFile(STORE_ORDERS_FILE, DEFAULT_STORE_ORDERS);
+      pushCloudChannel(CLOUD_CHANNEL_STORE, { ts: Date.now(), products, storeOrders });
+    }, 200);
+  }
+}
+
+function writeJsonFileAtomic(filePath, data, skipCloudPush = false) {
   const tempPath = `${filePath}.tmp.${Date.now()}.${Math.random().toString(36).substring(2, 8)}`;
   try {
     fs.writeFileSync(tempPath, JSON.stringify(data, null, 2), 'utf8');
@@ -215,12 +322,18 @@ function writeJsonFileAtomic(filePath, data) {
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
         fs.renameSync(tempPath, filePath);
+        if (!skipCloudPush) {
+          scheduleCloudBackup(filePath);
+        }
         return true;
       } catch (renameErr) {
         if (attempt === maxRetries) {
           try {
             fs.copyFileSync(tempPath, filePath);
             try { fs.unlinkSync(tempPath); } catch (e) {}
+            if (!skipCloudPush) {
+              scheduleCloudBackup(filePath);
+            }
             return true;
           } catch (copyErr) {
             console.error(`Error persistiendo ${filePath}:`, copyErr.message);
@@ -241,6 +354,43 @@ function writeJsonFileAtomic(filePath, data) {
   }
 }
 
+async function fetchLatestCloudSnapshot(channel) {
+  if (!IS_RENDER) return { status: 'disabled', data: null };
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 5000);
+  try {
+    const res = await fetch(`https://ntfy.sh/${channel}/json?poll=1&since=24h`, {
+      signal: controller.signal
+    });
+    clearTimeout(timeout);
+    if (!res.ok) {
+      console.warn(`[CLOUD-VAULT] Advertencia: HTTP ${res.status} al consultar canal ${channel}`);
+      return { status: 'error', data: null };
+    }
+    const text = await res.text();
+    const lines = text.trim().split('\n').filter(Boolean);
+    if (lines.length === 0) {
+      return { status: 'empty', data: null };
+    }
+    for (let i = lines.length - 1; i >= 0; i--) {
+      try {
+        const evt = JSON.parse(lines[i]);
+        if (evt && evt.event === 'message' && evt.message) {
+          const decoded = decryptVaultPayload(evt.message);
+          if (decoded && decoded.ts) {
+            return { status: 'ok', data: decoded };
+          }
+        }
+      } catch (e) {}
+    }
+    return { status: 'empty', data: null };
+  } catch (err) {
+    clearTimeout(timeout);
+    console.warn(`[CLOUD-VAULT] Excepcion de red al consultar ${channel}: ${err.message}`);
+    return { status: 'error', data: null };
+  }
+}
+
 // Inicializar archivos si no existen
 readJsonFile(USERS_FILE, DEFAULT_USERS);
 readJsonFile(BARBERS_FILE, DEFAULT_BARBERS);
@@ -249,6 +399,106 @@ readJsonFile(APPOINTMENTS_FILE, DEFAULT_APPOINTMENTS);
 readJsonFile(HISTORY_FILE, DEFAULT_HISTORY);
 readJsonFile(PRODUCTS_FILE, DEFAULT_PRODUCTS);
 readJsonFile(STORE_ORDERS_FILE, DEFAULT_STORE_ORDERS);
+
+// Restaurar instantanea cifrada desde la nube al arrancar en Render
+const cloudVaultReadyPromise = (async () => {
+  if (!IS_RENDER) return;
+  try {
+    const [authRes, opsRes, storeRes] = await Promise.all([
+      fetchLatestCloudSnapshot(CLOUD_CHANNEL_AUTH),
+      fetchLatestCloudSnapshot(CLOUD_CHANNEL_OPS),
+      fetchLatestCloudSnapshot(CLOUD_CHANNEL_STORE)
+    ]);
+
+    // 1. Restaurar o sembrar usuarios y barberos
+    if (authRes.status === 'ok' && authRes.data && Array.isArray(authRes.data.users) && authRes.data.users.length > 0) {
+      writeJsonFileAtomic(USERS_FILE, authRes.data.users, true);
+      if (Array.isArray(authRes.data.barbers)) {
+        writeJsonFileAtomic(BARBERS_FILE, authRes.data.barbers, true);
+      }
+      console.log('[CLOUD-VAULT] Usuarios y perfiles de barbero restaurados con exito desde la nube.');
+    } else if (authRes.status === 'empty') {
+      pushCloudChannel(CLOUD_CHANNEL_AUTH, {
+        ts: Date.now(),
+        users: readJsonFile(USERS_FILE, DEFAULT_USERS),
+        barbers: readJsonFile(BARBERS_FILE, DEFAULT_BARBERS)
+      });
+      console.log('[CLOUD-VAULT] Canal de autenticacion inicializado en la nube.');
+    } else if (authRes.status === 'error') {
+      console.warn('[CLOUD-VAULT] Fallo de conexion en autenticacion. Se preserva estado local sin sobrescribir la nube.');
+    }
+
+    // 2. Restaurar o sembrar citas e historial operativo
+    if (opsRes.status === 'ok' && opsRes.data && Array.isArray(opsRes.data.appointments)) {
+      writeJsonFileAtomic(APPOINTMENTS_FILE, opsRes.data.appointments, true);
+      if (Array.isArray(opsRes.data.history)) {
+        writeJsonFileAtomic(HISTORY_FILE, opsRes.data.history, true);
+      }
+      console.log('[CLOUD-VAULT] Citas e historial operativo restaurados con exito desde la nube.');
+    } else if (opsRes.status === 'empty') {
+      pushCloudChannel(CLOUD_CHANNEL_OPS, {
+        ts: Date.now(),
+        appointments: readJsonFile(APPOINTMENTS_FILE, DEFAULT_APPOINTMENTS),
+        history: readJsonFile(HISTORY_FILE, DEFAULT_HISTORY)
+      });
+      console.log('[CLOUD-VAULT] Canal operativo inicializado en la nube.');
+    } else if (opsRes.status === 'error') {
+      console.warn('[CLOUD-VAULT] Fallo de conexion en citas/historial. Se preserva estado local sin sobrescribir la nube.');
+    }
+
+    // 3. Restaurar o sembrar catalogo y pedidos de tienda
+    if (storeRes.status === 'ok' && storeRes.data && Array.isArray(storeRes.data.products)) {
+      writeJsonFileAtomic(PRODUCTS_FILE, storeRes.data.products, true);
+      if (Array.isArray(storeRes.data.storeOrders)) {
+        writeJsonFileAtomic(STORE_ORDERS_FILE, storeRes.data.storeOrders, true);
+      }
+      console.log('[CLOUD-VAULT] Catalogo y pedidos de tienda restaurados con exito desde la nube.');
+    } else if (storeRes.status === 'empty') {
+      pushCloudChannel(CLOUD_CHANNEL_STORE, {
+        ts: Date.now(),
+        products: readJsonFile(PRODUCTS_FILE, DEFAULT_PRODUCTS),
+        storeOrders: readJsonFile(STORE_ORDERS_FILE, DEFAULT_STORE_ORDERS)
+      });
+      console.log('[CLOUD-VAULT] Canal de tienda inicializado en la nube.');
+    } else if (storeRes.status === 'error') {
+      console.warn('[CLOUD-VAULT] Fallo de conexion en tienda. Se preserva estado local sin sobrescribir la nube.');
+    }
+  } catch (err) {
+    console.error('[CLOUD-VAULT] Error inesperado en restauracion de nube:', err.message);
+  }
+})();
+
+// Keep-Alive interno automatico cada 5 minutos en Render (previene suspension por inactividad de 15 min)
+if (IS_RENDER) {
+  if (!process.env.AUTH_SECRET) {
+    console.warn('[SEGURIDAD] Advertencia: Variable de entorno AUTH_SECRET no definida en Render. Se recomienda configurar AUTH_SECRET personalizada en el panel de Render.');
+  }
+
+  setInterval(() => {
+    fetch(`${RENDER_EXTERNAL_URL}/api/health`, {
+      headers: { 'User-Agent': 'BarberiaLopez-InternalKeepAlive/1.0' }
+    }).catch(() => {});
+  }, 5 * 60 * 1000);
+
+  // Refrescar snapshot en la nube cada 2 horas
+  setInterval(() => {
+    pushCloudChannel(CLOUD_CHANNEL_AUTH, {
+      ts: Date.now(),
+      users: readJsonFile(USERS_FILE, DEFAULT_USERS),
+      barbers: readJsonFile(BARBERS_FILE, DEFAULT_BARBERS)
+    });
+    pushCloudChannel(CLOUD_CHANNEL_OPS, {
+      ts: Date.now(),
+      appointments: readJsonFile(APPOINTMENTS_FILE, DEFAULT_APPOINTMENTS),
+      history: readJsonFile(HISTORY_FILE, DEFAULT_HISTORY)
+    });
+    pushCloudChannel(CLOUD_CHANNEL_STORE, {
+      ts: Date.now(),
+      products: readJsonFile(PRODUCTS_FILE, DEFAULT_PRODUCTS),
+      storeOrders: readJsonFile(STORE_ORDERS_FILE, DEFAULT_STORE_ORDERS)
+    });
+  }, 2 * 60 * 60 * 1000);
+}
 
 // ============================================================================
 // CRIPTOGRAFIA Y AUTENTICACION SEGURA NATIVA (SCRYPT + HMAC TOKENS)
@@ -902,6 +1152,25 @@ const server = http.createServer(async (req, res) => {
     res.statusCode = 204;
     res.end();
     return;
+  }
+
+  // --------------------------------------------------------------------------
+  // ENDPOINT DE SALUD Y KEEP-ALIVE (RENDER & UPTIME MONITORING)
+  // --------------------------------------------------------------------------
+  if (reqUrl === '/api/health') {
+    res.statusCode = 200;
+    res.setHeader('Content-Type', 'application/json; charset=utf-8');
+    res.end(JSON.stringify({
+      status: 'ok',
+      service: 'barberia-lopez',
+      uptimeSeconds: Math.floor(process.uptime()),
+      timestamp: Date.now()
+    }));
+    return;
+  }
+
+  if (reqUrl.startsWith('/api/') && IS_RENDER) {
+    await cloudVaultReadyPromise;
   }
 
   // --------------------------------------------------------------------------
