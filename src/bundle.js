@@ -367,68 +367,176 @@
   const SEED_APPOINTMENTS = [];
   const SEED_HISTORY = [];
   const SEED_PRODUCTS = [
-    {
-      id: 'p-01',
-      name: 'Cera Mate Fijacion Extrema Lopez',
-      category: 'Cuidado Capilar',
-      priceCop: 32000,
-      stock: 15,
-      description: 'Acabado seco natural sin residuos grasos. Fijacion de alta duracion ideal para peinados texturizados y clasicos.',
-      imageUrl: 'https://images.unsplash.com/photo-1621607512214-68297480165e?w=600&auto=format&fit=crop&q=80',
-      active: true
-    },
-    {
-      id: 'p-02',
-      name: 'Pomada Clasica Brillo Imperial',
-      category: 'Cuidado Capilar',
-      priceCop: 30000,
-      stock: 12,
-      description: 'Formula a base de agua con brillo elegante para estilos clasicos, slick back y pompadour. Se retira facilmente con agua.',
-      imageUrl: 'https://images.unsplash.com/photo-1585751119414-ef2636f8aede?w=600&auto=format&fit=crop&q=80',
-      active: true
-    },
-    {
-      id: 'p-03',
-      name: 'Aceite Hidratante de Barba Cedro y Argan',
-      category: 'Barba y Piel',
-      priceCop: 35000,
-      stock: 10,
-      description: 'Nutre el vello facial desde la raiz, elimina la resequedad e irritacion y deja un aroma masculino amaderado.',
-      imageUrl: 'https://images.unsplash.com/photo-1608248597359-0e6d526a6828?w=600&auto=format&fit=crop&q=80',
-      active: true
-    },
-    {
-      id: 'p-04',
-      name: 'Tonico Capilar y de Barba Crecimiento 5%',
-      category: 'Tratamiento',
-      priceCop: 45000,
-      stock: 8,
-      description: 'Locion activadora de foliculos para poblar zonas abiertas en barba y fortalecer la densidad capilar.',
-      imageUrl: 'https://images.unsplash.com/photo-1556228720-195a672e8a03?w=600&auto=format&fit=crop&q=80',
-      active: true
-    },
-    {
-      id: 'p-05',
-      name: 'Polvo Texturizador Volumen Instantaneo',
-      category: 'Styling',
-      priceCop: 38000,
-      stock: 14,
-      description: 'Control de gravedad y volumen inmediato en la raiz con efecto mate invisible para cortes modernos y crop.',
-      imageUrl: 'https://images.unsplash.com/photo-1526947425960-945c6e72858f?w=600&auto=format&fit=crop&q=80',
-      active: true
-    },
-    {
-      id: 'p-06',
-      name: 'Cepillo Militar Cerdas Naturales para Barba',
-      category: 'Accesorios',
-      priceCop: 22000,
-      stock: 9,
-      description: 'Madera de nogal tallada con cerdas firmes para distribuir aceites, exfoliar la piel y domar la barba rebelde.',
-      imageUrl: 'https://images.unsplash.com/photo-1503951914875-452162b0f3f1?w=600&auto=format&fit=crop&q=80',
-      active: true
-    }
-  ];
-  const SEED_STORE_ORDERS = [];
+  {
+    "id": "prod-1792788587962-hzyn",
+    "name": "Cera gold",
+    "category": "Cuidado Capilar",
+    "description": "Cera capilar con cera de abejas\nFIJACIÓN Y MOLDEADO PARA TU CABELLO\nCon KERATINA, PANTENOL, TRINOGEN Y BIOTINA\nCONT.160g",
+    "priceCop": 36000,
+    "stock": 3,
+    "imageUrl": "./assets/products/prod-prod-1792788587962-hzyn-1792788588507.jpg",
+    "active": true,
+    "createdAt": "2026-10-23T20:49:47.962Z"
+  },
+  {
+    "id": "prod-1792789181502-7qc5",
+    "name": "Cera platinum",
+    "category": "Cuidado Capilar",
+    "description": "Cera capilar PLATINUM\nCon cera de abejas \nFIJACIÓN Y MOLDEADO PARA TU CABELLO CON KERATINA, PANTRNOL\nTRICHOGEN Y BIOTINA",
+    "priceCop": 37000,
+    "stock": 2,
+    "imageUrl": "./assets/products/prod-prod-1792789181502-7qc5-1792789181922.jpg",
+    "active": true,
+    "createdAt": "2026-10-23T20:59:41.502Z"
+  },
+  {
+    "id": "prod-1792789344624-nd6j",
+    "name": "Cera bless",
+    "category": "Cuidado Capilar",
+    "description": "Cera VIBRANTE CBD STYLING WAX \nFIJACIÓN, Moldeado y Estilo Para Tu Cabello",
+    "priceCop": 38000,
+    "stock": 5,
+    "imageUrl": "./assets/products/prod-prod-1792789344624-nd6j-1792789345011.jpg",
+    "active": true,
+    "createdAt": "2026-10-23T21:02:24.624Z"
+  },
+  {
+    "id": "prod-1792789483445-bcbs",
+    "name": "CERA WINNER’S",
+    "category": "Cuidado Capilar",
+    "description": "CERA VIBRANTE \nFIJACIÓN, MOLDEADO Y ESTILO PARA TU CABELLO, con ALOE VERA, ACEITE DE AGUACATE Y TRICHOGEN",
+    "priceCop": 38000,
+    "stock": 5,
+    "imageUrl": "./assets/products/prod-prod-1792789483445-bcbs-1792789483907.jpg",
+    "active": true,
+    "createdAt": "2026-10-23T21:04:43.445Z"
+  },
+  {
+    "id": "prod-1792789971626-9koa",
+    "name": "Cera RED’S",
+    "category": "Cuidado Capilar",
+    "description": "Cera VIBRANTE FIJACIÓN, MOLDEADO PARA TU CABELLO CON BIOTINA Y TRICHOGEN",
+    "priceCop": 38000,
+    "stock": 4,
+    "imageUrl": "./assets/products/prod-prod-1792789971626-9koa-1792789972016.jpg",
+    "active": true,
+    "createdAt": "2026-10-23T21:12:51.626Z"
+  },
+  {
+    "id": "prod-1792790044055-bpmz",
+    "name": "Cera KIDS",
+    "category": "Cuidado Capilar",
+    "description": "Cera MOLDEADORA Y FIJADORA (TERARAÑA) fijación ligera",
+    "priceCop": 38000,
+    "stock": 2,
+    "imageUrl": "./assets/products/prod-prod-1792790044055-bpmz-1792790044701.jpg",
+    "active": true,
+    "createdAt": "2026-10-23T21:14:04.055Z"
+  },
+  {
+    "id": "prod-1792790384897-jkn3",
+    "name": "GEL CAPILAR EXTRAFUERTE",
+    "category": "Cuidado Capilar",
+    "description": "MÁXIMA FIJACIÓN LIBRE DE PARABENOS \nCONT 900g",
+    "priceCop": 40000,
+    "stock": 2,
+    "imageUrl": "./assets/products/prod-prod-1792790384897-jkn3-1792790385302.jpg",
+    "active": true,
+    "createdAt": "2026-10-23T21:19:44.897Z"
+  },
+  {
+    "id": "prod-1792790496913-37fr",
+    "name": "TÓNICO CAPILAR SIN PARABENOS",
+    "category": "Cuidado Capilar",
+    "description": "ESTIMULACIÓN Y NUTRICIÓN CAPILAR CON \nBIOTINA\nARGININA\nALOE VERA Y EXTRACTO DE ROMERO \nCONT NETO 30mL",
+    "priceCop": 37000,
+    "stock": 2,
+    "imageUrl": "./assets/products/prod-prod-1792790496913-37fr-1792790497387.jpg",
+    "active": true,
+    "createdAt": "2026-10-23T21:21:36.913Z"
+  },
+  {
+    "id": "prod-1792790629355-xn0l",
+    "name": "JABÓN ÍNTIMO FOR MEN",
+    "category": "Cuidado Capilar",
+    "description": "ALOE VERA, CALÉNDULA Y MANZANILLA \nHIGIENE DIARIA PARA LA ZONA ÍNTIMA\nHIDRATA, LIMPIA Y REFRESCA \nFRAGANCIA HIPALERGENICA \n(USO DIARIO )\nCont 170mL",
+    "priceCop": 35000,
+    "stock": 4,
+    "imageUrl": "./assets/products/prod-prod-1792790629355-xn0l-1792790629793.jpg",
+    "active": true,
+    "createdAt": "2026-10-23T21:23:49.355Z"
+  },
+  {
+    "id": "prod-1792791999412-4le7",
+    "name": "LOCIÓN REFRESCANTE CON MINOXIDIL",
+    "category": "Cuidado Capilar",
+    "description": "REFESCANTE CON MINOXIDIL, OXOTHIAZOLIDINECARBOXYLATE \nMENTOL Y EYCALIPTO\n(PARA DESPUÉS DEL AFEITADO) \nCont 250. mL",
+    "priceCop": 22000,
+    "stock": 2,
+    "imageUrl": "./assets/products/prod-prod-1792791999412-4le7-1792791999993.jpg",
+    "active": true,
+    "createdAt": "2026-10-23T21:46:39.412Z"
+  },
+  {
+    "id": "prod-1792792131165-bv4z",
+    "name": "GEl  CAPILAR EXTRAFUERTE",
+    "category": "Cuidado Capilar",
+    "description": "MÁXIMA FIJACIÓN,LUBRE DE PARABENOS \nCONT.350g",
+    "priceCop": 29000,
+    "stock": 0,
+    "imageUrl": "./assets/products/prod-prod-1792792131165-bv4z-1792792131606.jpg",
+    "active": true,
+    "createdAt": "2026-10-23T21:48:51.165Z"
+  },
+  {
+    "id": "prod-1792792425127-b4qu",
+    "name": "SHAMPOO CONTROL CAÍDA",
+    "category": "Cuidado Capilar",
+    "description": "Control caída de pelo, con BIOTINA, ARGININA, MONOXIDIL, OXOTHIAZOLIDINECARBOXYLATE\n( PANAX GINSENG EXTRCTO DE BARDANA SAWPALMETO, GLUCONATO DE ZINC \nCON.350 mL",
+    "priceCop": 43000,
+    "stock": 2,
+    "imageUrl": "./assets/products/prod-prod-1792792425127-b4qu-1792792425839.jpg",
+    "active": true,
+    "createdAt": "2026-10-23T21:53:45.127Z"
+  },
+  {
+    "id": "prod-1792792609106-ez2v",
+    "name": "PRIMITIVOX MEN",
+    "category": "Bebida potenciadora",
+    "description": "Bebida concentrada a base de agua con frutas con BOROJO, CHONTADURO, VITAMINAS Y MINERALES",
+    "priceCop": 39000,
+    "stock": 4,
+    "imageUrl": "./assets/products/prod-prod-1792792609106-ez2v-1792792609702.jpg",
+    "active": true,
+    "createdAt": "2026-10-23T21:56:49.106Z"
+  }
+];
+  const SEED_STORE_ORDERS = [
+  {
+    "id": "ord-1792788689753-th2a",
+    "referenceCode": "REF-BL-6442VM",
+    "productId": "prod-1792788587962-hzyn",
+    "productName": "Cera gold",
+    "productCategory": "Cuidado Capilar",
+    "unitPriceCop": 36000,
+    "quantity": 1,
+    "totalCop": 36000,
+    "clientName": "Fabián Ricardo Trujillo González",
+    "clientPhone": "3204668428",
+    "deliveryMode": "APARTADO_RECOGIDA",
+    "preferredBarberId": null,
+    "preferredBarberName": "Cualquier barbero en turno",
+    "paymentMethod": "EFECTIVO",
+    "status": "ENTREGADO",
+    "date": "2026-10-23",
+    "createdAt": "2026-10-23T20:51:29.753Z",
+    "deliveredAt": "2026-10-23T20:53:21.548Z",
+    "deliveredDate": "2026-10-23",
+    "deliveredBy": "david.barber",
+    "deliveredByBarberId": "b-david-01",
+    "deliveredByName": "David"
+  }
+];
 
   class LocalStorageRepository {
     constructor() {

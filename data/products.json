@@ -1,1 +1,145 @@
-[]
+[
+  {
+    "id": "prod-1792788587962-hzyn",
+    "name": "Cera gold",
+    "category": "Cuidado Capilar",
+    "description": "Cera capilar con cera de abejas\nFIJACIÓN Y MOLDEADO PARA TU CABELLO\nCon KERATINA, PANTENOL, TRINOGEN Y BIOTINA\nCONT.160g",
+    "priceCop": 36000,
+    "stock": 3,
+    "imageUrl": "./assets/products/prod-prod-1792788587962-hzyn-1792788588507.jpg",
+    "active": true,
+    "createdAt": "2026-10-23T20:49:47.962Z"
+  },
+  {
+    "id": "prod-1792789181502-7qc5",
+    "name": "Cera platinum",
+    "category": "Cuidado Capilar",
+    "description": "Cera capilar PLATINUM\nCon cera de abejas \nFIJACIÓN Y MOLDEADO PARA TU CABELLO CON KERATINA, PANTRNOL\nTRICHOGEN Y BIOTINA",
+    "priceCop": 37000,
+    "stock": 2,
+    "imageUrl": "./assets/products/prod-prod-1792789181502-7qc5-1792789181922.jpg",
+    "active": true,
+    "createdAt": "2026-10-23T20:59:41.502Z"
+  },
+  {
+    "id": "prod-1792789344624-nd6j",
+    "name": "Cera bless",
+    "category": "Cuidado Capilar",
+    "description": "Cera VIBRANTE CBD STYLING WAX \nFIJACIÓN, Moldeado y Estilo Para Tu Cabello",
+    "priceCop": 38000,
+    "stock": 5,
+    "imageUrl": "./assets/products/prod-prod-1792789344624-nd6j-1792789345011.jpg",
+    "active": true,
+    "createdAt": "2026-10-23T21:02:24.624Z"
+  },
+  {
+    "id": "prod-1792789483445-bcbs",
+    "name": "CERA WINNER’S",
+    "category": "Cuidado Capilar",
+    "description": "CERA VIBRANTE \nFIJACIÓN, MOLDEADO Y ESTILO PARA TU CABELLO, con ALOE VERA, ACEITE DE AGUACATE Y TRICHOGEN",
+    "priceCop": 38000,
+    "stock": 5,
+    "imageUrl": "./assets/products/prod-prod-1792789483445-bcbs-1792789483907.jpg",
+    "active": true,
+    "createdAt": "2026-10-23T21:04:43.445Z"
+  },
+  {
+    "id": "prod-1792789971626-9koa",
+    "name": "Cera RED’S",
+    "category": "Cuidado Capilar",
+    "description": "Cera VIBRANTE FIJACIÓN, MOLDEADO PARA TU CABELLO CON BIOTINA Y TRICHOGEN",
+    "priceCop": 38000,
+    "stock": 4,
+    "imageUrl": "./assets/products/prod-prod-1792789971626-9koa-1792789972016.jpg",
+    "active": true,
+    "createdAt": "2026-10-23T21:12:51.626Z"
+  },
+  {
+    "id": "prod-1792790044055-bpmz",
+    "name": "Cera KIDS",
+    "category": "Cuidado Capilar",
+    "description": "Cera MOLDEADORA Y FIJADORA (TERARAÑA) fijación ligera",
+    "priceCop": 38000,
+    "stock": 2,
+    "imageUrl": "./assets/products/prod-prod-1792790044055-bpmz-1792790044701.jpg",
+    "active": true,
+    "createdAt": "2026-10-23T21:14:04.055Z"
+  },
+  {
+    "id": "prod-1792790384897-jkn3",
+    "name": "GEL CAPILAR EXTRAFUERTE",
+    "category": "Cuidado Capilar",
+    "description": "MÁXIMA FIJACIÓN LIBRE DE PARABENOS \nCONT 900g",
+    "priceCop": 40000,
+    "stock": 2,
+    "imageUrl": "./assets/products/prod-prod-1792790384897-jkn3-1792790385302.jpg",
+    "active": true,
+    "createdAt": "2026-10-23T21:19:44.897Z"
+  },
+  {
+    "id": "prod-1792790496913-37fr",
+    "name": "TÓNICO CAPILAR SIN PARABENOS",
+    "category": "Cuidado Capilar",
+    "description": "ESTIMULACIÓN Y NUTRICIÓN CAPILAR CON \nBIOTINA\nARGININA\nALOE VERA Y EXTRACTO DE ROMERO \nCONT NETO 30mL",
+    "priceCop": 37000,
+    "stock": 2,
+    "imageUrl": "./assets/products/prod-prod-1792790496913-37fr-1792790497387.jpg",
+    "active": true,
+    "createdAt": "2026-10-23T21:21:36.913Z"
+  },
+  {
+    "id": "prod-1792790629355-xn0l",
+    "name": "JABÓN ÍNTIMO FOR MEN",
+    "category": "Cuidado Capilar",
+    "description": "ALOE VERA, CALÉNDULA Y MANZANILLA \nHIGIENE DIARIA PARA LA ZONA ÍNTIMA\nHIDRATA, LIMPIA Y REFRESCA \nFRAGANCIA HIPALERGENICA \n(USO DIARIO )\nCont 170mL",
+    "priceCop": 35000,
+    "stock": 4,
+    "imageUrl": "./assets/products/prod-prod-1792790629355-xn0l-1792790629793.jpg",
+    "active": true,
+    "createdAt": "2026-10-23T21:23:49.355Z"
+  },
+  {
+    "id": "prod-1792791999412-4le7",
+    "name": "LOCIÓN REFRESCANTE CON MINOXIDIL",
+    "category": "Cuidado Capilar",
+    "description": "REFESCANTE CON MINOXIDIL, OXOTHIAZOLIDINECARBOXYLATE \nMENTOL Y EYCALIPTO\n(PARA DESPUÉS DEL AFEITADO) \nCont 250. mL",
+    "priceCop": 22000,
+    "stock": 2,
+    "imageUrl": "./assets/products/prod-prod-1792791999412-4le7-1792791999993.jpg",
+    "active": true,
+    "createdAt": "2026-10-23T21:46:39.412Z"
+  },
+  {
+    "id": "prod-1792792131165-bv4z",
+    "name": "GEl  CAPILAR EXTRAFUERTE",
+    "category": "Cuidado Capilar",
+    "description": "MÁXIMA FIJACIÓN,LUBRE DE PARABENOS \nCONT.350g",
+    "priceCop": 29000,
+    "stock": 0,
+    "imageUrl": "./assets/products/prod-prod-1792792131165-bv4z-1792792131606.jpg",
+    "active": true,
+    "createdAt": "2026-10-23T21:48:51.165Z"
+  },
+  {
+    "id": "prod-1792792425127-b4qu",
+    "name": "SHAMPOO CONTROL CAÍDA",
+    "category": "Cuidado Capilar",
+    "description": "Control caída de pelo, con BIOTINA, ARGININA, MONOXIDIL, OXOTHIAZOLIDINECARBOXYLATE\n( PANAX GINSENG EXTRCTO DE BARDANA SAWPALMETO, GLUCONATO DE ZINC \nCON.350 mL",
+    "priceCop": 43000,
+    "stock": 2,
+    "imageUrl": "./assets/products/prod-prod-1792792425127-b4qu-1792792425839.jpg",
+    "active": true,
+    "createdAt": "2026-10-23T21:53:45.127Z"
+  },
+  {
+    "id": "prod-1792792609106-ez2v",
+    "name": "PRIMITIVOX MEN",
+    "category": "Bebida potenciadora",
+    "description": "Bebida concentrada a base de agua con frutas con BOROJO, CHONTADURO, VITAMINAS Y MINERALES",
+    "priceCop": 39000,
+    "stock": 4,
+    "imageUrl": "./assets/products/prod-prod-1792792609106-ez2v-1792792609702.jpg",
+    "active": true,
+    "createdAt": "2026-10-23T21:56:49.106Z"
+  }
+]
