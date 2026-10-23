@@ -1700,6 +1700,12 @@ async findAllProducts() {
     history: [],
     products: [],
     storeOrders: [],
+    dashboardAccordions: {
+      appointments: true,
+      orders: false,
+      stock: false,
+      history: false
+    },
     activeView: 'home',
     storeCategoryFilter: 'ALL',
     storeOrderSearch: '',
@@ -1804,65 +1810,65 @@ async findAllProducts() {
 
     if (state.activeView === 'home') {
       mainContent = `
-        <!-- SECTION 1: PORTADA MAJESTUOSA DEL LOGO (FULL VIEWPORT COVER) -->
-        <section id="hero" class="relative min-h-[85vh] sm:min-h-[88vh] flex flex-col items-center justify-center overflow-hidden bg-[#0a0b0d] px-6 text-center border-b border-[#d4af37]/20 select-none">
+        <!-- SECTION 1: PORTADA MAJESTUOSA DEL LOGO (COMPACTO Y ARMONICO) -->
+        <section id="hero" class="relative py-8 sm:py-14 md:py-16 flex flex-col items-center justify-center overflow-hidden bg-[#0a0b0d] px-4 sm:px-6 text-center border-b border-[#d4af37]/20 select-none">
           
           <!-- Halo de luz ambiental dorada en el centro (Air Ambient Glow) -->
-          <div class="absolute w-[360px] sm:w-[580px] md:w-[720px] h-[360px] sm:h-[580px] md:h-[720px] rounded-full bg-[#d4af37]/12 blur-[120px] pointer-events-none -translate-y-4 air-glow-pulse"></div>
+          <div class="absolute w-[300px] sm:w-[480px] md:w-[600px] h-[300px] sm:h-[480px] md:h-[600px] rounded-full bg-[#d4af37]/12 blur-[100px] pointer-events-none air-glow-pulse"></div>
           
           <!-- Contenedor central del Logo con doble anillo orbital y halo de lujo -->
-          <div class="relative z-10 flex flex-col items-center justify-center max-w-xl mx-auto py-8">
+          <div class="relative z-10 flex flex-col items-center justify-center max-w-xl mx-auto py-2 sm:py-4">
             
-            <div class="relative flex items-center justify-center mb-6 air-floating">
+            <div class="relative flex items-center justify-center mb-4 sm:mb-6 air-floating">
               <!-- Doble anillo orbital dorado sutil -->
-              <div class="absolute -inset-4 sm:-inset-6 rounded-full border border-[#d4af37]/25 animate-[spin_24s_linear_infinite] pointer-events-none"></div>
-              <div class="absolute -inset-8 sm:-inset-10 rounded-full border border-dashed border-[#d4af37]/15 animate-[spin_36s_linear_infinite_reverse] pointer-events-none"></div>
+              <div class="absolute -inset-3 sm:-inset-5 rounded-full border border-[#d4af37]/25 animate-[spin_24s_linear_infinite] pointer-events-none"></div>
+              <div class="absolute -inset-6 sm:-inset-8 rounded-full border border-dashed border-[#d4af37]/15 animate-[spin_36s_linear_infinite_reverse] pointer-events-none"></div>
               
               <!-- Imagen oficial del Logo en HD -->
               <img 
                 src="./logo_barberia_lopez_hd.jpg" 
                 alt="Barbería López" 
-                class="w-[200px] h-[200px] sm:w-[280px] sm:h-[280px] md:w-[320px] md:h-[320px] rounded-full object-cover border-2 border-[#d4af37]/60 shadow-[0_0_50px_rgba(212,175,55,0.25),0_0_80px_rgba(0,0,0,0.9)]"
+                class="w-[150px] h-[150px] sm:w-[220px] sm:h-[220px] md:w-[260px] md:h-[260px] rounded-full object-cover border-2 border-[#d4af37]/60 shadow-[0_0_35px_rgba(212,175,55,0.22),0_0_60px_rgba(0,0,0,0.9)]"
                 loading="eager"
                 onerror="this.src='./logo_barberia_lopez.png'"
               >
             </div>
 
             <!-- Titular de la Marca y Ubicación -->
-            <h1 class="font-serif-editorial text-2xl sm:text-4xl md:text-5xl font-normal tracking-[0.22em] text-[#ffffff] uppercase drop-shadow-[0_4px_16px_rgba(0,0,0,0.8)]">
+            <h1 class="font-serif-editorial text-2xl sm:text-3xl md:text-4xl font-normal tracking-[0.22em] text-[#ffffff] uppercase drop-shadow-[0_4px_16px_rgba(0,0,0,0.8)]">
               Barbería López
             </h1>
-            <p class="shimmer-gold font-sans-ui text-xs sm:text-sm tracking-[0.3em] uppercase font-semibold mt-2.5">
+            <p class="shimmer-gold font-sans-ui text-xs sm:text-sm tracking-[0.3em] uppercase font-semibold mt-1.5 sm:mt-2">
               Estudio Tradicional · Neiva, Huila
             </p>
-            <p class="font-serif-editorial text-[#c5c0b6] italic text-sm sm:text-base mt-2 max-w-md">
+            <p class="font-serif-editorial text-[#c5c0b6] italic text-xs sm:text-sm mt-1.5 max-w-md">
               "Somos los arquitectos de tu imagen"
             </p>
 
             <!-- Indicador animado para invitar al cliente a scrolear / bajar -->
-            <a href="#informacion" class="mt-8 sm:mt-10 inline-flex flex-col items-center gap-2 text-[#c5c0b6] hover:text-[#d4af37] transition-all no-underline group cursor-pointer">
-              <span class="font-sans-ui text-[11px] font-medium tracking-[0.22em] uppercase text-[#9e9587] group-hover:text-[#d4af37] transition-colors">
+            <a href="#informacion" class="mt-4 sm:mt-6 inline-flex flex-col items-center gap-1.5 text-[#c5c0b6] hover:text-[#d4af37] transition-all no-underline group cursor-pointer">
+              <span class="font-sans-ui text-[10px] sm:text-[11px] font-medium tracking-[0.22em] uppercase text-[#9e9587] group-hover:text-[#d4af37] transition-colors">
                 Desliza para ver la información
               </span>
-              <div class="w-6 h-10 rounded-full border-2 border-[#d4af37]/45 flex items-start justify-center p-1 group-hover:border-[#d4af37] transition-colors">
-                <div class="w-1.5 h-2.5 bg-[#d4af37] rounded-full animate-bounce"></div>
+              <div class="w-5 h-8 sm:w-6 sm:h-9 rounded-full border-2 border-[#d4af37]/45 flex items-start justify-center p-1 group-hover:border-[#d4af37] transition-colors">
+                <div class="w-1.5 h-2 bg-[#d4af37] rounded-full animate-bounce"></div>
               </div>
             </a>
           </div>
 
           <!-- Degradado de desvanecimiento hacia la siguiente sección -->
-          <div class="absolute bottom-0 inset-x-0 h-16 bg-gradient-to-t from-[#0a0b0d] to-transparent pointer-events-none"></div>
+          <div class="absolute bottom-0 inset-x-0 h-10 bg-gradient-to-t from-[#0a0b0d] to-transparent pointer-events-none"></div>
         </section>
 
         <!-- SECTION 1.5: INFORMACION DE LA BARBERIA (Aparece al hacer scroll o bajar) -->
-        <section id="informacion" class="relative overflow-hidden bg-[#0a0b0d] py-16 sm:py-20 border-b border-[#d4af37]/20">
+        <section id="informacion" class="relative overflow-hidden bg-[#0a0b0d] py-8 sm:py-14 md:py-16 border-b border-[#d4af37]/20">
           
           <!-- Fondo ambiental sutil -->
           <div class="absolute inset-0 pointer-events-none select-none flex items-center justify-center overflow-hidden z-0">
-            <div class="absolute w-[600px] h-[600px] rounded-full bg-[#d4af37]/6 blur-[140px]"></div>
+            <div class="absolute w-[500px] h-[500px] rounded-full bg-[#d4af37]/6 blur-[120px]"></div>
           </div>
 
-          <div class="relative z-10 max-w-[1240px] mx-auto px-6 md:px-12 py-4 sm:py-6">
+          <div class="relative z-10 max-w-[1240px] mx-auto px-4 sm:px-6 md:px-12 py-2 sm:py-4">
             
             <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
               
@@ -2619,7 +2625,323 @@ async findAllProducts() {
             })()}
           ` : ''}
 
-          <!-- DESPACHO DE TIENDA, VENTA DIRECTA Y VERIFICACIÓN DE REFERENCIAS DE PAGO (ANTI-ROBO) -->
+          
+          ${(() => {
+            state.dashboardAccordions = state.dashboardAccordions || {
+              appointments: true,
+              orders: false,
+              stock: false,
+              history: false
+            };
+            const isApptsOpen = state.dashboardAccordions.appointments !== false;
+            const isOrdersOpen = !!state.dashboardAccordions.orders;
+            const isStockOpen = !!state.dashboardAccordions.stock;
+            const isHistoryOpen = !!state.dashboardAccordions.history;
+            const pendingOrdersCount = state.storeOrders.filter((o) => o.status === 'PENDIENTE').length;
+
+            return `
+              <!-- CONTENEDOR DE MODULOS DESPLEGABLES (ACORDEONES PARA EVITAR SATURACIÓN VISUAL) -->
+              <div class="space-y-5 mb-10">
+
+                <!-- MODULO 1: AGENDA Y CITAS DE TURNO -->
+                <div class="accordion-card rounded-[18px] bg-[#12151b] border border-[rgba(212,175,55,0.28)] shadow-lg overflow-hidden transition-all">
+                  <button 
+                    type="button" 
+                    class="btn-dashboard-accordion w-full flex items-center justify-between p-4 sm:p-5 text-left bg-gradient-to-r from-[#141822] via-[#12151b] to-[#141822] hover:bg-[#181c26] transition-all cursor-pointer select-none"
+                    data-accordion-target="accordion-content-citas"
+                    data-accordion-key="appointments"
+                    aria-expanded="${isApptsOpen ? 'true' : 'false'}"
+                  >
+                    <div class="flex items-center gap-3 sm:gap-4 min-w-0">
+                      <div class="w-10 h-10 sm:w-11 sm:h-11 rounded-full bg-[#181c24] border border-[#d4af37]/50 flex items-center justify-center text-[#d4af37] shrink-0 shadow-sm">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H8a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                        </svg>
+                      </div>
+                      <div class="min-w-0">
+                        <div class="flex flex-wrap items-center gap-2">
+                          <span class="font-serif-editorial text-lg sm:text-xl font-normal text-[#ffffff] tracking-tight">
+                            Agenda y Citas de Turno
+                          </span>
+                          <span class="text-[10px] font-mono-tech font-bold px-2.5 py-0.5 rounded-full ${activeBarberFilterCount > 0 ? 'bg-amber-500/20 text-amber-200 border border-amber-500/40' : 'bg-[#181c24] text-[#8a8275] border border-stone-800'} shrink-0">
+                            ${activeBarberFilterCount} ${activeBarberFilterCount === 1 ? 'turno asignado' : 'turnos asignados'}
+                          </span>
+                        </div>
+                        <p class="font-sans-ui text-xs text-[#c5c0b6] mt-0.5 truncate hidden sm:block">
+                          Turnos programados, finalización de cortes y sincronización móvil.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div class="flex items-center gap-2.5 pl-3 shrink-0">
+                      <span class="accordion-indicator-text text-[11px] font-sans-ui font-semibold text-[#d4af37] uppercase tracking-wider hidden md:inline">
+                        ${isApptsOpen ? 'Ocultar' : 'Desplegar'}
+                      </span>
+                      <div class="accordion-chevron w-8 h-8 rounded-full bg-[#181c24] border border-[#d4af37]/40 flex items-center justify-center text-[#d4af37] transition-transform duration-300 ${isApptsOpen ? 'rotate-180' : ''}">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7"></path>
+                        </svg>
+                      </div>
+                    </div>
+                  </button>
+
+                  <div id="accordion-content-citas" class="accordion-content ${isApptsOpen ? '' : 'hidden'} p-4 sm:p-6 border-t border-[rgba(212,175,55,0.18)] bg-[#0c0e13]">
+                    <!-- AGENDA DE TURNOS SECTORIZADA -->
+          <div class="mb-12">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 pb-4 border-b border-[rgba(212,175,55,0.22)]">
+              <div>
+                <h3 class="font-serif-editorial text-xl sm:text-2xl font-normal text-[#ffffff] tracking-tight">
+                  ${isJefe ? 'Agenda de turnos por estación' : 'Mis turnos programados'}
+                </h3>
+                <p class="font-sans-ui text-xs sm:text-sm text-[#c5c0b6] mt-0.5">
+                  ${isJefe ? 'Organización por sectores individuales de barbería para evitar acumulaciones.' : 'Turnos asignados a tu estación de trabajo.'}
+                </p>
+              </div>
+              <span class="text-xs text-[#d4af37] font-semibold font-mono-tech px-3 py-1 rounded-full bg-[#181c24] border border-[rgba(212,175,55,0.3)] self-start sm:self-auto">
+                ${activeBarberFilterCount} ${activeBarberFilterCount === 1 ? 'turno registrado' : 'turnos registrados'}
+              </span>
+            </div>
+
+            <!-- TARJETA EXPLICATIVA DE VINCULACIÓN AUTOMÁTICA -->
+            <div class="anthropic-card p-4 sm:p-5 mb-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border border-[rgba(212,175,55,0.35)] bg-gradient-to-r from-[#141720] via-[#161a22] to-[#141720]">
+              <div class="flex items-center gap-3.5">
+                <div class="w-10 h-10 rounded-full bg-[#181c24] border border-[#d4af37] flex items-center justify-center flex-shrink-0 text-[#d4af37]">
+                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"></path>
+                  </svg>
+                </div>
+                <div>
+                  <h4 class="font-serif-editorial text-base sm:text-lg text-[#ffffff] font-normal tracking-tight">
+                    Sincronización automática de turnos en tu teléfono
+                  </h4>
+                  <p class="font-sans-ui text-xs text-[#c5c0b6] mt-0.5">
+                    Vincula tu celular una sola vez. Cada nueva cita reservada en la web se agregará automáticamente al calendario de tu teléfono sin que tengas que hacer nada.
+                  </p>
+                </div>
+              </div>
+              <button 
+                type="button" 
+                data-sync-barber-id="${isJefe ? (state.dashboardBarberFilter !== 'ALL' ? state.dashboardBarberFilter : 'all') : state.currentUser.barberId}"
+                data-sync-barber-name="${isJefe ? (state.dashboardBarberFilter !== 'ALL' ? (barbersMap.get(state.dashboardBarberFilter) || 'Estación') : 'Todas las estaciones') : (barbersMap.get(state.currentUser.barberId) || 'Mi Estación')}"
+                class="btn-sync-mobile-calendar btn-clay py-2 px-4 text-xs font-semibold whitespace-nowrap self-stretch md:self-auto justify-center cursor-pointer">
+                Vincular mi celular ahora →
+              </button>
+            </div>
+
+            ${isJefe ? `
+              <!-- SELECTOR DE ESTACIÓN (FILTRO INTERACTIVO) -->
+              <div class="flex flex-wrap items-center gap-2 mb-6 p-2 rounded-[12px] bg-[#12151b] border border-[rgba(212,175,55,0.22)]">
+                <span class="text-xs font-semibold text-[#8a8275] uppercase tracking-wider px-2 mr-1">Filtrar estación:</span>
+                <button 
+                  data-dashboard-barber="ALL"
+                  class="btn-dashboard-barber px-3.5 py-1.5 rounded-[8px] text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 ${
+                    state.dashboardBarberFilter === 'ALL'
+                      ? 'bg-[#181c24] border border-[#d4af37] text-[#ffffff] shadow-[0_0_10px_rgba(212,175,55,0.2)]'
+                      : 'text-[#c5c0b6] hover:text-[#ffffff] hover:bg-[#161a22] border border-transparent'
+                  }">
+                  <span>Todas las estaciones</span>
+                  <span class="text-[10px] font-mono-tech px-1.5 py-0.2 rounded-full ${state.dashboardBarberFilter === 'ALL' ? 'bg-[#d4af37]/20 text-[#f3e5ab]' : 'bg-[#161a22] text-[#8a8275]'}">${appointments.length}</span>
+                </button>
+
+                ${barbers.map((b) => {
+                  const bCount = appointments.filter((a) => a.barberId === b.id).length;
+                  const isSelected = state.dashboardBarberFilter === b.id;
+                  return `
+                    <button 
+                      data-dashboard-barber="${b.id}"
+                      class="btn-dashboard-barber px-3.5 py-1.5 rounded-[8px] text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 ${
+                        isSelected
+                          ? 'bg-[#181c24] border border-[#d4af37] text-[#ffffff] shadow-[0_0_10px_rgba(212,175,55,0.2)]'
+                          : 'text-[#c5c0b6] hover:text-[#ffffff] hover:bg-[#161a22] border border-transparent'
+                      }">
+                      <span class="w-1.5 h-1.5 rounded-full ${isSelected ? 'bg-[#d4af37]' : 'bg-[#8a8275]'}"></span>
+                      <span>${b.name}</span>
+                      <span class="text-[10px] font-mono-tech px-1.5 py-0.2 rounded-full ${isSelected ? 'bg-[#d4af37]/20 text-[#f3e5ab]' : 'bg-[#161a22] text-[#8a8275]'}">${bCount}</span>
+                    </button>
+                  `;
+                }).join('')}
+              </div>
+            ` : ''}
+
+            <!-- CONTENEDORES DE SECTORES DE ESTACIÓN -->
+            <div class="space-y-8">
+              ${sectorsToRender.map((b) => {
+                const bAppts = appointments.filter((a) => a.barberId === b.id);
+                return `
+                  <div class="bg-[#12151b] rounded-[16px] border border-[rgba(212,175,55,0.22)] p-5 sm:p-6 shadow-sm">
+                    
+                    <!-- ENCABEZADO DEL SECTOR -->
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5 pb-4 border-b border-[rgba(212,175,55,0.14)]">
+                      <div class="flex items-center gap-3.5">
+                        ${b.avatar ? `
+                          <img src="${b.avatar}" alt="${b.name}" class="w-12 h-12 rounded-full object-cover border-2 border-[rgba(212,175,55,0.4)] shadow-md">
+                        ` : `
+                          <div class="w-12 h-12 rounded-full bg-[#181c24] border-2 border-[rgba(212,175,55,0.4)] flex items-center justify-center font-serif-editorial text-lg text-[#d4af37]">
+                            ${b.name.charAt(0)}
+                          </div>
+                        `}
+                        <div>
+                          <div class="flex items-center gap-2 mb-0.5">
+                            <span class="text-[10px] font-mono-tech uppercase tracking-wider text-[#d4af37] font-semibold bg-[#181c24] px-2 py-0.5 rounded border border-[rgba(212,175,55,0.2)]">
+                              Sector de Estación
+                            </span>
+                          </div>
+                          <h4 class="font-serif-editorial text-xl font-normal text-[#ffffff] tracking-tight">
+                            ${b.name}
+                          </h4>
+                          <p class="text-xs text-[#c5c0b6] font-sans-ui">${b.specialty || 'Barbero Profesional'}</p>
+                        </div>
+                      </div>
+
+                      <div class="flex flex-wrap items-center gap-2 self-start sm:self-auto">
+                        <button 
+                          type="button" 
+                          data-sync-barber-id="${b.id}"
+                          data-sync-barber-name="${b.name}"
+                          class="btn-sync-mobile-calendar inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#181c24] border border-[#d4af37] text-xs font-semibold text-[#f3e5ab] hover:text-[#ffffff] hover:bg-[#d4af37]/20 transition-all cursor-pointer shadow-[0_0_10px_rgba(212,175,55,0.15)]">
+                          <svg class="w-3.5 h-3.5 text-[#d4af37]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                          </svg>
+                          <span>Sincronizar celular</span>
+                        </button>
+
+                        <span class="text-xs font-medium px-3 py-1 rounded-full ${
+                          bAppts.length > 0 
+                            ? 'bg-[#181c24] text-[#f3e5ab] border border-[rgba(212,175,55,0.3)]' 
+                            : 'bg-[#161a22] text-[#8a8275] border border-stone-800'
+                        }">
+                          ${bAppts.length} ${bAppts.length === 1 ? 'turno asignado' : 'turnos asignados'}
+                        </span>
+                      </div>
+                    </div>
+
+                    <!-- GRID DE TURNOS DEL SECTOR -->
+                    ${bAppts.length === 0 ? `
+                      <div class="text-center py-8 px-4 bg-[#161a22]/50 rounded-[10px] border border-dashed border-[rgba(212,175,55,0.14)]">
+                        <p class="font-serif-editorial text-base text-[#c5c0b6]">Sin turnos programados en este sector</p>
+                        <p class="font-sans-ui text-xs text-[#8a8275] mt-1">Los turnos reservados con ${b.name} aparecerán aquí automáticamente.</p>
+                      </div>
+                    ` : `
+                      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        ${bAppts.map((appt) => {
+                          const isCompleted = appt.status === 'COMPLETADA' || (state.history && state.history.some((h) => h.appointmentId === appt.id));
+                          const serviceObj = services.find((s) => s.id === appt.serviceId);
+                          const serviceName = serviceObj ? serviceObj.name : 'Corte Tradicional';
+                          const servicePrice = serviceObj ? serviceObj.priceCop : 0;
+                          return `
+                            <div class="anthropic-card p-5 flex flex-col justify-between ${isCompleted ? 'border-[rgba(212,175,55,0.15)] bg-[#14171f]' : 'border-[rgba(212,175,55,0.3)] bg-[#161a22]'}">
+                              <div>
+                                <div class="flex items-center justify-between gap-2 mb-3">
+                                  <span class="text-xs font-mono-tech font-bold text-[#f3e5ab] bg-[#12151b] px-2 py-0.5 rounded border border-[rgba(212,175,55,0.2)]">
+                                    ${appt.startTime} — ${appt.endTime}
+                                  </span>
+                                  <span class="inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-0.5 rounded-full ${
+                                    isCompleted 
+                                      ? 'bg-[#181c24] border border-[rgba(212,175,55,0.3)] text-[#d4af37]' 
+                                      : 'bg-[#12151b] border border-[rgba(212,175,55,0.22)] text-[#c5c0b6]'
+                                  }">
+                                    ${isCompleted ? '<span class="w-1.5 h-1.5 rounded-full bg-[#d4af37]"></span>' : ''}
+                                    ${appt.status}
+                                  </span>
+                                </div>
+
+                                <h5 class="text-base sm:text-lg font-bold text-[#ffffff] tracking-tight mb-1">
+                                  ${escapeHtml(appt.clientName)}
+                                </h5>
+                                
+                                <p class="text-xs font-medium text-[#d4af37] mb-3">
+                                  ${serviceName} ${servicePrice > 0 ? `· $${servicePrice.toLocaleString('es-CO')} COP` : ''}
+                                </p>
+
+                                <div class="space-y-1.5 mb-4 text-xs font-sans-ui bg-[#12151b]/70 p-3 rounded-[8px] border border-[rgba(212,175,55,0.1)]">
+                                  <div class="flex items-center justify-between text-[#ffffff]">
+                                    <span class="text-[#8a8275] font-semibold">Teléfono:</span>
+                                    <span class="font-medium text-[#c5c0b6]">${escapeHtml(appt.clientPhone || 'No registrado')}</span>
+                                  </div>
+                                  <div class="flex items-center justify-between text-[#ffffff]">
+                                    <span class="text-[#8a8275] font-semibold">Fecha:</span>
+                                    <span class="font-medium text-[#c5c0b6]">${appt.date}</span>
+                                  </div>
+                                  <div class="flex items-center justify-between text-[#ffffff]">
+                                    <span class="text-[#8a8275] font-semibold">Pago:</span>
+                                    <span class="font-medium text-[#c5c0b6]">${escapeHtml(appt.paymentMethod)}</span>
+                                  </div>
+                                </div>
+                              </div>
+
+                              ${!isCompleted ? `
+                                <button data-appt-id="${appt.id}" class="btn-complete-cut btn-clay w-full py-2.5 px-4 text-xs font-semibold justify-center">
+                                  Finalizar corte y guardar en historial →
+                                </button>
+                                <button data-delete-appt-id="${appt.id}" class="btn-delete-appt btn-stone-outline w-full py-1.5 px-3 text-xs text-red-400 hover:text-red-300 hover:border-red-500 justify-center cursor-pointer mt-2">
+                                  Cancelar turno
+                                </button>
+                              ` : `
+                                <div class="text-xs font-semibold text-[#d4af37] py-2.5 px-3 text-center bg-[#181c24] border border-[rgba(212,175,55,0.3)] rounded-[8px] flex items-center justify-center gap-2">
+                                  <span class="w-2 h-2 rounded-full bg-[#d4af37]"></span>
+                                  <span>Corte finalizado y registrado en caja</span>
+                                </div>
+                                <button data-delete-appt-id="${appt.id}" class="btn-delete-appt btn-stone-outline w-full py-1.5 px-3 text-xs text-red-400 hover:text-red-300 hover:border-red-500 justify-center cursor-pointer mt-2">
+                                  Eliminar registro de turno
+                                </button>
+                              `}
+                            </div>
+                          `;
+                        }).join('')}
+                      </div>
+                    `}
+                  </div>
+                `;
+              }).join('')}
+            </div>
+          </div>
+                  </div>
+                </div>
+
+                <!-- MODULO 2: APROBAR COMPROBANTES Y PEDIDOS DE TIENDA -->
+                <div class="accordion-card rounded-[18px] bg-[#12151b] border border-[rgba(212,175,55,0.28)] shadow-lg overflow-hidden transition-all">
+                  <button 
+                    type="button" 
+                    class="btn-dashboard-accordion w-full flex items-center justify-between p-4 sm:p-5 text-left bg-gradient-to-r from-[#141822] via-[#12151b] to-[#141822] hover:bg-[#181c26] transition-all cursor-pointer select-none"
+                    data-accordion-target="accordion-content-pedidos"
+                    data-accordion-key="orders"
+                    aria-expanded="${isOrdersOpen ? 'true' : 'false'}"
+                  >
+                    <div class="flex items-center gap-3 sm:gap-4 min-w-0">
+                      <div class="w-10 h-10 sm:w-11 sm:h-11 rounded-full bg-[#181c24] border border-[#d4af37]/50 flex items-center justify-center text-[#d4af37] shrink-0 shadow-sm">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                        </svg>
+                      </div>
+                      <div class="min-w-0">
+                        <div class="flex flex-wrap items-center gap-2">
+                          <span class="font-serif-editorial text-lg sm:text-xl font-normal text-[#ffffff] tracking-tight">
+                            Aprobar Comprobantes y Pedidos de Tienda
+                          </span>
+                          <span class="text-[10px] font-mono-tech font-bold px-2.5 py-0.5 rounded-full ${pendingOrdersCount > 0 ? 'bg-amber-500/20 text-amber-200 border border-amber-500/40' : 'bg-emerald-950/70 text-emerald-300 border border-emerald-700/40'} shrink-0">
+                            ${pendingOrdersCount} ${pendingOrdersCount === 1 ? 'pendiente de cobro' : 'pendientes de cobro'}
+                          </span>
+                        </div>
+                        <p class="font-sans-ui text-xs text-[#c5c0b6] mt-0.5 truncate hidden sm:block">
+                          Validación de referencias REF-BL, cobro en efectivo y entrega de productos.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div class="flex items-center gap-2.5 pl-3 shrink-0">
+                      <span class="accordion-indicator-text text-[11px] font-sans-ui font-semibold text-[#d4af37] uppercase tracking-wider hidden md:inline">
+                        ${isOrdersOpen ? 'Ocultar' : 'Desplegar'}
+                      </span>
+                      <div class="accordion-chevron w-8 h-8 rounded-full bg-[#181c24] border border-[#d4af37]/40 flex items-center justify-center text-[#d4af37] transition-transform duration-300 ${isOrdersOpen ? 'rotate-180' : ''}">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7"></path>
+                        </svg>
+                      </div>
+                    </div>
+                  </button>
+
+                  <div id="accordion-content-pedidos" class="accordion-content ${isOrdersOpen ? '' : 'hidden'} p-4 sm:p-6 border-t border-[rgba(212,175,55,0.18)] bg-[#0c0e13]">
+                    <!-- DESPACHO DE TIENDA, VENTA DIRECTA Y VERIFICACIÓN DE REFERENCIAS DE PAGO (ANTI-ROBO) -->
           <div class="mb-12">
             <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5 pb-4 border-b border-[rgba(212,175,55,0.22)]">
               <div>
@@ -2976,9 +3298,54 @@ async findAllProducts() {
               `;
             })()}
           </div>
+                  </div>
+                </div>
 
-          ${isJefe ? `
-            <!-- GESTIÓN DE STOCK Y PRECIOS DE PRODUCTOS (BARBERO JEFE Y ADMIN) -->
+                ${isJefe ? `
+                  <!-- MODULO 3: CONTROL DE STOCK Y CREAR PRODUCTOS (BARBERO JEFE Y ADMIN) -->
+                  <div class="accordion-card rounded-[18px] bg-[#12151b] border border-[rgba(212,175,55,0.28)] shadow-lg overflow-hidden transition-all">
+                    <button 
+                      type="button" 
+                      class="btn-dashboard-accordion w-full flex items-center justify-between p-4 sm:p-5 text-left bg-gradient-to-r from-[#141822] via-[#12151b] to-[#141822] hover:bg-[#181c26] transition-all cursor-pointer select-none"
+                      data-accordion-target="accordion-content-stock"
+                      data-accordion-key="stock"
+                      aria-expanded="${isStockOpen ? 'true' : 'false'}"
+                    >
+                      <div class="flex items-center gap-3 sm:gap-4 min-w-0">
+                        <div class="w-10 h-10 sm:w-11 sm:h-11 rounded-full bg-[#181c24] border border-[#d4af37]/50 flex items-center justify-center text-[#d4af37] shrink-0 shadow-sm">
+                          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
+                          </svg>
+                        </div>
+                        <div class="min-w-0">
+                          <div class="flex flex-wrap items-center gap-2">
+                            <span class="font-serif-editorial text-lg sm:text-xl font-normal text-[#ffffff] tracking-tight">
+                              Control de Stock y Crear Productos
+                            </span>
+                            <span class="text-[10px] font-mono-tech font-bold px-2.5 py-0.5 rounded-full bg-[#181c24] border border-[#d4af37]/35 text-[#f3e5ab] shrink-0">
+                              ${products.length} ${products.length === 1 ? 'artículo en tienda' : 'artículos en tienda'}
+                            </span>
+                          </div>
+                          <p class="font-sans-ui text-xs text-[#c5c0b6] mt-0.5 truncate hidden sm:block">
+                            Publicar nuevos artículos, ajustar existencias (+/-) y actualizar precios.
+                          </p>
+                        </div>
+                      </div>
+
+                      <div class="flex items-center gap-2.5 pl-3 shrink-0">
+                        <span class="accordion-indicator-text text-[11px] font-sans-ui font-semibold text-[#d4af37] uppercase tracking-wider hidden md:inline">
+                          ${isStockOpen ? 'Ocultar' : 'Desplegar'}
+                        </span>
+                        <div class="accordion-chevron w-8 h-8 rounded-full bg-[#181c24] border border-[#d4af37]/40 flex items-center justify-center text-[#d4af37] transition-transform duration-300 ${isStockOpen ? 'rotate-180' : ''}">
+                          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7"></path>
+                          </svg>
+                        </div>
+                      </div>
+                    </button>
+
+                    <div id="accordion-content-stock" class="accordion-content ${isStockOpen ? '' : 'hidden'} p-4 sm:p-6 border-t border-[rgba(212,175,55,0.18)] bg-[#0c0e13]">
+                      <!-- GESTIÓN DE STOCK Y PRECIOS DE PRODUCTOS (BARBERO JEFE Y ADMIN) -->
             <div class="mb-12">
               <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5 pb-4 border-b border-[rgba(212,175,55,0.22)]">
                 <div>
@@ -3105,220 +3472,54 @@ async findAllProducts() {
                   </div>
                 </div>
               </div>
-            </div>
-          ` : ''}
+                    </div>
+                  </div>
+                ` : ''}
 
-          <!-- AGENDA DE TURNOS SECTORIZADA -->
-          <div class="mb-12">
-            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 pb-4 border-b border-[rgba(212,175,55,0.22)]">
-              <div>
-                <h3 class="font-serif-editorial text-xl sm:text-2xl font-normal text-[#ffffff] tracking-tight">
-                  ${isJefe ? 'Agenda de turnos por estación' : 'Mis turnos programados'}
-                </h3>
-                <p class="font-sans-ui text-xs sm:text-sm text-[#c5c0b6] mt-0.5">
-                  ${isJefe ? 'Organización por sectores individuales de barbería para evitar acumulaciones.' : 'Turnos asignados a tu estación de trabajo.'}
-                </p>
-              </div>
-              <span class="text-xs text-[#d4af37] font-semibold font-mono-tech px-3 py-1 rounded-full bg-[#181c24] border border-[rgba(212,175,55,0.3)] self-start sm:self-auto">
-                ${activeBarberFilterCount} ${activeBarberFilterCount === 1 ? 'turno registrado' : 'turnos registrados'}
-              </span>
-            </div>
-
-            <!-- TARJETA EXPLICATIVA DE VINCULACIÓN AUTOMÁTICA -->
-            <div class="anthropic-card p-4 sm:p-5 mb-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border border-[rgba(212,175,55,0.35)] bg-gradient-to-r from-[#141720] via-[#161a22] to-[#141720]">
-              <div class="flex items-center gap-3.5">
-                <div class="w-10 h-10 rounded-full bg-[#181c24] border border-[#d4af37] flex items-center justify-center flex-shrink-0 text-[#d4af37]">
-                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"></path>
-                  </svg>
-                </div>
-                <div>
-                  <h4 class="font-serif-editorial text-base sm:text-lg text-[#ffffff] font-normal tracking-tight">
-                    Sincronización automática de turnos en tu teléfono
-                  </h4>
-                  <p class="font-sans-ui text-xs text-[#c5c0b6] mt-0.5">
-                    Vincula tu celular una sola vez. Cada nueva cita reservada en la web se agregará automáticamente al calendario de tu teléfono sin que tengas que hacer nada.
-                  </p>
-                </div>
-              </div>
-              <button 
-                type="button" 
-                data-sync-barber-id="${isJefe ? (state.dashboardBarberFilter !== 'ALL' ? state.dashboardBarberFilter : 'all') : state.currentUser.barberId}"
-                data-sync-barber-name="${isJefe ? (state.dashboardBarberFilter !== 'ALL' ? (barbersMap.get(state.dashboardBarberFilter) || 'Estación') : 'Todas las estaciones') : (barbersMap.get(state.currentUser.barberId) || 'Mi Estación')}"
-                class="btn-sync-mobile-calendar btn-clay py-2 px-4 text-xs font-semibold whitespace-nowrap self-stretch md:self-auto justify-center cursor-pointer">
-                Vincular mi celular ahora →
-              </button>
-            </div>
-
-            ${isJefe ? `
-              <!-- SELECTOR DE ESTACIÓN (FILTRO INTERACTIVO) -->
-              <div class="flex flex-wrap items-center gap-2 mb-6 p-2 rounded-[12px] bg-[#12151b] border border-[rgba(212,175,55,0.22)]">
-                <span class="text-xs font-semibold text-[#8a8275] uppercase tracking-wider px-2 mr-1">Filtrar estación:</span>
-                <button 
-                  data-dashboard-barber="ALL"
-                  class="btn-dashboard-barber px-3.5 py-1.5 rounded-[8px] text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 ${
-                    state.dashboardBarberFilter === 'ALL'
-                      ? 'bg-[#181c24] border border-[#d4af37] text-[#ffffff] shadow-[0_0_10px_rgba(212,175,55,0.2)]'
-                      : 'text-[#c5c0b6] hover:text-[#ffffff] hover:bg-[#161a22] border border-transparent'
-                  }">
-                  <span>Todas las estaciones</span>
-                  <span class="text-[10px] font-mono-tech px-1.5 py-0.2 rounded-full ${state.dashboardBarberFilter === 'ALL' ? 'bg-[#d4af37]/20 text-[#f3e5ab]' : 'bg-[#161a22] text-[#8a8275]'}">${appointments.length}</span>
-                </button>
-
-                ${barbers.map((b) => {
-                  const bCount = appointments.filter((a) => a.barberId === b.id).length;
-                  const isSelected = state.dashboardBarberFilter === b.id;
-                  return `
-                    <button 
-                      data-dashboard-barber="${b.id}"
-                      class="btn-dashboard-barber px-3.5 py-1.5 rounded-[8px] text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 ${
-                        isSelected
-                          ? 'bg-[#181c24] border border-[#d4af37] text-[#ffffff] shadow-[0_0_10px_rgba(212,175,55,0.2)]'
-                          : 'text-[#c5c0b6] hover:text-[#ffffff] hover:bg-[#161a22] border border-transparent'
-                      }">
-                      <span class="w-1.5 h-1.5 rounded-full ${isSelected ? 'bg-[#d4af37]' : 'bg-[#8a8275]'}"></span>
-                      <span>${b.name}</span>
-                      <span class="text-[10px] font-mono-tech px-1.5 py-0.2 rounded-full ${isSelected ? 'bg-[#d4af37]/20 text-[#f3e5ab]' : 'bg-[#161a22] text-[#8a8275]'}">${bCount}</span>
-                    </button>
-                  `;
-                }).join('')}
-              </div>
-            ` : ''}
-
-            <!-- CONTENEDORES DE SECTORES DE ESTACIÓN -->
-            <div class="space-y-8">
-              ${sectorsToRender.map((b) => {
-                const bAppts = appointments.filter((a) => a.barberId === b.id);
-                return `
-                  <div class="bg-[#12151b] rounded-[16px] border border-[rgba(212,175,55,0.22)] p-5 sm:p-6 shadow-sm">
-                    
-                    <!-- ENCABEZADO DEL SECTOR -->
-                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5 pb-4 border-b border-[rgba(212,175,55,0.14)]">
-                      <div class="flex items-center gap-3.5">
-                        ${b.avatar ? `
-                          <img src="${b.avatar}" alt="${b.name}" class="w-12 h-12 rounded-full object-cover border-2 border-[rgba(212,175,55,0.4)] shadow-md">
-                        ` : `
-                          <div class="w-12 h-12 rounded-full bg-[#181c24] border-2 border-[rgba(212,175,55,0.4)] flex items-center justify-center font-serif-editorial text-lg text-[#d4af37]">
-                            ${b.name.charAt(0)}
-                          </div>
-                        `}
-                        <div>
-                          <div class="flex items-center gap-2 mb-0.5">
-                            <span class="text-[10px] font-mono-tech uppercase tracking-wider text-[#d4af37] font-semibold bg-[#181c24] px-2 py-0.5 rounded border border-[rgba(212,175,55,0.2)]">
-                              Sector de Estación
-                            </span>
-                          </div>
-                          <h4 class="font-serif-editorial text-xl font-normal text-[#ffffff] tracking-tight">
-                            ${b.name}
-                          </h4>
-                          <p class="text-xs text-[#c5c0b6] font-sans-ui">${b.specialty || 'Barbero Profesional'}</p>
-                        </div>
+                <!-- MODULO 4: HISTORIAL DE CORTES Y FACTURACIÓN -->
+                <div class="accordion-card rounded-[18px] bg-[#12151b] border border-[rgba(212,175,55,0.28)] shadow-lg overflow-hidden transition-all">
+                  <button 
+                    type="button" 
+                    class="btn-dashboard-accordion w-full flex items-center justify-between p-4 sm:p-5 text-left bg-gradient-to-r from-[#141822] via-[#12151b] to-[#141822] hover:bg-[#181c26] transition-all cursor-pointer select-none"
+                    data-accordion-target="accordion-content-historial"
+                    data-accordion-key="history"
+                    aria-expanded="${isHistoryOpen ? 'true' : 'false'}"
+                  >
+                    <div class="flex items-center gap-3 sm:gap-4 min-w-0">
+                      <div class="w-10 h-10 sm:w-11 sm:h-11 rounded-full bg-[#181c24] border border-[#d4af37]/50 flex items-center justify-center text-[#d4af37] shrink-0 shadow-sm">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
                       </div>
-
-                      <div class="flex flex-wrap items-center gap-2 self-start sm:self-auto">
-                        <button 
-                          type="button" 
-                          data-sync-barber-id="${b.id}"
-                          data-sync-barber-name="${b.name}"
-                          class="btn-sync-mobile-calendar inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#181c24] border border-[#d4af37] text-xs font-semibold text-[#f3e5ab] hover:text-[#ffffff] hover:bg-[#d4af37]/20 transition-all cursor-pointer shadow-[0_0_10px_rgba(212,175,55,0.15)]">
-                          <svg class="w-3.5 h-3.5 text-[#d4af37]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-                          </svg>
-                          <span>Sincronizar celular</span>
-                        </button>
-
-                        <span class="text-xs font-medium px-3 py-1 rounded-full ${
-                          bAppts.length > 0 
-                            ? 'bg-[#181c24] text-[#f3e5ab] border border-[rgba(212,175,55,0.3)]' 
-                            : 'bg-[#161a22] text-[#8a8275] border border-stone-800'
-                        }">
-                          ${bAppts.length} ${bAppts.length === 1 ? 'turno asignado' : 'turnos asignados'}
-                        </span>
+                      <div class="min-w-0">
+                        <div class="flex flex-wrap items-center gap-2">
+                          <span class="font-serif-editorial text-lg sm:text-xl font-normal text-[#ffffff] tracking-tight">
+                            Historial de Cortes y Facturación
+                          </span>
+                          <span class="text-[10px] font-mono-tech font-bold px-2.5 py-0.5 rounded-full bg-[#181c24] border border-[#d4af37]/35 text-[#d4af37] shrink-0">
+                            ${activeHistoryDisplayCuts.length} cortes · $${totalFilteredCop.toLocaleString('es-CO')} COP
+                          </span>
+                        </div>
+                        <p class="font-sans-ui text-xs text-[#c5c0b6] mt-0.5 truncate hidden sm:block">
+                          Registro histórico de clientes atendidos, balances por estación y filtro por mes.
+                        </p>
                       </div>
                     </div>
 
-                    <!-- GRID DE TURNOS DEL SECTOR -->
-                    ${bAppts.length === 0 ? `
-                      <div class="text-center py-8 px-4 bg-[#161a22]/50 rounded-[10px] border border-dashed border-[rgba(212,175,55,0.14)]">
-                        <p class="font-serif-editorial text-base text-[#c5c0b6]">Sin turnos programados en este sector</p>
-                        <p class="font-sans-ui text-xs text-[#8a8275] mt-1">Los turnos reservados con ${b.name} aparecerán aquí automáticamente.</p>
+                    <div class="flex items-center gap-2.5 pl-3 shrink-0">
+                      <span class="accordion-indicator-text text-[11px] font-sans-ui font-semibold text-[#d4af37] uppercase tracking-wider hidden md:inline">
+                        ${isHistoryOpen ? 'Ocultar' : 'Desplegar'}
+                      </span>
+                      <div class="accordion-chevron w-8 h-8 rounded-full bg-[#181c24] border border-[#d4af37]/40 flex items-center justify-center text-[#d4af37] transition-transform duration-300 ${isHistoryOpen ? 'rotate-180' : ''}">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7"></path>
+                        </svg>
                       </div>
-                    ` : `
-                      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        ${bAppts.map((appt) => {
-                          const isCompleted = appt.status === 'COMPLETADA' || (state.history && state.history.some((h) => h.appointmentId === appt.id));
-                          const serviceObj = services.find((s) => s.id === appt.serviceId);
-                          const serviceName = serviceObj ? serviceObj.name : 'Corte Tradicional';
-                          const servicePrice = serviceObj ? serviceObj.priceCop : 0;
-                          return `
-                            <div class="anthropic-card p-5 flex flex-col justify-between ${isCompleted ? 'border-[rgba(212,175,55,0.15)] bg-[#14171f]' : 'border-[rgba(212,175,55,0.3)] bg-[#161a22]'}">
-                              <div>
-                                <div class="flex items-center justify-between gap-2 mb-3">
-                                  <span class="text-xs font-mono-tech font-bold text-[#f3e5ab] bg-[#12151b] px-2 py-0.5 rounded border border-[rgba(212,175,55,0.2)]">
-                                    ${appt.startTime} — ${appt.endTime}
-                                  </span>
-                                  <span class="inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-0.5 rounded-full ${
-                                    isCompleted 
-                                      ? 'bg-[#181c24] border border-[rgba(212,175,55,0.3)] text-[#d4af37]' 
-                                      : 'bg-[#12151b] border border-[rgba(212,175,55,0.22)] text-[#c5c0b6]'
-                                  }">
-                                    ${isCompleted ? '<span class="w-1.5 h-1.5 rounded-full bg-[#d4af37]"></span>' : ''}
-                                    ${appt.status}
-                                  </span>
-                                </div>
+                    </div>
+                  </button>
 
-                                <h5 class="text-base sm:text-lg font-bold text-[#ffffff] tracking-tight mb-1">
-                                  ${escapeHtml(appt.clientName)}
-                                </h5>
-                                
-                                <p class="text-xs font-medium text-[#d4af37] mb-3">
-                                  ${serviceName} ${servicePrice > 0 ? `· $${servicePrice.toLocaleString('es-CO')} COP` : ''}
-                                </p>
-
-                                <div class="space-y-1.5 mb-4 text-xs font-sans-ui bg-[#12151b]/70 p-3 rounded-[8px] border border-[rgba(212,175,55,0.1)]">
-                                  <div class="flex items-center justify-between text-[#ffffff]">
-                                    <span class="text-[#8a8275] font-semibold">Teléfono:</span>
-                                    <span class="font-medium text-[#c5c0b6]">${escapeHtml(appt.clientPhone || 'No registrado')}</span>
-                                  </div>
-                                  <div class="flex items-center justify-between text-[#ffffff]">
-                                    <span class="text-[#8a8275] font-semibold">Fecha:</span>
-                                    <span class="font-medium text-[#c5c0b6]">${appt.date}</span>
-                                  </div>
-                                  <div class="flex items-center justify-between text-[#ffffff]">
-                                    <span class="text-[#8a8275] font-semibold">Pago:</span>
-                                    <span class="font-medium text-[#c5c0b6]">${escapeHtml(appt.paymentMethod)}</span>
-                                  </div>
-                                </div>
-                              </div>
-
-                              ${!isCompleted ? `
-                                <button data-appt-id="${appt.id}" class="btn-complete-cut btn-clay w-full py-2.5 px-4 text-xs font-semibold justify-center">
-                                  Finalizar corte y guardar en historial →
-                                </button>
-                                <button data-delete-appt-id="${appt.id}" class="btn-delete-appt btn-stone-outline w-full py-1.5 px-3 text-xs text-red-400 hover:text-red-300 hover:border-red-500 justify-center cursor-pointer mt-2">
-                                  Cancelar turno
-                                </button>
-                              ` : `
-                                <div class="text-xs font-semibold text-[#d4af37] py-2.5 px-3 text-center bg-[#181c24] border border-[rgba(212,175,55,0.3)] rounded-[8px] flex items-center justify-center gap-2">
-                                  <span class="w-2 h-2 rounded-full bg-[#d4af37]"></span>
-                                  <span>Corte finalizado y registrado en caja</span>
-                                </div>
-                                <button data-delete-appt-id="${appt.id}" class="btn-delete-appt btn-stone-outline w-full py-1.5 px-3 text-xs text-red-400 hover:text-red-300 hover:border-red-500 justify-center cursor-pointer mt-2">
-                                  Eliminar registro de turno
-                                </button>
-                              `}
-                            </div>
-                          `;
-                        }).join('')}
-                      </div>
-                    `}
-                  </div>
-                `;
-              }).join('')}
-            </div>
-          </div>
-
-          <!-- HISTORIAL EN BASE DE DATOS CON FILTRO POR MES Y SECTORES -->
+                  <div id="accordion-content-historial" class="accordion-content ${isHistoryOpen ? '' : 'hidden'} p-4 sm:p-6 border-t border-[rgba(212,175,55,0.18)] bg-[#0c0e13]">
+                    <!-- HISTORIAL EN BASE DE DATOS CON FILTRO POR MES Y SECTORES -->
           <div>
             <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4 pb-2 border-b border-[rgba(212,175,55,0.18)]">
               <div>
@@ -3526,6 +3727,12 @@ async findAllProducts() {
             </div>
 
           </div>
+                  </div>
+                </div>
+
+              </div>
+            `;
+          })()}
 
         </section>
       `;
@@ -3792,11 +3999,8 @@ async findAllProducts() {
             </div>
           </a>
 
-          <!-- Center: Navigation Links (Inicio, Reservar, Tienda siempre visibles) -->
-          <nav class="flex items-center gap-2 sm:gap-5 md:gap-7">
-            <a href="#hero" id="nav-link-inicio" class="font-sans-ui text-xs font-semibold uppercase tracking-wider ${state.activeView === 'home' ? 'text-[#d4af37]' : 'text-[#c5c0b6]'} hover:text-[#d4af37] transition-colors cursor-pointer py-1">
-              Inicio
-            </a>
+          <!-- Center: Navigation Links (Reservar y Tienda siempre visibles) -->
+          <nav class="flex items-center gap-2.5 sm:gap-5 md:gap-7">
             <a href="#calendario" id="nav-link-calendario" class="font-sans-ui text-xs font-semibold uppercase tracking-wider text-[#f3e5ab] hover:text-[#d4af37] transition-colors cursor-pointer py-1">
               Reservar
             </a>
@@ -3810,18 +4014,6 @@ async findAllProducts() {
 
           <!-- Far Right: Auth & Action Button -->
           <div class="flex items-center gap-1.5 sm:gap-3 shrink-0">
-            <a 
-              href="https://www.tiktok.com/@barber_lopez_neiva" 
-              target="_blank" 
-              rel="noopener noreferrer" 
-              class="inline-flex items-center gap-1.5 py-1.5 px-2.5 sm:px-3 rounded-full border border-[rgba(212,175,55,0.35)] bg-[#181c24] text-[#f3e5ab] hover:text-[#ffffff] hover:border-[#d4af37] text-xs font-semibold transition-all shadow-sm" 
-              title="Cuenta oficial de TikTok @barber_lopez_neiva"
-            >
-              <svg class="w-3.5 h-3.5 fill-current shrink-0" viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.63.41-1.11 1.04-1.36 1.75-.21.51-.24 1.07-.14 1.61.24 1.64 1.82 3.02 3.5 2.87 1.12-.01 2.19-.66 2.77-1.61.19-.33.4-.67.41-1.06.1-1.79.06-3.57.07-5.36.01-4.03-.01-8.05.02-12.07z"/>
-              </svg>
-              <span>TikTok</span>
-            </a>
             ${!isAuth ? `
               <button id="btn-login-trigger" class="btn-stone-outline py-1.5 px-2.5 sm:px-3.5 text-xs">
                 Acceder
@@ -4654,6 +4846,33 @@ async findAllProducts() {
         });
       };
     }
+
+    // Control de acordeones desplegables del Dashboard
+    document.querySelectorAll('.btn-dashboard-accordion').forEach((btn) => {
+      btn.onclick = () => {
+        const targetId = btn.dataset.accordionTarget;
+        const key = btn.dataset.accordionKey;
+        const content = document.getElementById(targetId);
+        const chevron = btn.querySelector('.accordion-chevron');
+        const textIndicator = btn.querySelector('.accordion-indicator-text');
+        if (!content) return;
+
+        const isCurrentlyHidden = content.classList.contains('hidden');
+        if (isCurrentlyHidden) {
+          content.classList.remove('hidden');
+          if (chevron) chevron.classList.add('rotate-180');
+          if (textIndicator) textIndicator.textContent = 'Ocultar';
+          btn.setAttribute('aria-expanded', 'true');
+          if (key && state.dashboardAccordions) state.dashboardAccordions[key] = true;
+        } else {
+          content.classList.add('hidden');
+          if (chevron) chevron.classList.remove('rotate-180');
+          if (textIndicator) textIndicator.textContent = 'Desplegar';
+          btn.setAttribute('aria-expanded', 'false');
+          if (key && state.dashboardAccordions) state.dashboardAccordions[key] = false;
+        }
+      };
+    });
 
     // Confirmar cobro en efectivo y entregar pedido
     document.querySelectorAll('.btn-deliver-store-order').forEach((btn) => {

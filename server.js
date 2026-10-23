@@ -208,13 +208,35 @@ function readJsonFile(filePath, defaultValue) {
 }
 
 function writeJsonFileAtomic(filePath, data) {
+  const tempPath = `${filePath}.tmp.${Date.now()}.${Math.random().toString(36).substring(2, 8)}`;
   try {
-    const tempPath = `${filePath}.tmp.${Date.now()}.${Math.random().toString(36).substring(2, 8)}`;
     fs.writeFileSync(tempPath, JSON.stringify(data, null, 2), 'utf8');
-    fs.renameSync(tempPath, filePath);
+    const maxRetries = 5;
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        fs.renameSync(tempPath, filePath);
+        return true;
+      } catch (renameErr) {
+        if (attempt === maxRetries) {
+          try {
+            fs.copyFileSync(tempPath, filePath);
+            try { fs.unlinkSync(tempPath); } catch (e) {}
+            return true;
+          } catch (copyErr) {
+            console.error(`Error persistiendo ${filePath}:`, copyErr.message);
+            try { fs.unlinkSync(tempPath); } catch (e) {}
+            return false;
+          }
+        }
+        // Pausa breve para permitir que el lock en Windows se libere
+        const waitMs = attempt * 8;
+        Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, waitMs);
+      }
+    }
     return true;
   } catch (err) {
     console.error(`Error escribiendo atomicamente en ${filePath}:`, err.message);
+    try { if (fs.existsSync(tempPath)) fs.unlinkSync(tempPath); } catch (e) {}
     return false;
   }
 }
@@ -465,6 +487,7 @@ function readJsonBody(req, maxSize = 65536) {
 // ============================================================================
 
 let appointmentLock = Promise.resolve();
+let storeOrderLock = Promise.resolve();
 
 function timeToMinutes(timeStr) {
   if (!timeStr) return 0;
@@ -482,7 +505,7 @@ function isTimeOverlapping(startA, endA, startB, endB) {
 
 function validateAndSaveAppointment(newAppt) {
   return new Promise((resolve, reject) => {
-    appointmentLock = appointmentLock.then(() => {
+    appointmentLock = appointmentLock.catch(() => {}).then(() => {
       try {
         if (!newAppt.barberId || !newAppt.date || !newAppt.startTime || !newAppt.endTime) {
           throw new Error('Parametros de cita incompletos: barbero, fecha y horarios son obligatorios.');
@@ -1982,8 +2005,18 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (req.method === 'POST') {
+      let body;
       try {
-        const body = await readJsonBody(req);
+        body = await readJsonBody(req);
+      } catch (err) {
+        res.statusCode = 400;
+        res.setHeader('Content-Type', 'application/json; charset=utf-8');
+        res.end(JSON.stringify({ error: err.message }));
+        return;
+      }
+
+      await (storeOrderLock = storeOrderLock.catch(() => {}).then(async () => {
+        try {
         const isDirectSale = Boolean(body.directSale);
         const productId = String(body.productId || '').trim();
         const quantity = Math.max(1, Math.floor(Number(body.quantity) || 1));
@@ -2152,6 +2185,8 @@ const server = http.createServer(async (req, res) => {
         res.end(JSON.stringify({ error: err.message }));
         return;
       }
+      }));
+      return;
     }
   }
 
@@ -2284,20 +2319,23 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
-    // Restaurar las unidades al inventario del producto
-    const products = readJsonFile(PRODUCTS_FILE, DEFAULT_PRODUCTS);
-    const prodIdx = products.findIndex((p) => p.id === orders[idx].productId);
-    if (prodIdx !== -1) {
-      products[prodIdx].stock += Number(orders[idx].quantity) || 1;
-      writeJsonFileAtomic(PRODUCTS_FILE, products);
-    }
+    // Restaurar las unidades al inventario del producto bajo exclusion mutua
+    let products = [];
+    await (storeOrderLock = storeOrderLock.catch(() => {}).then(() => {
+      products = readJsonFile(PRODUCTS_FILE, DEFAULT_PRODUCTS);
+      const prodIdx = products.findIndex((p) => p.id === orders[idx].productId);
+      if (prodIdx !== -1) {
+        products[prodIdx].stock += Number(orders[idx].quantity) || 1;
+        writeJsonFileAtomic(PRODUCTS_FILE, products);
+      }
 
-    orders[idx].status = 'CANCELADO';
-    orders[idx].cancelledAt = new Date().toISOString();
-    orders[idx].cancelledBy = shiftCtx.user.username;
-    orders[idx].cancelledByName = shiftCtx.barberName;
+      orders[idx].status = 'CANCELADO';
+      orders[idx].cancelledAt = new Date().toISOString();
+      orders[idx].cancelledBy = shiftCtx.user.username;
+      orders[idx].cancelledByName = shiftCtx.barberName;
 
-    writeJsonFileAtomic(STORE_ORDERS_FILE, orders);
+      writeJsonFileAtomic(STORE_ORDERS_FILE, orders);
+    }));
 
     res.statusCode = 200;
     res.setHeader('Content-Type', 'application/json; charset=utf-8');
@@ -2372,6 +2410,10 @@ const server = http.createServer(async (req, res) => {
     });
   });
 });
+
+server.keepAliveTimeout = 65000;
+server.headersTimeout = 66000;
+server.maxHeadersCount = 100;
 
 server.listen(PORT, HOST, () => {
   console.log(`\n======================================================`);
