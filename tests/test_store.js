@@ -122,13 +122,19 @@ async function runTests() {
     }
     const jefeCreatedProd = jefeCreateRes.data.product;
 
-    // Edicion de stock y precio por Barbero Jefe -> Permitido con HTTP 200
+    // Edicion de descripcion, nombre, stock y precio por Barbero Jefe -> Permitido con HTTP 200
     const jefeEditRes = await request('PUT', `/api/products/${testProd.id}`, {
+      name: 'Balsamo Post-Afeitado Mentolado Lopez Plus',
+      description: 'Formula con mentol y eucalipto para calmar la piel.',
       priceCop: 32000,
       stock: 7
     }, jefeToken);
-    if (jefeEditRes.status !== 200 || jefeEditRes.data.product.priceCop !== 32000 || jefeEditRes.data.product.stock !== 7) {
-      throw new Error('Fallo RBAC: Barbero Jefe debe poder modificar precio y stock (HTTP 200).');
+    if (jefeEditRes.status !== 200 || 
+        jefeEditRes.data.product.priceCop !== 32000 || 
+        jefeEditRes.data.product.stock !== 7 ||
+        jefeEditRes.data.product.description !== 'Formula con mentol y eucalipto para calmar la piel.' ||
+        jefeEditRes.data.product.name !== 'Balsamo Post-Afeitado Mentolado Lopez Plus') {
+      throw new Error('Fallo RBAC: Barbero Jefe debe poder modificar descripcion, nombre, precio y stock (HTTP 200).');
     }
     // Restaurar stock a 5 para el flujo posterior de pedidos
     await request('PUT', `/api/products/${testProd.id}`, { priceCop: 28000, stock: 5 }, authToken);

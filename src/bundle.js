@@ -338,6 +338,15 @@
       priceCop: 65000,
       description: 'Corte + masaje + mascarilla + barba spa + cejas + lavado de cabello + granizado artesanal de la casa.',
       active: true
+    },
+    {
+      id: 's-06',
+      name: 'Lavado de Cabello',
+      category: 'Cuidado Capilar',
+      durationMinutes: 30,
+      priceCop: 5000,
+      description: 'Lavado capilar profundo con shampoo refrescante y masaje relajante.',
+      active: true
     }
   ];
 
@@ -350,75 +359,184 @@
     adicionales: [
       { id: 'extra-cejas', name: 'Cejas', priceCop: 3000, desc: 'Perfilado y alineación a navaja' },
       { id: 'extra-barba', name: 'Barba', priceCop: 10000, desc: 'Ritual y perfilado de barba con toalla caliente' },
-      { id: 'extra-afeitado', name: 'Afeitado tradicional', priceCop: 6000, desc: 'Afeitado al ras con espuma y toalla caliente' }
+      { id: 'extra-afeitado', name: 'Afeitado tradicional', priceCop: 6000, desc: 'Afeitado al ras con espuma y toalla caliente' },
+      { id: 'extra-lavado', name: 'Lavado de cabello', priceCop: 5000, desc: 'Lavado capilar profundo con shampoo refrescante' }
     ]
   };
 
   const SEED_APPOINTMENTS = [];
   const SEED_HISTORY = [];
   const SEED_PRODUCTS = [
-    {
-      id: 'p-01',
-      name: 'Cera Mate Fijacion Extrema Lopez',
-      category: 'Cuidado Capilar',
-      priceCop: 32000,
-      stock: 15,
-      description: 'Acabado seco natural sin residuos grasos. Fijacion de alta duracion ideal para peinados texturizados y clasicos.',
-      imageUrl: 'https://images.unsplash.com/photo-1621607512214-68297480165e?w=600&auto=format&fit=crop&q=80',
-      active: true
-    },
-    {
-      id: 'p-02',
-      name: 'Pomada Clasica Brillo Imperial',
-      category: 'Cuidado Capilar',
-      priceCop: 30000,
-      stock: 12,
-      description: 'Formula a base de agua con brillo elegante para estilos clasicos, slick back y pompadour. Se retira facilmente con agua.',
-      imageUrl: 'https://images.unsplash.com/photo-1585751119414-ef2636f8aede?w=600&auto=format&fit=crop&q=80',
-      active: true
-    },
-    {
-      id: 'p-03',
-      name: 'Aceite Hidratante de Barba Cedro y Argan',
-      category: 'Barba y Piel',
-      priceCop: 35000,
-      stock: 10,
-      description: 'Nutre el vello facial desde la raiz, elimina la resequedad e irritacion y deja un aroma masculino amaderado.',
-      imageUrl: 'https://images.unsplash.com/photo-1608248597359-0e6d526a6828?w=600&auto=format&fit=crop&q=80',
-      active: true
-    },
-    {
-      id: 'p-04',
-      name: 'Tonico Capilar y de Barba Crecimiento 5%',
-      category: 'Tratamiento',
-      priceCop: 45000,
-      stock: 8,
-      description: 'Locion activadora de foliculos para poblar zonas abiertas en barba y fortalecer la densidad capilar.',
-      imageUrl: 'https://images.unsplash.com/photo-1556228720-195a672e8a03?w=600&auto=format&fit=crop&q=80',
-      active: true
-    },
-    {
-      id: 'p-05',
-      name: 'Polvo Texturizador Volumen Instantaneo',
-      category: 'Styling',
-      priceCop: 38000,
-      stock: 14,
-      description: 'Control de gravedad y volumen inmediato en la raiz con efecto mate invisible para cortes modernos y crop.',
-      imageUrl: 'https://images.unsplash.com/photo-1526947425960-945c6e72858f?w=600&auto=format&fit=crop&q=80',
-      active: true
-    },
-    {
-      id: 'p-06',
-      name: 'Cepillo Militar Cerdas Naturales para Barba',
-      category: 'Accesorios',
-      priceCop: 22000,
-      stock: 9,
-      description: 'Madera de nogal tallada con cerdas firmes para distribuir aceites, exfoliar la piel y domar la barba rebelde.',
-      imageUrl: 'https://images.unsplash.com/photo-1503951914875-452162b0f3f1?w=600&auto=format&fit=crop&q=80',
-      active: true
-    }
-  ];
-  const SEED_STORE_ORDERS = [];
+  {
+    "id": "prod-1792788587962-hzyn",
+    "name": "Cera gold",
+    "category": "Cuidado Capilar",
+    "description": "Cera capilar con cera de abejas\nFIJACIÓN Y MOLDEADO PARA TU CABELLO\nCon KERATINA, PANTENOL, TRINOGEN Y BIOTINA\nCONT.160g",
+    "priceCop": 36000,
+    "stock": 3,
+    "imageUrl": "./assets/products/prod-prod-1792788587962-hzyn-1792788588507.jpg",
+    "active": true,
+    "createdAt": "2026-10-23T20:49:47.962Z"
+  },
+  {
+    "id": "prod-1792789181502-7qc5",
+    "name": "Cera platinum",
+    "category": "Cuidado Capilar",
+    "description": "Cera capilar PLATINUM\nCon cera de abejas \nFIJACIÓN Y MOLDEADO PARA TU CABELLO CON KERATINA, PANTRNOL\nTRICHOGEN Y BIOTINA",
+    "priceCop": 37000,
+    "stock": 2,
+    "imageUrl": "./assets/products/prod-prod-1792789181502-7qc5-1792789181922.jpg",
+    "active": true,
+    "createdAt": "2026-10-23T20:59:41.502Z"
+  },
+  {
+    "id": "prod-1792789344624-nd6j",
+    "name": "Cera bless",
+    "category": "Cuidado Capilar",
+    "description": "Cera VIBRANTE CBD STYLING WAX \nFIJACIÓN, Moldeado y Estilo Para Tu Cabello",
+    "priceCop": 38000,
+    "stock": 5,
+    "imageUrl": "./assets/products/prod-prod-1792789344624-nd6j-1792789345011.jpg",
+    "active": true,
+    "createdAt": "2026-10-23T21:02:24.624Z"
+  },
+  {
+    "id": "prod-1792789483445-bcbs",
+    "name": "CERA WINNER’S",
+    "category": "Cuidado Capilar",
+    "description": "CERA VIBRANTE \nFIJACIÓN, MOLDEADO Y ESTILO PARA TU CABELLO, con ALOE VERA, ACEITE DE AGUACATE Y TRICHOGEN",
+    "priceCop": 38000,
+    "stock": 5,
+    "imageUrl": "./assets/products/prod-prod-1792789483445-bcbs-1792789483907.jpg",
+    "active": true,
+    "createdAt": "2026-10-23T21:04:43.445Z"
+  },
+  {
+    "id": "prod-1792789971626-9koa",
+    "name": "Cera RED’S",
+    "category": "Cuidado Capilar",
+    "description": "Cera VIBRANTE FIJACIÓN, MOLDEADO PARA TU CABELLO CON BIOTINA Y TRICHOGEN",
+    "priceCop": 38000,
+    "stock": 4,
+    "imageUrl": "./assets/products/prod-prod-1792789971626-9koa-1792789972016.jpg",
+    "active": true,
+    "createdAt": "2026-10-23T21:12:51.626Z"
+  },
+  {
+    "id": "prod-1792790044055-bpmz",
+    "name": "Cera KIDS",
+    "category": "Cuidado Capilar",
+    "description": "Cera MOLDEADORA Y FIJADORA (TERARAÑA) fijación ligera",
+    "priceCop": 38000,
+    "stock": 2,
+    "imageUrl": "./assets/products/prod-prod-1792790044055-bpmz-1792790044701.jpg",
+    "active": true,
+    "createdAt": "2026-10-23T21:14:04.055Z"
+  },
+  {
+    "id": "prod-1792790384897-jkn3",
+    "name": "GEL CAPILAR EXTRAFUERTE",
+    "category": "Cuidado Capilar",
+    "description": "MÁXIMA FIJACIÓN LIBRE DE PARABENOS \nCONT 900g",
+    "priceCop": 40000,
+    "stock": 2,
+    "imageUrl": "./assets/products/prod-prod-1792790384897-jkn3-1792790385302.jpg",
+    "active": true,
+    "createdAt": "2026-10-23T21:19:44.897Z"
+  },
+  {
+    "id": "prod-1792790496913-37fr",
+    "name": "TÓNICO CAPILAR SIN PARABENOS",
+    "category": "Cuidado Capilar",
+    "description": "ESTIMULACIÓN Y NUTRICIÓN CAPILAR CON \nBIOTINA\nARGININA\nALOE VERA Y EXTRACTO DE ROMERO \nCONT NETO 30mL",
+    "priceCop": 37000,
+    "stock": 2,
+    "imageUrl": "./assets/products/prod-prod-1792790496913-37fr-1792790497387.jpg",
+    "active": true,
+    "createdAt": "2026-10-23T21:21:36.913Z"
+  },
+  {
+    "id": "prod-1792790629355-xn0l",
+    "name": "JABÓN ÍNTIMO FOR MEN",
+    "category": "Cuidado Capilar",
+    "description": "ALOE VERA, CALÉNDULA Y MANZANILLA \nHIGIENE DIARIA PARA LA ZONA ÍNTIMA\nHIDRATA, LIMPIA Y REFRESCA \nFRAGANCIA HIPALERGENICA \n(USO DIARIO )\nCont 170mL",
+    "priceCop": 35000,
+    "stock": 4,
+    "imageUrl": "./assets/products/prod-prod-1792790629355-xn0l-1792790629793.jpg",
+    "active": true,
+    "createdAt": "2026-10-23T21:23:49.355Z"
+  },
+  {
+    "id": "prod-1792791999412-4le7",
+    "name": "LOCIÓN REFRESCANTE CON MINOXIDIL",
+    "category": "Cuidado Capilar",
+    "description": "REFESCANTE CON MINOXIDIL, OXOTHIAZOLIDINECARBOXYLATE \nMENTOL Y EYCALIPTO\n(PARA DESPUÉS DEL AFEITADO) \nCont 250. mL",
+    "priceCop": 22000,
+    "stock": 2,
+    "imageUrl": "./assets/products/prod-prod-1792791999412-4le7-1792791999993.jpg",
+    "active": true,
+    "createdAt": "2026-10-23T21:46:39.412Z"
+  },
+  {
+    "id": "prod-1792792131165-bv4z",
+    "name": "GEl  CAPILAR EXTRAFUERTE",
+    "category": "Cuidado Capilar",
+    "description": "MÁXIMA FIJACIÓN,LUBRE DE PARABENOS \nCONT.350g",
+    "priceCop": 29000,
+    "stock": 0,
+    "imageUrl": "./assets/products/prod-prod-1792792131165-bv4z-1792792131606.jpg",
+    "active": true,
+    "createdAt": "2026-10-23T21:48:51.165Z"
+  },
+  {
+    "id": "prod-1792792425127-b4qu",
+    "name": "SHAMPOO CONTROL CAÍDA",
+    "category": "Cuidado Capilar",
+    "description": "Control caída de pelo, con BIOTINA, ARGININA, MONOXIDIL, OXOTHIAZOLIDINECARBOXYLATE\n( PANAX GINSENG EXTRCTO DE BARDANA SAWPALMETO, GLUCONATO DE ZINC \nCON.350 mL",
+    "priceCop": 43000,
+    "stock": 2,
+    "imageUrl": "./assets/products/prod-prod-1792792425127-b4qu-1792792425839.jpg",
+    "active": true,
+    "createdAt": "2026-10-23T21:53:45.127Z"
+  },
+  {
+    "id": "prod-1792792609106-ez2v",
+    "name": "PRIMITIVOX MEN",
+    "category": "Bebida potenciadora",
+    "description": "Bebida concentrada a base de agua con frutas con BOROJO, CHONTADURO, VITAMINAS Y MINERALES",
+    "priceCop": 39000,
+    "stock": 4,
+    "imageUrl": "./assets/products/prod-prod-1792792609106-ez2v-1792792609702.jpg",
+    "active": true,
+    "createdAt": "2026-10-23T21:56:49.106Z"
+  }
+];
+  const SEED_STORE_ORDERS = [
+  {
+    "id": "ord-1792788689753-th2a",
+    "referenceCode": "REF-BL-6442VM",
+    "productId": "prod-1792788587962-hzyn",
+    "productName": "Cera gold",
+    "productCategory": "Cuidado Capilar",
+    "unitPriceCop": 36000,
+    "quantity": 1,
+    "totalCop": 36000,
+    "clientName": "Fabián Ricardo Trujillo González",
+    "clientPhone": "3204668428",
+    "deliveryMode": "APARTADO_RECOGIDA",
+    "preferredBarberId": null,
+    "preferredBarberName": "Cualquier barbero en turno",
+    "paymentMethod": "EFECTIVO",
+    "status": "ENTREGADO",
+    "date": "2026-10-23",
+    "createdAt": "2026-10-23T20:51:29.753Z",
+    "deliveredAt": "2026-10-23T20:53:21.548Z",
+    "deliveredDate": "2026-10-23",
+    "deliveredBy": "david.barber",
+    "deliveredByBarberId": "b-david-01",
+    "deliveredByName": "David"
+  }
+];
 
   class LocalStorageRepository {
     constructor() {
@@ -1294,6 +1412,10 @@ async findAllProducts() {
           extrasTotal += 6000;
           extraLabels.push('Afeitado tradicional (+$6.000)');
         }
+        if (additionals.includes('extra-lavado')) {
+          extrasTotal += 5000;
+          extraLabels.push('Lavado de cabello (+$5.000)');
+        }
       }
 
       const totalPriceCop = (service.priceCop || 0) + extrasTotal;
@@ -2164,21 +2286,55 @@ async findAllProducts() {
               </div>
             </div>
 
-            <!-- Card 6: Adicionales & Pigmentación -->
-            <div class="spotlight-card bg-gradient-to-br from-[#161a22] to-[#101217] border border-[#d4af37]/45 rounded-[24px] p-7 flex flex-col justify-between min-h-[240px] shadow-xl">
+            <!-- Card 6: Lavado de Cabello -->
+            <div class="spotlight-card bg-[#12151b] border border-[#d4af37]/25 rounded-[24px] p-7 flex flex-col justify-between min-h-[240px] hover:border-[#d4af37]/50 transition-all shadow-lg">
               <div>
+                <span class="font-sans-ui text-xs font-semibold uppercase tracking-wider text-[#a39578] block mb-2">06 / CUIDADO CAPILAR</span>
+                <h3 class="font-serif-editorial text-[26px] font-normal text-[#ffffff] mb-2">Lavado de Cabello</h3>
+                <p class="font-sans-ui text-[14px] text-[#c5c0b6] leading-relaxed font-normal">
+                  Lavado capilar profundo con shampoo refrescante y masaje relajante en el lavacabezas.
+                </p>
+              </div>
+              <div class="flex items-center justify-between pt-4 mt-4 border-t border-[#d4af37]/20">
+                <span class="font-mono-tech text-[20px] font-bold text-[#d4af37]">$5.000 COP</span>
+                <span class="font-sans-ui text-xs text-[#a39578]">30 MINUTOS</span>
+              </div>
+            </div>
+
+            <!-- Card 7: Adicionales & Pigmentación -->
+            <div class="col-span-1 md:col-span-2 lg:col-span-3 spotlight-card bg-gradient-to-br from-[#161a22] to-[#101217] border border-[#d4af37]/45 rounded-[24px] p-7 flex flex-col md:flex-row md:items-center justify-between gap-6 shadow-xl">
+              <div class="max-w-md">
                 <span class="font-sans-ui text-xs font-semibold uppercase tracking-wider text-[#d4af37] block mb-2">OPCIONALES / PERSONALIZACIÓN</span>
                 <h3 class="font-serif-editorial text-[26px] font-normal text-[#ffffff] mb-2">Adicionales de Autor</h3>
-                <div class="font-sans-ui text-[13px] text-[#c5c0b6] space-y-1.5 leading-relaxed">
-                  <div class="flex justify-between"><span>Pigmentación Aerógrafo:</span><strong class="text-[#f3e5ab] font-mono-tech">$18.000</strong></div>
-                  <div class="flex justify-between"><span>Pigmentación Manual:</span><strong class="text-[#f3e5ab] font-mono-tech">$22.000</strong></div>
-                  <div class="flex justify-between"><span>Perfilado de Cejas:</span><strong class="text-[#f3e5ab] font-mono-tech">$3.000</strong></div>
-                  <div class="flex justify-between"><span>Ritual de Barba:</span><strong class="text-[#f3e5ab] font-mono-tech">$10.000</strong></div>
-                  <div class="flex justify-between"><span>Afeitado tradicional:</span><strong class="text-[#f3e5ab] font-mono-tech">$6.000</strong></div>
-                </div>
+                <p class="font-sans-ui text-[13px] text-[#c5c0b6] leading-relaxed">
+                  Personaliza cualquier servicio al agendar tu turno. Puedes combinarlos a tu gusto.
+                </p>
               </div>
-              <div class="pt-4 mt-4 border-t border-[#d4af37]/20 text-xs text-[#a39578]">
-                Añádelos al agendar tu turno
+              <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 flex-1">
+                <div class="bg-[#12151b] border border-[#d4af37]/20 rounded-xl p-3 text-center">
+                  <div class="text-[11px] text-[#c5c0b6]">Pigmentación Aerógrafo</div>
+                  <div class="text-[#f3e5ab] font-mono-tech font-bold text-sm mt-0.5">$18.000</div>
+                </div>
+                <div class="bg-[#12151b] border border-[#d4af37]/20 rounded-xl p-3 text-center">
+                  <div class="text-[11px] text-[#c5c0b6]">Pigmentación Manual</div>
+                  <div class="text-[#f3e5ab] font-mono-tech font-bold text-sm mt-0.5">$22.000</div>
+                </div>
+                <div class="bg-[#12151b] border border-[#d4af37]/20 rounded-xl p-3 text-center">
+                  <div class="text-[11px] text-[#c5c0b6]">Perfilado de Cejas</div>
+                  <div class="text-[#f3e5ab] font-mono-tech font-bold text-sm mt-0.5">$3.000</div>
+                </div>
+                <div class="bg-[#12151b] border border-[#d4af37]/20 rounded-xl p-3 text-center">
+                  <div class="text-[11px] text-[#c5c0b6]">Ritual de Barba</div>
+                  <div class="text-[#f3e5ab] font-mono-tech font-bold text-sm mt-0.5">$10.000</div>
+                </div>
+                <div class="bg-[#12151b] border border-[#d4af37]/20 rounded-xl p-3 text-center">
+                  <div class="text-[11px] text-[#c5c0b6]">Afeitado tradicional</div>
+                  <div class="text-[#f3e5ab] font-mono-tech font-bold text-sm mt-0.5">$6.000</div>
+                </div>
+                <div class="bg-[#12151b] border border-[#d4af37]/20 rounded-xl p-3 text-center">
+                  <div class="text-[11px] text-[#c5c0b6]">Lavado de cabello</div>
+                  <div class="text-[#f3e5ab] font-mono-tech font-bold text-sm mt-0.5">$5.000</div>
+                </div>
               </div>
             </div>
 
@@ -2368,9 +2524,7 @@ async findAllProducts() {
                         <h3 class="font-serif-editorial text-[24px] font-normal text-[#ffffff] leading-snug mb-2">
                           ${escapeHtml(p.name)}
                         </h3>
-                        <p class="font-sans-ui text-xs sm:text-sm text-[#c5c0b6] leading-relaxed">
-                          ${escapeHtml(p.description || 'Producto profesional de barbería.')}
-                        </p>
+                        <p class="font-sans-ui text-xs sm:text-sm text-[#c5c0b6] leading-relaxed whitespace-pre-line">${escapeHtml(p.description || 'Producto profesional de barbería.')}</p>
                       </div>
                     </div>
 
@@ -3444,6 +3598,7 @@ async findAllProducts() {
                                 <div>
                                   <div class="font-semibold text-[#ffffff]">${escapeHtml(p.name)}</div>
                                   <div class="text-[11px] text-[#8a8275]">${escapeHtml(p.category || 'General')}</div>
+                                  ${p.description ? `<div class="text-[10px] text-[#8a8275] max-w-[220px] truncate" title="${escapeHtml(p.description)}">${escapeHtml(p.description)}</div>` : ''}
                                 </div>
                               </div>
                             </td>
@@ -3459,7 +3614,7 @@ async findAllProducts() {
                             </td>
                             <td class="p-3 text-right space-x-1.5 whitespace-nowrap">
                               <button type="button" data-edit-prod-id="${escapeHtml(p.id)}" class="btn-edit-product btn-stone-outline py-1 px-2.5 text-[11px] cursor-pointer">
-                                Editar precio / foto / stock
+                                Editar producto / foto
                               </button>
                               <button type="button" data-delete-prod-id="${escapeHtml(p.id)}" data-delete-prod-name="${escapeHtml(p.name)}" class="btn-delete-product btn-stone-outline py-1 px-2.5 text-[11px] text-red-400 hover:text-red-300 hover:border-red-500 cursor-pointer">
                                 Quitar
@@ -3952,6 +4107,7 @@ async findAllProducts() {
                               <div>
                                 <div class="font-semibold text-[#ffffff]">${escapeHtml(p.name)}</div>
                                 <div class="text-[11px] text-[#8a8275]">${escapeHtml(p.category || 'General')}</div>
+                                ${p.description ? `<div class="text-[10px] text-[#8a8275] max-w-[220px] truncate" title="${escapeHtml(p.description)}">${escapeHtml(p.description)}</div>` : ''}
                               </div>
                             </div>
                           </td>
@@ -3967,7 +4123,7 @@ async findAllProducts() {
                           </td>
                           <td class="p-3 text-right space-x-1.5 whitespace-nowrap">
                             <button type="button" data-edit-prod-id="${escapeHtml(p.id)}" class="btn-edit-product btn-stone-outline py-1 px-2.5 text-[11px] cursor-pointer">
-                              Editar precio / foto / stock
+                              Editar producto / foto
                             </button>
                             <button type="button" data-delete-prod-id="${escapeHtml(p.id)}" data-delete-prod-name="${escapeHtml(p.name)}" class="btn-delete-product btn-stone-outline py-1 px-2.5 text-[11px] text-red-400 hover:text-red-300 hover:border-red-500 cursor-pointer">
                               Quitar
@@ -4156,7 +4312,7 @@ async findAllProducts() {
             </div>
             <h3 class="font-serif-editorial text-[24px] font-normal text-[#ffffff]" id="edit-prod-title">Editar producto y foto</h3>
             <p class="font-sans-ui text-xs text-[#c5c0b6] mt-1" id="edit-prod-subtitle">
-              Actualiza el precio de venta en COP, las unidades en stock o la foto del producto.
+              Actualiza el nombre, descripción, precio, unidades en stock o foto del producto.
             </p>
           </div>
 
@@ -4187,6 +4343,17 @@ async findAllProducts() {
                 <label class="block font-sans-ui text-[11px] text-[#c5c0b6] mb-1">O pegar enlace web directo (URL):</label>
                 <input type="url" id="edit-prod-image" class="input-parchment text-xs font-mono-tech" placeholder="https://ejemplo.com/foto.webp">
               </div>
+            </div>
+
+            <div>
+              <label class="block font-sans-ui text-xs font-semibold text-[#c5c0b6] mb-1.5">Nombre del Producto</label>
+              <input type="text" id="edit-prod-name" required class="input-parchment text-sm" placeholder="Ej. Cera gold">
+            </div>
+
+            <div>
+              <label class="block font-sans-ui text-xs font-semibold text-[#c5c0b6] mb-1.5">Descripción del Producto</label>
+              <textarea id="edit-prod-description" rows="3" class="input-parchment text-xs leading-relaxed w-full resize-y font-sans-ui" placeholder="Describe los beneficios, fijación, ingredientes o modo de uso del producto..."></textarea>
+              <p class="font-sans-ui text-[11px] text-[#8a8275] mt-1">Visible para los clientes en la tienda pública.</p>
             </div>
 
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
@@ -5150,12 +5317,24 @@ async findAllProducts() {
       formEditProd.onsubmit = async (e) => {
         e.preventDefault();
         const prodId = document.getElementById('edit-prod-id').value;
+        const nameInput = document.getElementById('edit-prod-name');
+        const descInput = document.getElementById('edit-prod-description');
+        const nameVal = nameInput ? nameInput.value.trim() : '';
+        const descVal = descInput ? descInput.value.trim() : '';
         const priceVal = parseInt(document.getElementById('edit-prod-price').value, 10);
         const stockVal = parseInt(document.getElementById('edit-prod-stock').value, 10);
         const errorMsg = document.getElementById('edit-prod-error-msg');
         const submitBtn = document.getElementById('btn-submit-edit-prod');
 
         if (errorMsg) errorMsg.classList.add('hidden');
+        if (!nameVal) {
+          if (errorMsg) {
+            errorMsg.textContent = 'El nombre del producto no puede estar vacío.';
+            errorMsg.classList.remove('hidden');
+          }
+          return;
+        }
+
         if (Number.isNaN(priceVal) || priceVal < 500) {
           if (errorMsg) {
             errorMsg.textContent = 'El precio debe ser un valor válido mayor a 500 COP.';
@@ -5189,6 +5368,8 @@ async findAllProducts() {
           }
 
           const updatePayload = {
+            name: nameVal,
+            description: descVal,
             priceCop: priceVal,
             stock: stockVal
           };
@@ -5217,7 +5398,7 @@ async findAllProducts() {
       };
     }
 
-    // Editar precio, stock y foto de un producto (Abre modal elegante para Barbero Jefe y Admin)
+    // Editar descripcion, nombre, precio, stock y foto de un producto (Abre modal elegante para Barbero Jefe y Admin)
     document.querySelectorAll('.btn-edit-product').forEach((btn) => {
       btn.onclick = () => {
         const prodId = btn.dataset.editProdId;
@@ -5226,6 +5407,8 @@ async findAllProducts() {
         pendingCompressedProductImage = null;
         const hiddenId = document.getElementById('edit-prod-id');
         const title = document.getElementById('edit-prod-title');
+        const nameInput = document.getElementById('edit-prod-name');
+        const descInput = document.getElementById('edit-prod-description');
         const price = document.getElementById('edit-prod-price');
         const stock = document.getElementById('edit-prod-stock');
         const imgInput = document.getElementById('edit-prod-image');
@@ -5236,6 +5419,8 @@ async findAllProducts() {
 
         if (hiddenId) hiddenId.value = prod.id;
         if (title) title.textContent = `Editar ${prod.name}`;
+        if (nameInput) nameInput.value = prod.name || '';
+        if (descInput) descInput.value = prod.description || '';
         if (price) price.value = prod.priceCop;
         if (stock) stock.value = prod.stock;
         if (imgInput) imgInput.value = prod.imageUrl || '';
@@ -5247,7 +5432,7 @@ async findAllProducts() {
         if (fileInput) fileInput.value = '';
         if (errorMsg) errorMsg.classList.add('hidden');
         if (modalEditProd) modalEditProd.classList.remove('hidden');
-        if (price) price.focus();
+        if (nameInput) nameInput.focus();
       };
     });
 
@@ -5361,6 +5546,7 @@ async findAllProducts() {
       if (state.bookingForm.extras.includes('extra-cejas')) extrasPrice += 3000;
       if (state.bookingForm.extras.includes('extra-barba')) extrasPrice += 10000;
       if (state.bookingForm.extras.includes('extra-afeitado')) extrasPrice += 6000;
+      if (state.bookingForm.extras.includes('extra-lavado')) extrasPrice += 5000;
 
       const total = basePrice + extrasPrice;
 

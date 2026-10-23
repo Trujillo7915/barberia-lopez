@@ -167,75 +167,184 @@ const DEFAULT_SERVICES = [
   { id: 's-02', name: 'Combo 1', category: 'Corte + Masaje Espalda + Mascarilla + Cejas', durationMinutes: 30, priceCop: 25000, description: 'Corte completo + masaje de espalda + mascarilla negra + perfilado de cejas.', active: true },
   { id: 's-03', name: 'Combo 2', category: 'Corte + Masaje + Mascarilla + Barba + Cejas', durationMinutes: 30, priceCop: 35000, description: 'Corte + masaje + mascarilla facial + ritual de barba con toalla caliente + cejas.', active: true },
   { id: 's-04', name: 'Combo 3', category: 'Corte + Spa + Lavado', durationMinutes: 30, priceCop: 40000, description: 'Corte + masaje + mascarilla + barba completa + cejas + lavado de cabello con shampoo refrescante.', active: true },
-  { id: 's-05', name: 'Combi Completa VIP', category: 'Experiencia Total + Granizado', durationMinutes: 30, priceCop: 65000, description: 'Corte + masaje + mascarilla + barba spa + cejas + lavado de cabello + granizado artesanal de la casa.', active: true }
+  { id: 's-05', name: 'Combi Completa VIP', category: 'Experiencia Total + Granizado', durationMinutes: 30, priceCop: 65000, description: 'Corte + masaje + mascarilla + barba spa + cejas + lavado de cabello + granizado artesanal de la casa.', active: true },
+  { id: 's-06', name: 'Lavado de Cabello', category: 'Cuidado Capilar', durationMinutes: 30, priceCop: 5000, description: 'Lavado capilar profundo con shampoo refrescante y masaje relajante.', active: true }
 ];
 
 const DEFAULT_PRODUCTS = [
   {
-    id: 'p-01',
-    name: 'Cera Moldeadora Efecto Mate',
-    category: 'Ceras & Fijacion',
-    priceCop: 25000,
-    stock: 12,
-    description: 'Fijacion firme durante todo el dia con acabado seco y natural sin residuos grasos. Ideal para cortes texturizados y crop.',
-    image: 'https://images.unsplash.com/photo-1621607512214-68297480165e?auto=format&fit=crop&w=600&q=80',
-    active: true
+    "id": "prod-1792788587962-hzyn",
+    "name": "Cera gold",
+    "category": "Cuidado Capilar",
+    "description": "Cera capilar con cera de abejas\nFIJACIÓN Y MOLDEADO PARA TU CABELLO\nCon KERATINA, PANTENOL, TRINOGEN Y BIOTINA\nCONT.160g",
+    "priceCop": 36000,
+    "stock": 3,
+    "imageUrl": "./assets/products/prod-prod-1792788587962-hzyn-1792788588507.jpg",
+    "active": true,
+    "createdAt": "2026-10-23T20:49:47.962Z"
   },
   {
-    id: 'p-02',
-    name: 'Pomada Clasica Brillo Imperial',
-    category: 'Ceras & Fijacion',
-    priceCop: 25000,
-    stock: 10,
-    description: 'Formula a base de agua de facil lavado. Perfecta para peinados clasicos, slick back y pompadour con brillo elegante.',
-    image: 'https://images.unsplash.com/photo-1585751119414-ef2636f8aede?auto=format&fit=crop&w=600&q=80',
-    active: true
+    "id": "prod-1792789181502-7qc5",
+    "name": "Cera platinum",
+    "category": "Cuidado Capilar",
+    "description": "Cera capilar PLATINUM\nCon cera de abejas \nFIJACIÓN Y MOLDEADO PARA TU CABELLO CON KERATINA, PANTRNOL\nTRICHOGEN Y BIOTINA",
+    "priceCop": 37000,
+    "stock": 2,
+    "imageUrl": "./assets/products/prod-prod-1792789181502-7qc5-1792789181922.jpg",
+    "active": true,
+    "createdAt": "2026-10-23T20:59:41.502Z"
   },
   {
-    id: 'p-03',
-    name: 'Aceite Hidratante para Barba',
-    category: 'Cuidado de Barba',
-    priceCop: 30000,
-    stock: 8,
-    description: 'Mezcla de aceites esenciales de argan, jojoba y eucalipto. Suaviza el vello facial, elimina la resequedad y aporta aroma masculino.',
-    image: 'https://images.unsplash.com/photo-1608248597359-0e6d526a6c18?auto=format&fit=crop&w=600&q=80',
-    active: true
+    "id": "prod-1792789344624-nd6j",
+    "name": "Cera bless",
+    "category": "Cuidado Capilar",
+    "description": "Cera VIBRANTE CBD STYLING WAX \nFIJACIÓN, Moldeado y Estilo Para Tu Cabello",
+    "priceCop": 38000,
+    "stock": 5,
+    "imageUrl": "./assets/products/prod-prod-1792789344624-nd6j-1792789345011.jpg",
+    "active": true,
+    "createdAt": "2026-10-23T21:02:24.624Z"
   },
   {
-    id: 'p-04',
-    name: 'Tonico Activador Capilar 5%',
-    category: 'Tratamiento Capilar',
-    priceCop: 45000,
-    stock: 6,
-    description: 'Locion fortalecedora para estimular el crecimiento en zonas despobladas de barba y cuero cabelludo.',
-    image: 'https://images.unsplash.com/photo-1556228720-195a672e8a03?auto=format&fit=crop&w=600&q=80',
-    active: true
+    "id": "prod-1792789483445-bcbs",
+    "name": "CERA WINNER’S",
+    "category": "Cuidado Capilar",
+    "description": "CERA VIBRANTE \nFIJACIÓN, MOLDEADO Y ESTILO PARA TU CABELLO, con ALOE VERA, ACEITE DE AGUACATE Y TRICHOGEN",
+    "priceCop": 38000,
+    "stock": 5,
+    "imageUrl": "./assets/products/prod-prod-1792789483445-bcbs-1792789483907.jpg",
+    "active": true,
+    "createdAt": "2026-10-23T21:04:43.445Z"
   },
   {
-    id: 'p-05',
-    name: 'Polvo Texturizador de Volumen',
-    category: 'Ceras & Fijacion',
-    priceCop: 28000,
-    stock: 9,
-    description: 'Polvo ultraligero que aporta volumen instantaneo desde la raiz y control mate de larga duracion sin apelmazar.',
-    image: 'https://images.unsplash.com/photo-1526947425960-945c6e72858f?auto=format&fit=crop&w=600&q=80',
-    active: true
+    "id": "prod-1792789971626-9koa",
+    "name": "Cera RED’S",
+    "category": "Cuidado Capilar",
+    "description": "Cera VIBRANTE FIJACIÓN, MOLDEADO PARA TU CABELLO CON BIOTINA Y TRICHOGEN",
+    "priceCop": 38000,
+    "stock": 4,
+    "imageUrl": "./assets/products/prod-prod-1792789971626-9koa-1792789972016.jpg",
+    "active": true,
+    "createdAt": "2026-10-23T21:12:51.626Z"
   },
   {
-    id: 'p-06',
-    name: 'Cepillo Fade Cerdas Naturales',
-    category: 'Accesorios',
-    priceCop: 18000,
-    stock: 15,
-    description: 'Cepillo ergonomico en madera con cerdas firmes para peinar degradados, limpiar contornos y distribuir aceites en la barba.',
-    image: 'https://images.unsplash.com/photo-1590159763121-7c9fd312190d?auto=format&fit=crop&w=600&q=80',
-    active: true
+    "id": "prod-1792790044055-bpmz",
+    "name": "Cera KIDS",
+    "category": "Cuidado Capilar",
+    "description": "Cera MOLDEADORA Y FIJADORA (TERARAÑA) fijación ligera",
+    "priceCop": 38000,
+    "stock": 2,
+    "imageUrl": "./assets/products/prod-prod-1792790044055-bpmz-1792790044701.jpg",
+    "active": true,
+    "createdAt": "2026-10-23T21:14:04.055Z"
+  },
+  {
+    "id": "prod-1792790384897-jkn3",
+    "name": "GEL CAPILAR EXTRAFUERTE",
+    "category": "Cuidado Capilar",
+    "description": "MÁXIMA FIJACIÓN LIBRE DE PARABENOS \nCONT 900g",
+    "priceCop": 40000,
+    "stock": 2,
+    "imageUrl": "./assets/products/prod-prod-1792790384897-jkn3-1792790385302.jpg",
+    "active": true,
+    "createdAt": "2026-10-23T21:19:44.897Z"
+  },
+  {
+    "id": "prod-1792790496913-37fr",
+    "name": "TÓNICO CAPILAR SIN PARABENOS",
+    "category": "Cuidado Capilar",
+    "description": "ESTIMULACIÓN Y NUTRICIÓN CAPILAR CON \nBIOTINA\nARGININA\nALOE VERA Y EXTRACTO DE ROMERO \nCONT NETO 30mL",
+    "priceCop": 37000,
+    "stock": 2,
+    "imageUrl": "./assets/products/prod-prod-1792790496913-37fr-1792790497387.jpg",
+    "active": true,
+    "createdAt": "2026-10-23T21:21:36.913Z"
+  },
+  {
+    "id": "prod-1792790629355-xn0l",
+    "name": "JABÓN ÍNTIMO FOR MEN",
+    "category": "Cuidado Capilar",
+    "description": "ALOE VERA, CALÉNDULA Y MANZANILLA \nHIGIENE DIARIA PARA LA ZONA ÍNTIMA\nHIDRATA, LIMPIA Y REFRESCA \nFRAGANCIA HIPALERGENICA \n(USO DIARIO )\nCont 170mL",
+    "priceCop": 35000,
+    "stock": 4,
+    "imageUrl": "./assets/products/prod-prod-1792790629355-xn0l-1792790629793.jpg",
+    "active": true,
+    "createdAt": "2026-10-23T21:23:49.355Z"
+  },
+  {
+    "id": "prod-1792791999412-4le7",
+    "name": "LOCIÓN REFRESCANTE CON MINOXIDIL",
+    "category": "Cuidado Capilar",
+    "description": "REFESCANTE CON MINOXIDIL, OXOTHIAZOLIDINECARBOXYLATE \nMENTOL Y EYCALIPTO\n(PARA DESPUÉS DEL AFEITADO) \nCont 250. mL",
+    "priceCop": 22000,
+    "stock": 2,
+    "imageUrl": "./assets/products/prod-prod-1792791999412-4le7-1792791999993.jpg",
+    "active": true,
+    "createdAt": "2026-10-23T21:46:39.412Z"
+  },
+  {
+    "id": "prod-1792792131165-bv4z",
+    "name": "GEl  CAPILAR EXTRAFUERTE",
+    "category": "Cuidado Capilar",
+    "description": "MÁXIMA FIJACIÓN,LUBRE DE PARABENOS \nCONT.350g",
+    "priceCop": 29000,
+    "stock": 0,
+    "imageUrl": "./assets/products/prod-prod-1792792131165-bv4z-1792792131606.jpg",
+    "active": true,
+    "createdAt": "2026-10-23T21:48:51.165Z"
+  },
+  {
+    "id": "prod-1792792425127-b4qu",
+    "name": "SHAMPOO CONTROL CAÍDA",
+    "category": "Cuidado Capilar",
+    "description": "Control caída de pelo, con BIOTINA, ARGININA, MONOXIDIL, OXOTHIAZOLIDINECARBOXYLATE\n( PANAX GINSENG EXTRCTO DE BARDANA SAWPALMETO, GLUCONATO DE ZINC \nCON.350 mL",
+    "priceCop": 43000,
+    "stock": 2,
+    "imageUrl": "./assets/products/prod-prod-1792792425127-b4qu-1792792425839.jpg",
+    "active": true,
+    "createdAt": "2026-10-23T21:53:45.127Z"
+  },
+  {
+    "id": "prod-1792792609106-ez2v",
+    "name": "PRIMITIVOX MEN",
+    "category": "Bebida potenciadora",
+    "description": "Bebida concentrada a base de agua con frutas con BOROJO, CHONTADURO, VITAMINAS Y MINERALES",
+    "priceCop": 39000,
+    "stock": 4,
+    "imageUrl": "./assets/products/prod-prod-1792792609106-ez2v-1792792609702.jpg",
+    "active": true,
+    "createdAt": "2026-10-23T21:56:49.106Z"
   }
 ];
 
 const DEFAULT_APPOINTMENTS = [];
 const DEFAULT_HISTORY = [];
-const DEFAULT_STORE_ORDERS = [];
+const DEFAULT_STORE_ORDERS = [
+  {
+    "id": "ord-1792788689753-th2a",
+    "referenceCode": "REF-BL-6442VM",
+    "productId": "prod-1792788587962-hzyn",
+    "productName": "Cera gold",
+    "productCategory": "Cuidado Capilar",
+    "unitPriceCop": 36000,
+    "quantity": 1,
+    "totalCop": 36000,
+    "clientName": "Fabián Ricardo Trujillo González",
+    "clientPhone": "3204668428",
+    "deliveryMode": "APARTADO_RECOGIDA",
+    "preferredBarberId": null,
+    "preferredBarberName": "Cualquier barbero en turno",
+    "paymentMethod": "EFECTIVO",
+    "status": "ENTREGADO",
+    "date": "2026-10-23",
+    "createdAt": "2026-10-23T20:51:29.753Z",
+    "deliveredAt": "2026-10-23T20:53:21.548Z",
+    "deliveredDate": "2026-10-23",
+    "deliveredBy": "david.barber",
+    "deliveredByBarberId": "b-david-01",
+    "deliveredByName": "David"
+  }
+];
 
 function readJsonFile(filePath, defaultValue) {
   try {

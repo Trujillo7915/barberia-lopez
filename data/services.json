@@ -43,5 +43,14 @@
     "priceCop": 65000,
     "description": "Corte + masaje + mascarilla + barba spa + cejas + lavado de cabello + granizado artesanal de la casa.",
     "active": true
+  },
+  {
+    "id": "s-06",
+    "name": "Lavado de Cabello",
+    "category": "Cuidado Capilar",
+    "durationMinutes": 30,
+    "priceCop": 5000,
+    "description": "Lavado capilar profundo con shampoo refrescante y masaje relajante.",
+    "active": true
   }
 ]
