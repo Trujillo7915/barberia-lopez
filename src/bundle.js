@@ -338,6 +338,15 @@
       priceCop: 65000,
       description: 'Corte + masaje + mascarilla + barba spa + cejas + lavado de cabello + granizado artesanal de la casa.',
       active: true
+    },
+    {
+      id: 's-06',
+      name: 'Lavado de Cabello',
+      category: 'Cuidado Capilar',
+      durationMinutes: 30,
+      priceCop: 5000,
+      description: 'Lavado capilar profundo con shampoo refrescante y masaje relajante.',
+      active: true
     }
   ];
 
@@ -350,7 +359,8 @@
     adicionales: [
       { id: 'extra-cejas', name: 'Cejas', priceCop: 3000, desc: 'Perfilado y alineación a navaja' },
       { id: 'extra-barba', name: 'Barba', priceCop: 10000, desc: 'Ritual y perfilado de barba con toalla caliente' },
-      { id: 'extra-afeitado', name: 'Afeitado tradicional', priceCop: 6000, desc: 'Afeitado al ras con espuma y toalla caliente' }
+      { id: 'extra-afeitado', name: 'Afeitado tradicional', priceCop: 6000, desc: 'Afeitado al ras con espuma y toalla caliente' },
+      { id: 'extra-lavado', name: 'Lavado de cabello', priceCop: 5000, desc: 'Lavado capilar profundo con shampoo refrescante' }
     ]
   };
 
@@ -1294,6 +1304,10 @@ async findAllProducts() {
           extrasTotal += 6000;
           extraLabels.push('Afeitado tradicional (+$6.000)');
         }
+        if (additionals.includes('extra-lavado')) {
+          extrasTotal += 5000;
+          extraLabels.push('Lavado de cabello (+$5.000)');
+        }
       }
 
       const totalPriceCop = (service.priceCop || 0) + extrasTotal;
@@ -2164,21 +2178,55 @@ async findAllProducts() {
               </div>
             </div>
 
-            <!-- Card 6: Adicionales & Pigmentación -->
-            <div class="spotlight-card bg-gradient-to-br from-[#161a22] to-[#101217] border border-[#d4af37]/45 rounded-[24px] p-7 flex flex-col justify-between min-h-[240px] shadow-xl">
+            <!-- Card 6: Lavado de Cabello -->
+            <div class="spotlight-card bg-[#12151b] border border-[#d4af37]/25 rounded-[24px] p-7 flex flex-col justify-between min-h-[240px] hover:border-[#d4af37]/50 transition-all shadow-lg">
               <div>
+                <span class="font-sans-ui text-xs font-semibold uppercase tracking-wider text-[#a39578] block mb-2">06 / CUIDADO CAPILAR</span>
+                <h3 class="font-serif-editorial text-[26px] font-normal text-[#ffffff] mb-2">Lavado de Cabello</h3>
+                <p class="font-sans-ui text-[14px] text-[#c5c0b6] leading-relaxed font-normal">
+                  Lavado capilar profundo con shampoo refrescante y masaje relajante en el lavacabezas.
+                </p>
+              </div>
+              <div class="flex items-center justify-between pt-4 mt-4 border-t border-[#d4af37]/20">
+                <span class="font-mono-tech text-[20px] font-bold text-[#d4af37]">$5.000 COP</span>
+                <span class="font-sans-ui text-xs text-[#a39578]">30 MINUTOS</span>
+              </div>
+            </div>
+
+            <!-- Card 7: Adicionales & Pigmentación -->
+            <div class="col-span-1 md:col-span-2 lg:col-span-3 spotlight-card bg-gradient-to-br from-[#161a22] to-[#101217] border border-[#d4af37]/45 rounded-[24px] p-7 flex flex-col md:flex-row md:items-center justify-between gap-6 shadow-xl">
+              <div class="max-w-md">
                 <span class="font-sans-ui text-xs font-semibold uppercase tracking-wider text-[#d4af37] block mb-2">OPCIONALES / PERSONALIZACIÓN</span>
                 <h3 class="font-serif-editorial text-[26px] font-normal text-[#ffffff] mb-2">Adicionales de Autor</h3>
-                <div class="font-sans-ui text-[13px] text-[#c5c0b6] space-y-1.5 leading-relaxed">
-                  <div class="flex justify-between"><span>Pigmentación Aerógrafo:</span><strong class="text-[#f3e5ab] font-mono-tech">$18.000</strong></div>
-                  <div class="flex justify-between"><span>Pigmentación Manual:</span><strong class="text-[#f3e5ab] font-mono-tech">$22.000</strong></div>
-                  <div class="flex justify-between"><span>Perfilado de Cejas:</span><strong class="text-[#f3e5ab] font-mono-tech">$3.000</strong></div>
-                  <div class="flex justify-between"><span>Ritual de Barba:</span><strong class="text-[#f3e5ab] font-mono-tech">$10.000</strong></div>
-                  <div class="flex justify-between"><span>Afeitado tradicional:</span><strong class="text-[#f3e5ab] font-mono-tech">$6.000</strong></div>
-                </div>
+                <p class="font-sans-ui text-[13px] text-[#c5c0b6] leading-relaxed">
+                  Personaliza cualquier servicio al agendar tu turno. Puedes combinarlos a tu gusto.
+                </p>
               </div>
-              <div class="pt-4 mt-4 border-t border-[#d4af37]/20 text-xs text-[#a39578]">
-                Añádelos al agendar tu turno
+              <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 flex-1">
+                <div class="bg-[#12151b] border border-[#d4af37]/20 rounded-xl p-3 text-center">
+                  <div class="text-[11px] text-[#c5c0b6]">Pigmentación Aerógrafo</div>
+                  <div class="text-[#f3e5ab] font-mono-tech font-bold text-sm mt-0.5">$18.000</div>
+                </div>
+                <div class="bg-[#12151b] border border-[#d4af37]/20 rounded-xl p-3 text-center">
+                  <div class="text-[11px] text-[#c5c0b6]">Pigmentación Manual</div>
+                  <div class="text-[#f3e5ab] font-mono-tech font-bold text-sm mt-0.5">$22.000</div>
+                </div>
+                <div class="bg-[#12151b] border border-[#d4af37]/20 rounded-xl p-3 text-center">
+                  <div class="text-[11px] text-[#c5c0b6]">Perfilado de Cejas</div>
+                  <div class="text-[#f3e5ab] font-mono-tech font-bold text-sm mt-0.5">$3.000</div>
+                </div>
+                <div class="bg-[#12151b] border border-[#d4af37]/20 rounded-xl p-3 text-center">
+                  <div class="text-[11px] text-[#c5c0b6]">Ritual de Barba</div>
+                  <div class="text-[#f3e5ab] font-mono-tech font-bold text-sm mt-0.5">$10.000</div>
+                </div>
+                <div class="bg-[#12151b] border border-[#d4af37]/20 rounded-xl p-3 text-center">
+                  <div class="text-[11px] text-[#c5c0b6]">Afeitado tradicional</div>
+                  <div class="text-[#f3e5ab] font-mono-tech font-bold text-sm mt-0.5">$6.000</div>
+                </div>
+                <div class="bg-[#12151b] border border-[#d4af37]/20 rounded-xl p-3 text-center">
+                  <div class="text-[11px] text-[#c5c0b6]">Lavado de cabello</div>
+                  <div class="text-[#f3e5ab] font-mono-tech font-bold text-sm mt-0.5">$5.000</div>
+                </div>
               </div>
             </div>
 
@@ -5361,6 +5409,7 @@ async findAllProducts() {
       if (state.bookingForm.extras.includes('extra-cejas')) extrasPrice += 3000;
       if (state.bookingForm.extras.includes('extra-barba')) extrasPrice += 10000;
       if (state.bookingForm.extras.includes('extra-afeitado')) extrasPrice += 6000;
+      if (state.bookingForm.extras.includes('extra-lavado')) extrasPrice += 5000;
 
       const total = basePrice + extrasPrice;
 
