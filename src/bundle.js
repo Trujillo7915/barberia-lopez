@@ -2524,7 +2524,7 @@ async findAllProducts() {
                         <h3 class="font-serif-editorial text-[24px] font-normal text-[#ffffff] leading-snug mb-2">
                           ${escapeHtml(p.name)}
                         </h3>
-                        <p class="font-sans-ui text-xs sm:text-sm text-[#c5c0b6] leading-relaxed">
+                        <p class="font-sans-ui text-xs sm:text-sm text-[#c5c0b6] leading-relaxed whitespace-pre-line">
                           ${escapeHtml(p.description || 'Producto profesional de barbería.')}
                         </p>
                       </div>
@@ -3600,6 +3600,7 @@ async findAllProducts() {
                                 <div>
                                   <div class="font-semibold text-[#ffffff]">${escapeHtml(p.name)}</div>
                                   <div class="text-[11px] text-[#8a8275]">${escapeHtml(p.category || 'General')}</div>
+                                  ${p.description ? `<div class="text-[10px] text-[#8a8275] max-w-[220px] truncate" title="${escapeHtml(p.description)}">${escapeHtml(p.description)}</div>` : ''}
                                 </div>
                               </div>
                             </td>
@@ -3615,7 +3616,7 @@ async findAllProducts() {
                             </td>
                             <td class="p-3 text-right space-x-1.5 whitespace-nowrap">
                               <button type="button" data-edit-prod-id="${escapeHtml(p.id)}" class="btn-edit-product btn-stone-outline py-1 px-2.5 text-[11px] cursor-pointer">
-                                Editar precio / foto / stock
+                                Editar producto / foto
                               </button>
                               <button type="button" data-delete-prod-id="${escapeHtml(p.id)}" data-delete-prod-name="${escapeHtml(p.name)}" class="btn-delete-product btn-stone-outline py-1 px-2.5 text-[11px] text-red-400 hover:text-red-300 hover:border-red-500 cursor-pointer">
                                 Quitar
@@ -4108,6 +4109,7 @@ async findAllProducts() {
                               <div>
                                 <div class="font-semibold text-[#ffffff]">${escapeHtml(p.name)}</div>
                                 <div class="text-[11px] text-[#8a8275]">${escapeHtml(p.category || 'General')}</div>
+                                ${p.description ? `<div class="text-[10px] text-[#8a8275] max-w-[220px] truncate" title="${escapeHtml(p.description)}">${escapeHtml(p.description)}</div>` : ''}
                               </div>
                             </div>
                           </td>
@@ -4123,7 +4125,7 @@ async findAllProducts() {
                           </td>
                           <td class="p-3 text-right space-x-1.5 whitespace-nowrap">
                             <button type="button" data-edit-prod-id="${escapeHtml(p.id)}" class="btn-edit-product btn-stone-outline py-1 px-2.5 text-[11px] cursor-pointer">
-                              Editar precio / foto / stock
+                              Editar producto / foto
                             </button>
                             <button type="button" data-delete-prod-id="${escapeHtml(p.id)}" data-delete-prod-name="${escapeHtml(p.name)}" class="btn-delete-product btn-stone-outline py-1 px-2.5 text-[11px] text-red-400 hover:text-red-300 hover:border-red-500 cursor-pointer">
                               Quitar
@@ -4312,7 +4314,7 @@ async findAllProducts() {
             </div>
             <h3 class="font-serif-editorial text-[24px] font-normal text-[#ffffff]" id="edit-prod-title">Editar producto y foto</h3>
             <p class="font-sans-ui text-xs text-[#c5c0b6] mt-1" id="edit-prod-subtitle">
-              Actualiza el precio de venta en COP, las unidades en stock o la foto del producto.
+              Actualiza el nombre, descripción, precio, unidades en stock o foto del producto.
             </p>
           </div>
 
@@ -4343,6 +4345,17 @@ async findAllProducts() {
                 <label class="block font-sans-ui text-[11px] text-[#c5c0b6] mb-1">O pegar enlace web directo (URL):</label>
                 <input type="url" id="edit-prod-image" class="input-parchment text-xs font-mono-tech" placeholder="https://ejemplo.com/foto.webp">
               </div>
+            </div>
+
+            <div>
+              <label class="block font-sans-ui text-xs font-semibold text-[#c5c0b6] mb-1.5">Nombre del Producto</label>
+              <input type="text" id="edit-prod-name" required class="input-parchment text-sm" placeholder="Ej. Cera gold">
+            </div>
+
+            <div>
+              <label class="block font-sans-ui text-xs font-semibold text-[#c5c0b6] mb-1.5">Descripción del Producto</label>
+              <textarea id="edit-prod-description" rows="3" class="input-parchment text-xs leading-relaxed w-full resize-y font-sans-ui" placeholder="Describe los beneficios, fijación, ingredientes o modo de uso del producto..."></textarea>
+              <p class="font-sans-ui text-[11px] text-[#8a8275] mt-1">Visible para los clientes en la tienda pública.</p>
             </div>
 
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
@@ -5306,12 +5319,24 @@ async findAllProducts() {
       formEditProd.onsubmit = async (e) => {
         e.preventDefault();
         const prodId = document.getElementById('edit-prod-id').value;
+        const nameInput = document.getElementById('edit-prod-name');
+        const descInput = document.getElementById('edit-prod-description');
+        const nameVal = nameInput ? nameInput.value.trim() : '';
+        const descVal = descInput ? descInput.value.trim() : '';
         const priceVal = parseInt(document.getElementById('edit-prod-price').value, 10);
         const stockVal = parseInt(document.getElementById('edit-prod-stock').value, 10);
         const errorMsg = document.getElementById('edit-prod-error-msg');
         const submitBtn = document.getElementById('btn-submit-edit-prod');
 
         if (errorMsg) errorMsg.classList.add('hidden');
+        if (!nameVal) {
+          if (errorMsg) {
+            errorMsg.textContent = 'El nombre del producto no puede estar vacío.';
+            errorMsg.classList.remove('hidden');
+          }
+          return;
+        }
+
         if (Number.isNaN(priceVal) || priceVal < 500) {
           if (errorMsg) {
             errorMsg.textContent = 'El precio debe ser un valor válido mayor a 500 COP.';
@@ -5345,6 +5370,8 @@ async findAllProducts() {
           }
 
           const updatePayload = {
+            name: nameVal,
+            description: descVal,
             priceCop: priceVal,
             stock: stockVal
           };
@@ -5373,7 +5400,7 @@ async findAllProducts() {
       };
     }
 
-    // Editar precio, stock y foto de un producto (Abre modal elegante para Barbero Jefe y Admin)
+    // Editar descripcion, nombre, precio, stock y foto de un producto (Abre modal elegante para Barbero Jefe y Admin)
     document.querySelectorAll('.btn-edit-product').forEach((btn) => {
       btn.onclick = () => {
         const prodId = btn.dataset.editProdId;
@@ -5382,6 +5409,8 @@ async findAllProducts() {
         pendingCompressedProductImage = null;
         const hiddenId = document.getElementById('edit-prod-id');
         const title = document.getElementById('edit-prod-title');
+        const nameInput = document.getElementById('edit-prod-name');
+        const descInput = document.getElementById('edit-prod-description');
         const price = document.getElementById('edit-prod-price');
         const stock = document.getElementById('edit-prod-stock');
         const imgInput = document.getElementById('edit-prod-image');
@@ -5392,6 +5421,8 @@ async findAllProducts() {
 
         if (hiddenId) hiddenId.value = prod.id;
         if (title) title.textContent = `Editar ${prod.name}`;
+        if (nameInput) nameInput.value = prod.name || '';
+        if (descInput) descInput.value = prod.description || '';
         if (price) price.value = prod.priceCop;
         if (stock) stock.value = prod.stock;
         if (imgInput) imgInput.value = prod.imageUrl || '';
@@ -5403,7 +5434,7 @@ async findAllProducts() {
         if (fileInput) fileInput.value = '';
         if (errorMsg) errorMsg.classList.add('hidden');
         if (modalEditProd) modalEditProd.classList.remove('hidden');
-        if (price) price.focus();
+        if (descInput) descInput.focus();
       };
     });
 
