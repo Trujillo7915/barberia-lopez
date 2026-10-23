@@ -102,7 +102,7 @@ const DEFAULT_BARBERS = [
     name: 'David',
     specialty: 'Barbero Jefe · Maestro Barbero',
     phone: '+57 321 989 7910',
-    avatar: 'https://images.unsplash.com/photo-1503951914875-452162b0f3f1?auto=format&fit=crop&w=600&q=80',
+    avatar: '',
     active: true,
     onShift: true
   },
@@ -112,7 +112,7 @@ const DEFAULT_BARBERS = [
     name: 'Maicol Matta',
     specialty: 'Barbero Profesional · Degradados & Barba',
     phone: '+57 300 000 0000',
-    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=600&q=80',
+    avatar: '',
     active: true,
     onShift: true
   }
@@ -1285,7 +1285,7 @@ const server = http.createServer(async (req, res) => {
         name: String(barberData.name || 'Barbero').trim(),
         specialty: String(barberData.specialty || 'Barbero Profesional').trim(),
         phone: String(barberData.phone || '+57 321 989 7910').trim(),
-        avatar: barberData.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=600&q=80',
+        avatar: String(barberData.avatar || '').trim(),
         active: barberData.active !== false,
         onShift: barberData.onShift !== false
       };

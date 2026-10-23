@@ -277,7 +277,7 @@
       name: 'David',
       specialty: 'Barbero Jefe · Maestro Barbero',
       phone: '+57 321 989 7910',
-      avatar: 'https://images.unsplash.com/photo-1503951914875-452162b0f3f1?auto=format&fit=crop&w=600&q=80',
+      avatar: '',
       active: true,
       onShift: true
     },
@@ -287,7 +287,7 @@
       name: 'Maicol Matta',
       specialty: 'Barbero Profesional · Degradados & Barba',
       phone: '+57 300 000 0000',
-      avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=600&q=80',
+      avatar: '',
       active: true,
       onShift: true
     }
@@ -4247,7 +4247,13 @@ async findAllProducts() {
                       data-modal-barber-id="${b.id}" 
                       data-busy="${isBarberBusy ? 'true' : 'false'}"
                       class="spotlight-card barber-modal-choice p-3.5 rounded-[12px] border cursor-pointer flex items-center gap-3 transition-all ${isBarberBusy ? 'opacity-50 border-red-500/30 bg-[#12151b]' : (isSelected ? 'selected border-[#d4af37] bg-[rgba(212,175,55,0.14)] shadow-[0_0_15px_rgba(212,175,55,0.2)]' : 'border-[rgba(212,175,55,0.22)] bg-[#161a22] hover:border-[#d4af37]')}">
-                      <img src="${b.avatar || './logo_barberia_lopez_hd.jpg'}" alt="${escapeHtml(b.name)}" class="w-11 h-11 rounded-full object-cover border border-[rgba(212,175,55,0.35)]">
+                      ${b.avatar ? `
+                        <img src="${escapeHtml(b.avatar)}" alt="${escapeHtml(b.name)}" class="w-11 h-11 rounded-full object-cover border border-[rgba(212,175,55,0.35)] shrink-0">
+                      ` : `
+                        <div class="w-11 h-11 rounded-full bg-[#181c24] border border-[rgba(212,175,55,0.4)] flex items-center justify-center font-serif-editorial text-base text-[#d4af37] shrink-0">
+                          ${escapeHtml(b.name.charAt(0))}
+                        </div>
+                      `}
                       <div class="flex-1">
                         <div class="font-sans-ui font-semibold text-[#ffffff] text-[14px] flex items-center justify-between">
                           <span>${escapeHtml(b.name)}</span>
