@@ -2524,9 +2524,7 @@ async findAllProducts() {
                         <h3 class="font-serif-editorial text-[24px] font-normal text-[#ffffff] leading-snug mb-2">
                           ${escapeHtml(p.name)}
                         </h3>
-                        <p class="font-sans-ui text-xs sm:text-sm text-[#c5c0b6] leading-relaxed whitespace-pre-line">
-                          ${escapeHtml(p.description || 'Producto profesional de barbería.')}
-                        </p>
+                        <p class="font-sans-ui text-xs sm:text-sm text-[#c5c0b6] leading-relaxed whitespace-pre-line">${escapeHtml(p.description || 'Producto profesional de barbería.')}</p>
                       </div>
                     </div>
 
@@ -5434,7 +5432,7 @@ async findAllProducts() {
         if (fileInput) fileInput.value = '';
         if (errorMsg) errorMsg.classList.add('hidden');
         if (modalEditProd) modalEditProd.classList.remove('hidden');
-        if (descInput) descInput.focus();
+        if (nameInput) nameInput.focus();
       };
     });
 
