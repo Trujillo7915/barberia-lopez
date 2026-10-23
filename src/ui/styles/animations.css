@@ -1,50 +1,405 @@
 /* ==========================================================================
-   ANIMATIONS.CSS — Anthropic: Restrained & Quiet Paper Transitions
+   ANIMATIONS.CSS — Air Motion & Interaction Engine
+   Inspirado en: Raycast Air Style (Midnight Sky through Glass Sculpture)
+   Curvas: Spring Physics, Atmospheric Float, Tactile Press, Glass Shimmer
    ========================================================================== */
 
-/* 1. Suave revelación editorial (Fade in sutil sin rebotes) */
-@keyframes editorial-fade-in {
+:root {
+  /* Air Spring & Easing Physics */
+  --ease-air-spring: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-air-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-air-smooth: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-air-press: cubic-bezier(0.25, 1, 0.5, 1);
+  
+  /* Air Durations */
+  --duration-instant: 120ms;
+  --duration-swift: 200ms;
+  --duration-normal: 320ms;
+  --duration-float: 480ms;
+  --duration-ambient: 7s;
+}
+
+/* ==========================================================================
+   1. KEYFRAMES DE ATMÓSFERA Y FÍSICA FLOTANTE (AIR SYSTEM)
+   ========================================================================== */
+
+/* Movimiento orgánico flotante para elementos insignia y logo */
+@keyframes air-float {
+  0%, 100% {
+    transform: translateY(0px) scale(1);
+  }
+  50% {
+    transform: translateY(-8px) scale(1.015);
+  }
+}
+
+/* Respiración de luz ambiental en cielo nocturno y halos dorados */
+@keyframes air-ambient-glow {
+  0%, 100% {
+    opacity: 0.45;
+    filter: blur(100px);
+    transform: scale(0.96);
+  }
+  50% {
+    opacity: 0.8;
+    filter: blur(130px);
+    transform: scale(1.08);
+  }
+}
+
+/* Revelación suave con desenfoque de vidrio (Glass Reveal) */
+@keyframes air-reveal-up {
   0% {
     opacity: 0;
-    transform: translateY(8px);
+    transform: translateY(16px) scale(0.985);
+    filter: blur(6px);
   }
   100% {
     opacity: 1;
-    transform: translateY(0);
+    transform: translateY(0) scale(1);
+    filter: blur(0);
   }
 }
 
-.editorial-reveal {
-  animation: editorial-fade-in 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+/* Reflejo especular que cruza tarjetas y botones (Glass Shimmer) */
+@keyframes air-shimmer-sweep {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
 }
 
-/* 2. Sello Editorial / Marco de Placa Naturalista para el Emblema */
-.archival-frame {
-  background-color: var(--color-manilla);
-  border: 1px solid rgba(20, 20, 19, 0.12);
-  border-radius: 24px;
-  overflow: hidden;
-  transition: border-color 0.2s ease, transform 0.2s ease;
+/* Entrada con rebote elástico para modales (Modal Spring Pop) */
+@keyframes air-modal-spring {
+  0% {
+    opacity: 0;
+    transform: scale(0.92) translateY(12px);
+    filter: blur(8px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+    filter: blur(0);
+  }
 }
 
-.archival-frame:hover {
-  border-color: var(--color-slate-dark);
+/* Pulso interactivo sutil para franjas horarias y badges en turno */
+@keyframes air-slot-breath {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(212, 175, 55, 0.35);
+  }
+  50% {
+    box-shadow: 0 0 12px 2px rgba(212, 175, 55, 0.45);
+  }
 }
 
-.archival-frame img {
-  display: block;
-  transition: transform 0.4s ease;
+/* ==========================================================================
+   2. CLASES APLICATIVAS DE MOVIMIENTO Y MICROINTERACCIONES
+   ========================================================================== */
+
+/* Entrada escalonada de elementos al cargar o scrolear */
+.air-reveal {
+  animation: air-reveal-up var(--duration-float) var(--ease-air-spring) forwards;
+  will-change: opacity, transform, filter;
 }
 
-.archival-frame:hover img {
+/* Objeto flotante con suspensión aérea */
+.air-floating {
+  animation: air-float var(--duration-ambient) ease-in-out infinite;
+  will-change: transform;
+}
+
+/* Luz ambiental respirable */
+.air-glow-pulse {
+  animation: air-ambient-glow 6s ease-in-out infinite;
+  will-change: opacity, filter, transform;
+}
+
+/* ==========================================================================
+   3. FÍSICA DE INTERACCIÓN EN BOTONES (TACTILE SPRING FEEDBACK)
+   ========================================================================== */
+
+.btn-clay,
+.btn-stone-outline,
+.btn-buy-store-product,
+.btn-sync-mobile-calendar,
+.btn-toggle-barber-shift,
+.btn-complete-cut,
+.btn-deliver-store-order {
+  transition: transform var(--duration-swift) var(--ease-air-spring),
+              box-shadow var(--duration-swift) var(--ease-air-smooth),
+              background-color var(--duration-swift) var(--ease-air-smooth),
+              border-color var(--duration-swift) var(--ease-air-smooth),
+              filter var(--duration-swift) var(--ease-air-smooth) !important;
+  will-change: transform, box-shadow;
+}
+
+/* Elevación táctil al posar el cursor */
+.btn-clay:hover,
+.btn-buy-store-product:hover,
+.btn-complete-cut:hover,
+.btn-deliver-store-order:hover {
+  transform: translateY(-2px) scale(1.02);
+  box-shadow: 0 8px 24px -4px rgba(212, 175, 55, 0.4), 0 0 16px rgba(212, 175, 55, 0.25);
+}
+
+.btn-stone-outline:hover,
+.btn-sync-mobile-calendar:hover {
+  transform: translateY(-2px) scale(1.015);
+  box-shadow: 0 8px 20px -4px rgba(0, 0, 0, 0.6), 0 0 12px rgba(212, 175, 55, 0.2);
+}
+
+/* Compresión física instantánea al hacer clic o tocar en pantalla móvil */
+.btn-clay:active,
+.btn-stone-outline:active,
+.btn-buy-store-product:active,
+.btn-sync-mobile-calendar:active,
+.btn-toggle-barber-shift:active,
+.btn-complete-cut:active,
+.btn-deliver-store-order:active {
+  transform: translateY(0px) scale(0.96) !important;
+  transition-duration: var(--duration-instant) !important;
+}
+
+/* ==========================================================================
+   4. FÍSICA DE TARJETAS Y ESCULTURAS DE VIDRIO (GLASS ELEVATION)
+   ========================================================================== */
+
+.anthropic-card,
+.store-order-card,
+.service-modal-choice,
+.barber-modal-choice,
+.extra-option-choice {
+  transition: transform var(--duration-normal) var(--ease-air-spring),
+              border-color var(--duration-swift) var(--ease-air-smooth),
+              box-shadow var(--duration-normal) var(--ease-air-spring),
+              background-color var(--duration-swift) var(--ease-air-smooth) !important;
+  will-change: transform, box-shadow, border-color;
+  border-radius: var(--radius-cards, 12px) !important;
+}
+
+/* Efecto de elevación con cristal traslúcido */
+.anthropic-card:hover,
+.store-order-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 18px 36px -10px rgba(0, 0, 0, 0.8), 0 0 24px rgba(212, 175, 55, 0.14);
+}
+
+/* Selección interactiva con rebote elástico suave */
+.service-modal-choice:hover,
+.barber-modal-choice:hover,
+.extra-option-choice:hover {
+  transform: translateY(-2px) scale(1.01);
+}
+
+.service-modal-choice.selected,
+.barber-modal-choice.selected,
+.extra-option-choice.selected {
   transform: scale(1.015);
+  box-shadow: 0 0 20px rgba(212, 175, 55, 0.28) !important;
 }
 
-/* 3. Elevación de Tarjeta en Pergamino */
-.paper-card {
-  transition: background-color 0.18s ease, border-color 0.18s ease;
+/* ==========================================================================
+   5. INTERACCIÓN EN FRANJAS HORARIAS DE AGENDA (TIME SLOTS)
+   ========================================================================== */
+
+.time-slot-btn:not(.booked),
+.origin-slot-btn:not(.booked),
+.slot-journal-btn:not(.booked) {
+  transition: transform var(--duration-swift) var(--ease-air-spring),
+              background-color var(--duration-swift) var(--ease-air-smooth),
+              border-color var(--duration-swift) var(--ease-air-smooth),
+              box-shadow var(--duration-swift) var(--ease-air-spring) !important;
+  border-radius: var(--radius-buttons, 8px) !important;
 }
 
-.paper-card:hover {
-  border-color: var(--color-slate-dark);
+.time-slot-btn:not(.booked):hover,
+.origin-slot-btn:not(.booked):hover,
+.slot-journal-btn:not(.booked):hover {
+  transform: translateY(-2px) scale(1.03);
+  box-shadow: 0 6px 18px rgba(212, 175, 55, 0.25);
+  border-color: #d4af37 !important;
 }
+
+.time-slot-btn:not(.booked):active,
+.origin-slot-btn:not(.booked):active,
+.slot-journal-btn:not(.booked):active {
+  transform: scale(0.96) !important;
+}
+
+/* ==========================================================================
+   6. VENTANAS MODALES CON ENTRADA ELÁSTICA (AIR MODAL SPRING)
+   ========================================================================== */
+
+.modal-window-custom {
+  animation: air-modal-spring 0.38s var(--ease-air-spring) forwards !important;
+  border-radius: var(--radius-cards, 12px) !important;
+  will-change: transform, opacity, filter;
+}
+
+.modal-backdrop-custom {
+  transition: opacity 0.3s var(--ease-air-smooth), backdrop-filter 0.3s var(--ease-air-smooth);
+}
+
+/* ==========================================================================
+   7. EFECTO SPOTLIGHT Y BORDES LUMINOSOS (DARK LUXURY SPOTLIGHT)
+   ========================================================================== */
+
+.spotlight-card {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  background-color: #12151b;
+  transition: transform var(--duration-swift) var(--ease-air-spring),
+              border-color var(--duration-swift) var(--ease-air-smooth),
+              box-shadow var(--duration-swift) var(--ease-air-smooth) !important;
+}
+
+/* Resplandor radial interactivo interno */
+.spotlight-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: radial-gradient(
+    520px circle at var(--mouse-x, -999px) var(--mouse-y, -999px),
+    rgba(212, 175, 55, 0.16),
+    transparent 65%
+  );
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.35s var(--ease-air-smooth);
+  z-index: 1;
+}
+
+.spotlight-card:hover::before {
+  opacity: 1;
+}
+
+/* Borde perimetral luminoso de oro imperial */
+.spotlight-card::after {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  padding: 1.5px;
+  background: radial-gradient(
+    360px circle at var(--mouse-x, -999px) var(--mouse-y, -999px),
+    rgba(212, 175, 55, 0.85),
+    rgba(212, 175, 55, 0.25) 40%,
+    transparent 70%
+  );
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.35s var(--ease-air-smooth);
+  z-index: 2;
+}
+
+.spotlight-card:hover::after {
+  opacity: 1;
+}
+
+.spotlight-card:hover {
+  transform: translateY(-3px) scale(1.008);
+  box-shadow: 0 16px 36px -8px rgba(0, 0, 0, 0.85), 0 0 24px rgba(212, 175, 55, 0.18) !important;
+}
+
+/* ==========================================================================
+   8. TRANSICIONES DE VISTA Y CONTENIDO (VIEW TRANSITION ENGINE)
+   ========================================================================== */
+
+@keyframes viewFadeIn {
+  0% {
+    opacity: 0;
+    transform: translateY(10px) scale(0.995);
+    filter: blur(4px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+
+.view-fade-enter {
+  animation: viewFadeIn 0.36s var(--ease-air-spring) forwards;
+  will-change: opacity, transform, filter;
+}
+
+/* ==========================================================================
+   9. BARRIDO METÁLICO ESPECULAR (GOLD SHIMMER)
+   ========================================================================== */
+
+@keyframes goldShimmerEffect {
+  0% {
+    background-position: -200% center;
+  }
+  100% {
+    background-position: 200% center;
+  }
+}
+
+.shimmer-gold {
+  background: linear-gradient(
+    90deg,
+    #d4af37 0%,
+    #fff4cc 35%,
+    #d4af37 60%,
+    #b38828 100%
+  );
+  background-size: 200% auto;
+  color: transparent !important;
+  -webkit-background-clip: text !important;
+  background-clip: text !important;
+  animation: goldShimmerEffect 4s linear infinite;
+}
+
+/* ==========================================================================
+   10. INDICADORES DE TURNO Y PULSO HÁPTICO
+   ========================================================================== */
+
+@keyframes shiftPulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.45);
+    transform: scale(1);
+  }
+  50% {
+    box-shadow: 0 0 10px 3px rgba(74, 222, 128, 0.65);
+    transform: scale(1.08);
+  }
+}
+
+.indicator-on-shift {
+  animation: shiftPulse 2.4s ease-in-out infinite;
+}
+
+/* ==========================================================================
+   11. BARRA DE DESPLAZAMIENTO CINEMÁTICA (LUXURY SCROLLBAR)
+   ========================================================================== */
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #0a0b0d;
+  border-left: 1px solid rgba(212, 175, 55, 0.12);
+}
+
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #b38828 0%, #d4af37 50%, #b38828 100%);
+  border-radius: 9999px;
+  border: 2px solid #0a0b0d;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #ffd700;
+  box-shadow: 0 0 10px rgba(212, 175, 55, 0.6);
+}
+

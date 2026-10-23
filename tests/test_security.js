@@ -1,3 +1,5 @@
+const fs = require('fs');
+const path = require('path');
 const http = require('http');
 
 function makeRequest({ path, method = 'GET', headers = {}, body = null }) {
@@ -172,12 +174,15 @@ async function runTests() {
       failed++;
     }
 
-    // Limpiar cita de prueba
-    await makeRequest({
-      path: '/api/appointments/test-collision-01',
-      method: 'PUT',
-      body: { status: 'CANCELADA' }
-    });
+    // Limpiar cita de prueba eliminandola de la persistencia
+    try {
+      const apptPath = require('path').resolve(__dirname, '..', 'data', 'appointments.json');
+      if (fs.existsSync(apptPath)) {
+        const list = JSON.parse(fs.readFileSync(apptPath, 'utf8'));
+        const filtered = list.filter((a) => a.id !== 'test-collision-01');
+        fs.writeFileSync(apptPath, JSON.stringify(filtered, null, 2), 'utf8');
+      }
+    } catch (e) {}
   } catch (err) {
     console.log('[FAIL] Error en prueba 6:', err.message);
     failed++;
@@ -202,6 +207,7 @@ async function runTests() {
   }
 
   console.log(`\nRESULTADOS: ${passed} pruebas superadas, ${failed} fallos.`);
+  if (failed > 0) process.exit(1);
 }
 
 runTests();

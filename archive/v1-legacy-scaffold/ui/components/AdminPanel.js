@@ -12,7 +12,7 @@ export function renderAdminPanel({ users, barbers, onBackHome }) {
       <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-8 pb-6 border-b border-[#d4af37]/20">
         <div>
           <div class="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-purple-950/40 border border-purple-500/40 text-purple-300 text-[10px] font-mono uppercase tracking-wider mb-2">
-            🕵️ MODO INCÓGNITO — SUPERADMINISTRADOR TÉCNICO
+            MODO INCOGNITO — SUPERADMINISTRADOR TECNICO
           </div>
           <h2 class="font-editorial text-2xl sm:text-4xl font-bold text-[#f7f4ef]">
             Gestión Centralizada de <span class="italic text-[#d4af37]">Personal & Credenciales</span>

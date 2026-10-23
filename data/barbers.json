@@ -1,20 +1,22 @@
 [
   {
-    "id": "87f4c9b4-5564-4964-8593-d02c8ee125ce",
-    "userId": "3c7e0bc2-c1f7-438c-8ef8-355fcf2f2b62",
+    "id": "b-david-01",
+    "userId": "u-david-01",
     "name": "David",
-    "specialty": "Barbero Profesional",
-    "phone": "321 9897910",
-    "avatar": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=600&q=80",
-    "active": true
+    "specialty": "Barbero Jefe · Maestro Barbero",
+    "phone": "+57 321 989 7910",
+    "avatar": "",
+    "active": true,
+    "onShift": true
   },
   {
-    "id": "3f8f88d7-6582-4607-9d9a-07275f8e618c",
-    "userId": "3fe4f419-2825-406e-8165-b6e944c083a0",
+    "id": "b-matta-01",
+    "userId": "u-matta-01",
     "name": "Maicol Matta",
-    "specialty": "Barbero Profesional",
-    "phone": "3203181496",
-    "avatar": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=600&q=80",
-    "active": true
+    "specialty": "Barbero Profesional · Degradados & Barba",
+    "phone": "+57 300 000 0000",
+    "avatar": "",
+    "active": true,
+    "onShift": true
   }
 ]

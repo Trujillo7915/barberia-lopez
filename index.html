@@ -2,15 +2,160 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="refresh" content="0; url=./src/index.html">
-  <title>Barbería Lopez — Redirigiendo...</title>
+  <title>Barberia Lopez — Tienda & Barberia</title>
+  <link rel="icon" type="image/jpeg" href="./logo_barberia_lopez_hd.jpg">
   <script>
     window.location.href = "./src/index.html";
   </script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background-color: #0a0b0d;
+      color: #fbfaf7;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      overflow: hidden;
+    }
+    .preloader-halo {
+      position: absolute;
+      width: 320px;
+      height: 320px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(212, 175, 55, 0.18) 0%, rgba(212, 175, 55, 0.04) 55%, transparent 75%);
+      filter: blur(35px);
+      pointer-events: none;
+      animation: preloaderHaloPulse 3s ease-in-out infinite;
+    }
+    .preloader-emblem-wrap {
+      position: relative;
+      width: 128px;
+      height: 128px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .preloader-orbit-ring {
+      position: absolute;
+      inset: -6px;
+      border-radius: 50%;
+      border: 2px solid rgba(212, 175, 55, 0.16);
+      border-top-color: #d4af37;
+      border-right-color: rgba(212, 175, 55, 0.7);
+      animation: preloaderSpin 1.8s cubic-bezier(0.4, 0.1, 0.4, 0.9) infinite;
+    }
+    .preloader-orbit-ring-secondary {
+      position: absolute;
+      inset: -13px;
+      border-radius: 50%;
+      border: 1px dashed rgba(212, 175, 55, 0.25);
+      animation: preloaderSpinReverse 6s linear infinite;
+    }
+    .preloader-logo-img {
+      width: 128px;
+      height: 128px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 1.5px solid rgba(212, 175, 55, 0.5);
+      box-shadow: 0 0 35px rgba(0, 0, 0, 0.9), 0 0 18px rgba(212, 175, 55, 0.22);
+      display: block;
+    }
+    .preloader-bar-track {
+      width: 200px;
+      max-width: 80vw;
+      height: 3px;
+      background-color: #171b24;
+      border-radius: 9999px;
+      overflow: hidden;
+      border: 1px solid rgba(212, 175, 55, 0.28);
+      position: relative;
+      margin-top: 22px;
+    }
+    .preloader-bar-fill {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      width: 45%;
+      border-radius: 9999px;
+      background: linear-gradient(90deg, #b38f28 0%, #ffd700 50%, #b38f28 100%);
+      box-shadow: 0 0 10px rgba(212, 175, 55, 0.7);
+      animation: preloaderSlide 1.6s ease-in-out infinite;
+    }
+    .brand-title {
+      font-size: 20px;
+      letter-spacing: 0.24em;
+      text-transform: uppercase;
+      color: #ffffff;
+      font-weight: 400;
+      margin-top: 24px;
+    }
+    .brand-sub {
+      font-size: 11px;
+      letter-spacing: 0.28em;
+      text-transform: uppercase;
+      color: #d4af37;
+      font-weight: 600;
+      margin-top: 6px;
+    }
+    .brand-status {
+      font-size: 10px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: #8a8275;
+      margin-top: 12px;
+      text-decoration: none;
+    }
+    .brand-status a {
+      color: #d4af37;
+      text-decoration: underline;
+    }
+    @keyframes preloaderSpin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+    @keyframes preloaderSpinReverse {
+      from { transform: rotate(360deg); }
+      to { transform: rotate(0deg); }
+    }
+    @keyframes preloaderSlide {
+      0% { left: -45%; }
+      50% { left: 35%; width: 55%; }
+      100% { left: 105%; width: 45%; }
+    }
+    @keyframes preloaderHaloPulse {
+      0%, 100% { transform: scale(0.92); opacity: 0.65; }
+      50% { transform: scale(1.18); opacity: 1; }
+    }
+  </style>
 </head>
-<body style="background-color: #0a0b0d; color: #f5f3ef; font-family: system-ui, sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0;">
-  <p style="letter-spacing: 0.02em; font-size: 15px;">
-    Cargando Barbería Lopez... Si no redirige de inmediato, <a href="./src/index.html" style="color: #d4af37; text-decoration: underline;">haz clic aquí para continuar</a>.
-  </p>
+<body>
+  <div class="preloader-halo"></div>
+
+  <div class="preloader-emblem-wrap">
+    <div class="preloader-orbit-ring-secondary"></div>
+    <div class="preloader-orbit-ring"></div>
+    <img 
+      src="./logo_barberia_lopez_hd.jpg" 
+      alt="Barberia Lopez Tienda Oficial" 
+      class="preloader-logo-img"
+    >
+  </div>
+
+  <div class="brand-title">Barberia Lopez</div>
+  <div class="brand-sub">Tienda Oficial & Barberia Clasica</div>
+
+  <div class="preloader-bar-track">
+    <div class="preloader-bar-fill"></div>
+  </div>
+
+  <div class="brand-status">
+    Cargando... Si no redirige de inmediato, <a href="./src/index.html">haz clic aqui</a>.
+  </div>
 </body>
 </html>

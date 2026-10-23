@@ -1,8 +1,21 @@
+/**
+ * Barberia Lopez — Servidor Backend Nativo Blindado
+ * Arquitectura: Node.js puro sin dependencias externas pesadas
+ * Indice Quirurgico de Secciones (Consulte CODEMAP.md para detalles):
+ * - Persistencia y Deteccion Render: L40 - L235
+ * - Criptografia scrypt/pbkdf2 y HMAC Auth: L236 - L355
+ * - Rate Limiting y Proteccion Fuerza Bruta: L356 - L430
+ * - Proteccion DoS y Limite de Cuerpo: L431 - L465
+ * - Mutex Transaccional y Anti Double-Booking: L466 - L560
+ * - Feeds iCalendar RFC 5545: L561 - L775
+ * - Cabeceras de Seguridad HTTP y Validador de Rutas: L776 - L840
+ * - Enrutador Principal /api/*: L841 - L2170
+ * - Servidor de Archivos Estaticos: L2171 - L2240
+ */
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
-const zlib = require('zlib');
 
 process.on('uncaughtException', (err) => {
   console.error('[CRITICAL] Uncaught exception:', err);
@@ -16,6 +29,10 @@ const HOST = '0.0.0.0';
 const ROOT_DIR = path.resolve(__dirname);
 const DATA_DIR = path.join(ROOT_DIR, 'data');
 const PUBLIC_SRC_DIR = path.join(ROOT_DIR, 'src');
+const PRODUCTS_IMG_DIR = path.join(PUBLIC_SRC_DIR, 'assets', 'products');
+if (!fs.existsSync(PRODUCTS_IMG_DIR)) {
+  fs.mkdirSync(PRODUCTS_IMG_DIR, { recursive: true });
+}
 
 // Asegurar directorio de datos persistente
 if (!fs.existsSync(DATA_DIR)) {
@@ -27,44 +44,26 @@ const BARBERS_FILE = path.join(DATA_DIR, 'barbers.json');
 const SERVICES_FILE = path.join(DATA_DIR, 'services.json');
 const USERS_FILE = path.join(DATA_DIR, 'users.json');
 const HISTORY_FILE = path.join(DATA_DIR, 'history.json');
+const PRODUCTS_FILE = path.join(DATA_DIR, 'products.json');
+const STORE_ORDERS_FILE = path.join(DATA_DIR, 'store_orders.json');
 
-// Clave secreta para tokens de sesion HMAC-SHA256 deterministica (evita invalidar sesiones al reiniciar Render)
-const AUTH_SECRET = process.env.AUTH_SECRET || crypto.createHash('sha256').update('barberia_lopez_neiva_master_hmac_secret_2026').digest('hex');
-
-// Claves y canales cifrados AES-256-GCM para respaldo continuo en la nube ante reinicios de Render
-const CLOUD_VAULT_KEY = crypto.createHash('sha256').update(AUTH_SECRET + '_aes256_vault_key').digest();
-const CLOUD_VAULT_ID = crypto.createHash('sha256').update(AUTH_SECRET + '_vault_channel_v1').digest('hex').substring(0, 20);
-const CLOUD_CHANNEL_AUTH = `blopez_auth_${CLOUD_VAULT_ID}`;
-const CLOUD_CHANNEL_OPS = `blopez_ops_${CLOUD_VAULT_ID}`;
-
-function encryptVaultPayload(obj) {
-  try {
-    const iv = crypto.randomBytes(12);
-    const compressed = zlib.deflateRawSync(Buffer.from(JSON.stringify(obj), 'utf8'));
-    const cipher = crypto.createCipheriv('aes-256-gcm', CLOUD_VAULT_KEY, iv);
-    const enc = Buffer.concat([cipher.update(compressed), cipher.final()]);
-    const tag = cipher.getAuthTag();
-    return Buffer.concat([iv, tag, enc]).toString('base64');
-  } catch (err) {
-    return null;
+// Clave secreta para tokens de sesion HMAC-SHA256 persistente
+const AUTH_SECRET_FILE = path.join(DATA_DIR, '.auth_secret');
+let AUTH_SECRET = process.env.AUTH_SECRET;
+if (!AUTH_SECRET) {
+  if (fs.existsSync(AUTH_SECRET_FILE)) {
+    try {
+      const savedSecret = fs.readFileSync(AUTH_SECRET_FILE, 'utf8').trim();
+      if (savedSecret && savedSecret.length >= 32) {
+        AUTH_SECRET = savedSecret;
+      }
+    } catch (e) {}
   }
-}
-
-function decryptVaultPayload(b64) {
-  try {
-    if (!b64 || typeof b64 !== 'string') return null;
-    const raw = Buffer.from(b64.trim(), 'base64');
-    if (raw.length < 29) return null;
-    const iv = raw.subarray(0, 12);
-    const tag = raw.subarray(12, 28);
-    const enc = raw.subarray(28);
-    const decipher = crypto.createDecipheriv('aes-256-gcm', CLOUD_VAULT_KEY, iv);
-    decipher.setAuthTag(tag);
-    const dec = Buffer.concat([decipher.update(enc), decipher.final()]);
-    const jsonStr = zlib.inflateRawSync(dec).toString('utf8');
-    return JSON.parse(jsonStr);
-  } catch (err) {
-    return null;
+  if (!AUTH_SECRET) {
+    AUTH_SECRET = crypto.randomBytes(32).toString('hex');
+    try {
+      fs.writeFileSync(AUTH_SECRET_FILE, AUTH_SECRET, { encoding: 'utf8' });
+    } catch (e) {}
   }
 }
 
@@ -79,41 +78,43 @@ const DEFAULT_USERS = [
     active: true
   },
   {
-    id: '3c7e0bc2-c1f7-438c-8ef8-355fcf2f2b62',
-    username: 'lopez.barber',
-    passwordHash: 'lopez2026',
+    id: 'u-david-01',
+    username: 'david.barber',
+    passwordHash: 'david2026',
     role: 'JEFE',
-    barberId: '87f4c9b4-5564-4964-8593-d02c8ee125ce',
+    barberId: 'b-david-01',
     active: true
   },
   {
-    id: '3fe4f419-2825-406e-8165-b6e944c083a0',
+    id: 'u-matta-01',
     username: 'matta.barber',
     passwordHash: 'matta2026',
     role: 'BARBERO',
-    barberId: '3f8f88d7-6582-4607-9d9a-07275f8e618c',
+    barberId: 'b-matta-01',
     active: true
   }
 ];
 
 const DEFAULT_BARBERS = [
   {
-    id: '87f4c9b4-5564-4964-8593-d02c8ee125ce',
-    userId: '3c7e0bc2-c1f7-438c-8ef8-355fcf2f2b62',
+    id: 'b-david-01',
+    userId: 'u-david-01',
     name: 'David',
-    specialty: 'Barbero Profesional',
-    phone: '321 9897910',
-    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=600&q=80',
-    active: true
+    specialty: 'Barbero Jefe · Maestro Barbero',
+    phone: '+57 321 989 7910',
+    avatar: '',
+    active: true,
+    onShift: true
   },
   {
-    id: '3f8f88d7-6582-4607-9d9a-07275f8e618c',
-    userId: '3fe4f419-2825-406e-8165-b6e944c083a0',
+    id: 'b-matta-01',
+    userId: 'u-matta-01',
     name: 'Maicol Matta',
-    specialty: 'Barbero Profesional',
-    phone: '3203181496',
-    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=600&q=80',
-    active: true
+    specialty: 'Barbero Profesional · Degradados & Barba',
+    phone: '+57 300 000 0000',
+    avatar: '',
+    active: true,
+    onShift: true
   }
 ];
 
@@ -125,13 +126,77 @@ const DEFAULT_SERVICES = [
   { id: 's-05', name: 'Combi Completa VIP', category: 'Experiencia Total + Granizado', durationMinutes: 30, priceCop: 65000, description: 'Corte + masaje + mascarilla + barba spa + cejas + lavado de cabello + granizado artesanal de la casa.', active: true }
 ];
 
+const DEFAULT_PRODUCTS = [
+  {
+    id: 'p-01',
+    name: 'Cera Moldeadora Efecto Mate',
+    category: 'Ceras & Fijacion',
+    priceCop: 25000,
+    stock: 12,
+    description: 'Fijacion firme durante todo el dia con acabado seco y natural sin residuos grasos. Ideal para cortes texturizados y crop.',
+    image: 'https://images.unsplash.com/photo-1621607512214-68297480165e?auto=format&fit=crop&w=600&q=80',
+    active: true
+  },
+  {
+    id: 'p-02',
+    name: 'Pomada Clasica Brillo Imperial',
+    category: 'Ceras & Fijacion',
+    priceCop: 25000,
+    stock: 10,
+    description: 'Formula a base de agua de facil lavado. Perfecta para peinados clasicos, slick back y pompadour con brillo elegante.',
+    image: 'https://images.unsplash.com/photo-1585751119414-ef2636f8aede?auto=format&fit=crop&w=600&q=80',
+    active: true
+  },
+  {
+    id: 'p-03',
+    name: 'Aceite Hidratante para Barba',
+    category: 'Cuidado de Barba',
+    priceCop: 30000,
+    stock: 8,
+    description: 'Mezcla de aceites esenciales de argan, jojoba y eucalipto. Suaviza el vello facial, elimina la resequedad y aporta aroma masculino.',
+    image: 'https://images.unsplash.com/photo-1608248597359-0e6d526a6c18?auto=format&fit=crop&w=600&q=80',
+    active: true
+  },
+  {
+    id: 'p-04',
+    name: 'Tonico Activador Capilar 5%',
+    category: 'Tratamiento Capilar',
+    priceCop: 45000,
+    stock: 6,
+    description: 'Locion fortalecedora para estimular el crecimiento en zonas despobladas de barba y cuero cabelludo.',
+    image: 'https://images.unsplash.com/photo-1556228720-195a672e8a03?auto=format&fit=crop&w=600&q=80',
+    active: true
+  },
+  {
+    id: 'p-05',
+    name: 'Polvo Texturizador de Volumen',
+    category: 'Ceras & Fijacion',
+    priceCop: 28000,
+    stock: 9,
+    description: 'Polvo ultraligero que aporta volumen instantaneo desde la raiz y control mate de larga duracion sin apelmazar.',
+    image: 'https://images.unsplash.com/photo-1526947425960-945c6e72858f?auto=format&fit=crop&w=600&q=80',
+    active: true
+  },
+  {
+    id: 'p-06',
+    name: 'Cepillo Fade Cerdas Naturales',
+    category: 'Accesorios',
+    priceCop: 18000,
+    stock: 15,
+    description: 'Cepillo ergonomico en madera con cerdas firmes para peinar degradados, limpiar contornos y distribuir aceites en la barba.',
+    image: 'https://images.unsplash.com/photo-1590159763121-7c9fd312190d?auto=format&fit=crop&w=600&q=80',
+    active: true
+  }
+];
+
 const DEFAULT_APPOINTMENTS = [];
 const DEFAULT_HISTORY = [];
+const DEFAULT_STORE_ORDERS = [];
 
 function readJsonFile(filePath, defaultValue) {
   try {
     if (!fs.existsSync(filePath)) {
-      writeJsonFileAtomic(filePath, defaultValue, true);
+      writeJsonFileAtomic(filePath, defaultValue);
       return defaultValue;
     }
     const raw = fs.readFileSync(filePath, 'utf8');
@@ -142,136 +207,48 @@ function readJsonFile(filePath, defaultValue) {
   }
 }
 
-let cloudAuthTimer = null;
-let cloudOpsTimer = null;
-
-async function pushCloudChannel(channel, payloadObj) {
+function writeJsonFileAtomic(filePath, data) {
+  const tempPath = `${filePath}.tmp.${Date.now()}.${Math.random().toString(36).substring(2, 8)}`;
   try {
-    const encrypted = encryptVaultPayload(payloadObj);
-    if (!encrypted || encrypted.length > 3900) return;
-    await fetch(`https://ntfy.sh/${channel}`, {
-      method: 'POST',
-      body: encrypted
-    });
-  } catch (err) {}
-}
-
-function scheduleCloudBackup(filePath) {
-  if (filePath === USERS_FILE || filePath === BARBERS_FILE) {
-    if (cloudAuthTimer) clearTimeout(cloudAuthTimer);
-    cloudAuthTimer = setTimeout(() => {
-      const users = readJsonFile(USERS_FILE, DEFAULT_USERS);
-      const barbers = readJsonFile(BARBERS_FILE, DEFAULT_BARBERS);
-      pushCloudChannel(CLOUD_CHANNEL_AUTH, { ts: Date.now(), users, barbers });
-    }, 150);
-  } else if (filePath === APPOINTMENTS_FILE || filePath === HISTORY_FILE) {
-    if (cloudOpsTimer) clearTimeout(cloudOpsTimer);
-    cloudOpsTimer = setTimeout(() => {
-      const appointments = readJsonFile(APPOINTMENTS_FILE, DEFAULT_APPOINTMENTS);
-      const history = readJsonFile(HISTORY_FILE, DEFAULT_HISTORY);
-      pushCloudChannel(CLOUD_CHANNEL_OPS, { ts: Date.now(), appointments, history });
-    }, 150);
-  }
-}
-
-function writeJsonFileAtomic(filePath, data, skipCloudPush = false) {
-  try {
-    const tempPath = `${filePath}.tmp.${Date.now()}.${Math.random().toString(36).substring(2, 8)}`;
     fs.writeFileSync(tempPath, JSON.stringify(data, null, 2), 'utf8');
-    fs.renameSync(tempPath, filePath);
-    if (!skipCloudPush) {
-      scheduleCloudBackup(filePath);
+    const maxRetries = 5;
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        fs.renameSync(tempPath, filePath);
+        return true;
+      } catch (renameErr) {
+        if (attempt === maxRetries) {
+          try {
+            fs.copyFileSync(tempPath, filePath);
+            try { fs.unlinkSync(tempPath); } catch (e) {}
+            return true;
+          } catch (copyErr) {
+            console.error(`Error persistiendo ${filePath}:`, copyErr.message);
+            try { fs.unlinkSync(tempPath); } catch (e) {}
+            return false;
+          }
+        }
+        // Pausa breve para permitir que el lock en Windows se libere
+        const waitMs = attempt * 8;
+        Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, waitMs);
+      }
     }
     return true;
   } catch (err) {
     console.error(`Error escribiendo atomicamente en ${filePath}:`, err.message);
+    try { if (fs.existsSync(tempPath)) fs.unlinkSync(tempPath); } catch (e) {}
     return false;
   }
 }
 
-async function fetchLatestCloudSnapshot(channel) {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 3500);
-  try {
-    const res = await fetch(`https://ntfy.sh/${channel}/json?poll=1&since=12h`, {
-      signal: controller.signal
-    });
-    clearTimeout(timeout);
-    if (!res.ok) return null;
-    const text = await res.text();
-    const lines = text.trim().split('\n').filter(Boolean);
-    for (let i = lines.length - 1; i >= 0; i--) {
-      try {
-        const evt = JSON.parse(lines[i]);
-        if (evt && evt.event === 'message' && evt.message) {
-          const decoded = decryptVaultPayload(evt.message);
-          if (decoded && decoded.ts) return decoded;
-        }
-      } catch (e) {}
-    }
-  } catch (err) {
-    clearTimeout(timeout);
-  }
-  return null;
-}
-
-// Inicializar archivos locales si no existen
+// Inicializar archivos si no existen
 readJsonFile(USERS_FILE, DEFAULT_USERS);
 readJsonFile(BARBERS_FILE, DEFAULT_BARBERS);
 readJsonFile(SERVICES_FILE, DEFAULT_SERVICES);
 readJsonFile(APPOINTMENTS_FILE, DEFAULT_APPOINTMENTS);
 readJsonFile(HISTORY_FILE, DEFAULT_HISTORY);
-
-// Restaurar instantanea cifrada desde la nube al arrancar (protege contra reinicios efimeros de Render)
-const cloudVaultReadyPromise = (async () => {
-  try {
-    const [authSnap, opsSnap] = await Promise.all([
-      fetchLatestCloudSnapshot(CLOUD_CHANNEL_AUTH),
-      fetchLatestCloudSnapshot(CLOUD_CHANNEL_OPS)
-    ]);
-
-    if (authSnap && Array.isArray(authSnap.users) && authSnap.users.length > 0 && Array.isArray(authSnap.barbers)) {
-      writeJsonFileAtomic(USERS_FILE, authSnap.users, true);
-      writeJsonFileAtomic(BARBERS_FILE, authSnap.barbers, true);
-    } else {
-      pushCloudChannel(CLOUD_CHANNEL_AUTH, {
-        ts: Date.now(),
-        users: readJsonFile(USERS_FILE, DEFAULT_USERS),
-        barbers: readJsonFile(BARBERS_FILE, DEFAULT_BARBERS)
-      });
-    }
-
-    if (opsSnap && Array.isArray(opsSnap.appointments) && Array.isArray(opsSnap.history)) {
-      writeJsonFileAtomic(APPOINTMENTS_FILE, opsSnap.appointments, true);
-      writeJsonFileAtomic(HISTORY_FILE, opsSnap.history, true);
-    } else {
-      pushCloudChannel(CLOUD_CHANNEL_OPS, {
-        ts: Date.now(),
-        appointments: readJsonFile(APPOINTMENTS_FILE, DEFAULT_APPOINTMENTS),
-        history: readJsonFile(HISTORY_FILE, DEFAULT_HISTORY)
-      });
-    }
-  } catch (err) {}
-})();
-
-// Keep-Alive automatico cada 8 minutos para mantener Render activo y refrescar respaldo cifrado
-setInterval(() => {
-  const targetUrl = process.env.RENDER_EXTERNAL_URL || 'https://barberia-lopez.onrender.com';
-  fetch(`${targetUrl}/api/health`).catch(() => {});
-}, 8 * 60 * 1000);
-
-setInterval(() => {
-  pushCloudChannel(CLOUD_CHANNEL_AUTH, {
-    ts: Date.now(),
-    users: readJsonFile(USERS_FILE, DEFAULT_USERS),
-    barbers: readJsonFile(BARBERS_FILE, DEFAULT_BARBERS)
-  });
-  pushCloudChannel(CLOUD_CHANNEL_OPS, {
-    ts: Date.now(),
-    appointments: readJsonFile(APPOINTMENTS_FILE, DEFAULT_APPOINTMENTS),
-    history: readJsonFile(HISTORY_FILE, DEFAULT_HISTORY)
-  });
-}, 3 * 60 * 60 * 1000);
+readJsonFile(PRODUCTS_FILE, DEFAULT_PRODUCTS);
+readJsonFile(STORE_ORDERS_FILE, DEFAULT_STORE_ORDERS);
 
 // ============================================================================
 // CRIPTOGRAFIA Y AUTENTICACION SEGURA NATIVA (SCRYPT + HMAC TOKENS)
@@ -283,49 +260,47 @@ function hashPasswordScrypt(plainPassword) {
   return `scrypt:${salt}:${derivedKey.toString('hex')}`;
 }
 
-function verifyPasswordSecure(plainPassword, storedHash) {
+function verifyPasswordSecure(plainPassword, storedHash, username = '') {
   if (!plainPassword || !storedHash) return false;
   const cleanInput = String(plainPassword).trim();
 
-  // Si esta hasheado con scrypt
+  // 1. Verificacion estricta con scrypt si esta hasheado
   if (storedHash.startsWith('scrypt:')) {
     const parts = storedHash.split(':');
-    if (parts.length !== 3) return false;
-    const salt = parts[1];
-    const key = parts[2];
-    const keyBuffer = Buffer.from(key, 'hex');
-    const derivedKey = crypto.scryptSync(cleanInput, salt, 64);
-    if (keyBuffer.length !== derivedKey.length) return false;
-    return crypto.timingSafeEqual(keyBuffer, derivedKey);
+    if (parts.length === 3) {
+      const salt = parts[1];
+      const key = parts[2];
+      const keyBuffer = Buffer.from(key, 'hex');
+
+      // Probar variaciones comunes de teclado movil (punto automatico o espacios)
+      const inputVariations = [
+        cleanInput,
+        cleanInput.replace(/\.$/, ''),
+        cleanInput.replace(/\s+/g, '')
+      ];
+
+      for (const v of inputVariations) {
+        try {
+          const derivedKey = crypto.scryptSync(v, salt, 64);
+          if (keyBuffer.length === derivedKey.length && crypto.timingSafeEqual(keyBuffer, derivedKey)) {
+            return true;
+          }
+        } catch (e) {}
+      }
+    }
+    // Si ya esta hasheado y no coincidio, rechazar de inmediato para no sobrescribir claves elegidas
+    return false;
   }
 
-  // Compatibilidad con contraseñas legadas en texto plano y tolerancia de teclado movil
+  // 2. Solo para cuentas iniciales legadas sin hash scrypt: verificar texto plano
   const cleanStored = String(storedHash).trim();
   const variations = [
     cleanInput,
     cleanInput.replace(/\.$/, ''),
-    cleanInput.toLowerCase(),
-    cleanInput.toLowerCase().replace(/\.$/, ''),
-    cleanInput.replace(/^@/, ''),
-    cleanInput.toLowerCase().replace(/^@/, '').replace(/\.$/, '')
+    cleanInput.replace(/^@/, '')
   ];
 
-  const storedVariations = [
-    cleanStored,
-    cleanStored.replace(/\.$/, ''),
-    cleanStored.toLowerCase(),
-    cleanStored.toLowerCase().replace(/\.$/, ''),
-    cleanStored.replace(/^@/, ''),
-    cleanStored.toLowerCase().replace(/^@/, '').replace(/\.$/, '')
-  ];
-
-  for (const sv of storedVariations) {
-    for (const iv of variations) {
-      if (sv === iv) return true;
-    }
-  }
-
-  return false;
+  return variations.includes(cleanStored);
 }
 
 function generateUuid() {
@@ -346,7 +321,7 @@ function generateSessionToken(user) {
     username: user.username,
     role: user.role,
     barberId: user.barberId,
-    exp: Math.floor(Date.now() / 1000) + (365 * 24 * 60 * 60) // 365 dias de validez para persistencia de boveda
+    exp: Math.floor(Date.now() / 1000) + (30 * 24 * 60 * 60) // 30 dias de validez
   })).toString('base64url');
 
   const signature = crypto
@@ -415,8 +390,11 @@ function getClientIp(req) {
   return req.socket.remoteAddress || '127.0.0.1';
 }
 
-function checkRateLimit(req, res, maxRequests = 120, windowMs = 60000) {
+function checkRateLimit(req, res, maxRequests = 240, windowMs = 60000) {
   const ip = getClientIp(req);
+  if (ip === '127.0.0.1' || ip === '::1' || ip === '::ffff:127.0.0.1' || process.env.NODE_ENV === 'test') {
+    return true;
+  }
   const now = Date.now();
   let record = ipRequests.get(ip);
   if (!record || now > record.resetTime) {
@@ -437,14 +415,17 @@ function checkRateLimit(req, res, maxRequests = 120, windowMs = 60000) {
 
 function checkAuthRateLimit(req, res) {
   const ip = getClientIp(req);
+  if (ip === '127.0.0.1' || ip === '::1' || ip === '::ffff:127.0.0.1' || process.env.NODE_ENV === 'test') {
+    return true;
+  }
   const now = Date.now();
-  const maxAttempts = 50;
+  const maxFailedAttempts = 20;
   const record = ipAuthAttempts.get(ip);
-  if (record && now <= record.resetTime && record.count >= maxAttempts) {
+  if (record && now <= record.resetTime && record.failedCount >= maxFailedAttempts) {
     res.statusCode = 429;
     res.setHeader('Content-Type', 'application/json; charset=utf-8');
     res.setHeader('Retry-After', Math.ceil((record.resetTime - now) / 1000));
-    res.end(JSON.stringify({ error: 'Demasiados intentos fallidos de autenticacion. Intenta de nuevo en unos minutos.' }));
+    res.end(JSON.stringify({ error: 'Demasiados intentos fallidos de autenticacion. Bloqueado temporalmente.' }));
     return false;
   }
   return true;
@@ -453,14 +434,19 @@ function checkAuthRateLimit(req, res) {
 function recordFailedAuthAttempt(req) {
   const ip = getClientIp(req);
   const now = Date.now();
-  const windowMs = 5 * 60 * 1000; // 5 minutos
+  const windowMs = 15 * 60 * 1000;
   let record = ipAuthAttempts.get(ip);
   if (!record || now > record.resetTime) {
-    record = { count: 1, resetTime: now + windowMs };
+    record = { failedCount: 1, resetTime: now + windowMs };
   } else {
-    record.count++;
+    record.failedCount++;
   }
   ipAuthAttempts.set(ip, record);
+}
+
+function clearAuthAttempts(req) {
+  const ip = getClientIp(req);
+  ipAuthAttempts.delete(ip);
 }
 
 // ============================================================================
@@ -501,6 +487,7 @@ function readJsonBody(req, maxSize = 65536) {
 // ============================================================================
 
 let appointmentLock = Promise.resolve();
+let storeOrderLock = Promise.resolve();
 
 function timeToMinutes(timeStr) {
   if (!timeStr) return 0;
@@ -518,7 +505,7 @@ function isTimeOverlapping(startA, endA, startB, endB) {
 
 function validateAndSaveAppointment(newAppt) {
   return new Promise((resolve, reject) => {
-    appointmentLock = appointmentLock.then(() => {
+    appointmentLock = appointmentLock.catch(() => {}).then(() => {
       try {
         if (!newAppt.barberId || !newAppt.date || !newAppt.startTime || !newAppt.endTime) {
           throw new Error('Parametros de cita incompletos: barbero, fecha y horarios son obligatorios.');
@@ -756,7 +743,7 @@ function generateIcsForClient(clientPhone) {
   const nowUtc = new Date().toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
 
   const events = clientAppts.map((appt) => {
-    const b = barbersMap.get(appt.barberId) || { name: 'Barbero' };
+    const b = barbersMap.get(appt.barberId) || { name: 'Barbería Lopez' };
     const s = servicesMap.get(appt.serviceId) || { name: 'Corte Tradicional', priceCop: 0, durationMinutes: 30 };
 
     const dtStartUtc = localToUtcIso(appt.date, appt.startTime || '10:00');
@@ -821,6 +808,7 @@ function applySecurityHeaders(res) {
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "font-src 'self' data: https://fonts.gstatic.com",
     "img-src 'self' data: blob: https://images.unsplash.com https:",
+    "media-src 'self' blob: data:",
     "connect-src 'self' https://fonts.googleapis.com https://fonts.gstatic.com",
     "frame-ancestors 'self'"
   ].join('; '));
@@ -833,8 +821,8 @@ function applySecurityHeaders(res) {
 const ALLOWED_EXACT_ROOT_FILES = new Set([
   path.resolve(ROOT_DIR, 'index.html'),
   path.resolve(ROOT_DIR, 'logo_barberia_lopez_hd.jpg'),
-  path.resolve(ROOT_DIR, 'dossier_barberia_lopez.html'),
-  path.resolve(ROOT_DIR, 'Dossier_Plataforma_Barberia_Lopez.pdf'),
+  path.resolve(ROOT_DIR, 'docs', 'dossier', 'dossier_barberia_lopez.html'),
+  path.resolve(ROOT_DIR, 'docs', 'dossier', 'Dossier_Plataforma_Barberia_Lopez.pdf'),
   path.resolve(ROOT_DIR, 'favicon.ico')
 ]);
 
@@ -864,11 +852,16 @@ const MIME_TYPES = {
   '.jpg': 'image/jpeg',
   '.jpeg': 'image/jpeg',
   '.png': 'image/png',
+  '.webp': 'image/webp',
   '.gif': 'image/gif',
   '.svg': 'image/svg+xml',
   '.ico': 'image/x-icon',
   '.ics': 'text/calendar; charset=utf-8',
-  '.pdf': 'application/pdf'
+  '.pdf': 'application/pdf',
+  '.mp4': 'video/mp4',
+  '.webm': 'video/webm',
+  '.mov': 'video/quicktime',
+  '.ogg': 'video/ogg'
 };
 
 // ============================================================================
@@ -911,83 +904,6 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  if (reqUrl === '/api/health') {
-    res.statusCode = 200;
-    res.setHeader('Content-Type', 'application/json; charset=utf-8');
-    res.end(JSON.stringify({ status: 'ok', ts: Date.now() }));
-    return;
-  }
-
-  if (reqUrl.startsWith('/api/')) {
-    await cloudVaultReadyPromise;
-  }
-
-  function applyVaultEntries(vault) {
-    if (!Array.isArray(vault) || vault.length === 0) return;
-    const users = readJsonFile(USERS_FILE, DEFAULT_USERS);
-    const barbers = readJsonFile(BARBERS_FILE, DEFAULT_BARBERS);
-    let usersModified = false;
-    let barbersModified = false;
-
-    for (const item of vault) {
-      if (!item || !item.username || !item.password) continue;
-      const cleanU = String(item.username).replace(/^@/, '').toLowerCase().trim();
-      if (cleanU === 'admin') continue;
-
-      if (item.barber && item.barber.id) {
-        const bIdx = barbers.findIndex((b) => b.id === item.barber.id || b.name.toLowerCase() === String(item.barber.name || '').toLowerCase());
-        if (bIdx === -1) {
-          barbers.push(item.barber);
-          barbersModified = true;
-        }
-      }
-
-      const uIdx = users.findIndex((u) =>
-        (u.username || '').replace(/^@/, '').toLowerCase().trim() === cleanU ||
-        (item.user && u.id === item.user.id)
-      );
-      const rawPwd = String(item.password).trim();
-      const newHash = rawPwd.startsWith('scrypt:') ? rawPwd : hashPasswordScrypt(rawPwd);
-
-      if (uIdx !== -1) {
-        if (!verifyPasswordSecure(rawPwd, users[uIdx].passwordHash)) {
-          users[uIdx].passwordHash = newHash;
-          usersModified = true;
-        }
-      } else if (item.user) {
-        users.push({
-          id: item.user.id || generateUuid(),
-          username: cleanU,
-          passwordHash: newHash,
-          role: item.user.role === 'ADMIN' ? 'BARBERO' : (item.user.role || 'BARBERO'),
-          barberId: item.user.barberId || (item.barber ? item.barber.id : null),
-          active: item.user.active !== false,
-          createdAt: new Date().toISOString()
-        });
-        usersModified = true;
-      }
-    }
-
-    if (barbersModified) writeJsonFileAtomic(BARBERS_FILE, barbers);
-    if (usersModified) writeJsonFileAtomic(USERS_FILE, users);
-  }
-
-  if (reqUrl === '/api/auth/vault-sync' && req.method === 'POST') {
-    try {
-      const { vault } = await readJsonBody(req);
-      applyVaultEntries(vault);
-      res.statusCode = 200;
-      res.setHeader('Content-Type', 'application/json; charset=utf-8');
-      res.end(JSON.stringify({ success: true }));
-      return;
-    } catch (err) {
-      res.statusCode = 400;
-      res.setHeader('Content-Type', 'application/json; charset=utf-8');
-      res.end(JSON.stringify({ error: err.message }));
-      return;
-    }
-  }
-
   // --------------------------------------------------------------------------
   // ENDPOINT DE AUTENTICACION CENTRALIZADA: POST /api/auth/login
   // --------------------------------------------------------------------------
@@ -995,7 +911,7 @@ const server = http.createServer(async (req, res) => {
     if (!checkAuthRateLimit(req, res)) return;
 
     try {
-      const { username, password, vault } = await readJsonBody(req);
+      const { username, password } = await readJsonBody(req);
       if (!username || !password) {
         res.statusCode = 400;
         res.setHeader('Content-Type', 'application/json; charset=utf-8');
@@ -1003,29 +919,12 @@ const server = http.createServer(async (req, res) => {
         return;
       }
 
-      if (Array.isArray(vault) && vault.length > 0) {
-        applyVaultEntries(vault);
-      }
-
       const users = readJsonFile(USERS_FILE, DEFAULT_USERS);
-      const barbers = readJsonFile(BARBERS_FILE, DEFAULT_BARBERS);
       const cleanUser = String(username).replace(/^@/, '').toLowerCase().trim();
-      const cleanPrefix = cleanUser.replace(/\.barber$/, '');
-
-      let targetUser = users.find((u) => {
+      const targetUser = users.find((u) => {
         const uClean = (u.username || '').replace(/^@/, '').toLowerCase().trim();
-        return uClean === cleanUser || uClean.replace(/\.barber$/, '') === cleanPrefix;
+        return uClean === cleanUser;
       });
-
-      if (!targetUser) {
-        const matchedBarber = barbers.find((b) => {
-          const bName = (b.name || '').toLowerCase().trim();
-          return bName === cleanPrefix || bName.split(' ').includes(cleanPrefix);
-        });
-        if (matchedBarber) {
-          targetUser = users.find((u) => u.barberId === matchedBarber.id || u.id === matchedBarber.userId);
-        }
-      }
 
       if (!targetUser || !targetUser.active) {
         recordFailedAuthAttempt(req);
@@ -1035,23 +934,7 @@ const server = http.createServer(async (req, res) => {
         return;
       }
 
-      const cleanPwd = String(password).trim();
-      let isValid = verifyPasswordSecure(cleanPwd, targetUser.passwordHash) ||
-                    verifyPasswordSecure(String(password), targetUser.passwordHash);
-
-      if (!isValid) {
-        const uClean = (targetUser.username || '').replace(/^@/, '').toLowerCase().trim();
-        if (uClean === 'lopez.barber' || uClean === 'david.barber') {
-          if (verifyPasswordSecure(cleanPwd, 'lopez2026') || verifyPasswordSecure(cleanPwd, 'david2026')) {
-            isValid = true;
-          }
-        } else if (uClean === 'matta.barber') {
-          if (verifyPasswordSecure(cleanPwd, 'matta2026') || verifyPasswordSecure(cleanPwd, 'maicol2026')) {
-            isValid = true;
-          }
-        }
-      }
-
+      const isValid = verifyPasswordSecure(password, targetUser.passwordHash, targetUser.username);
       if (!isValid) {
         recordFailedAuthAttempt(req);
         res.statusCode = 401;
@@ -1060,16 +943,16 @@ const server = http.createServer(async (req, res) => {
         return;
       }
 
-      // Login exitoso: limpiar contador de intentos fallidos para esta IP
-      ipAuthAttempts.delete(getClientIp(req));
+      clearAuthAttempts(req);
 
-      // Migracion automatica transparente a scrypt seguro si aun esta en texto plano
+      // Si el usuario aun no tenia hash scrypt seguro, migrar en este primer login
       if (!targetUser.passwordHash.startsWith('scrypt:')) {
-        targetUser.passwordHash = hashPasswordScrypt(cleanPwd);
+        targetUser.passwordHash = hashPasswordScrypt(password);
         writeJsonFileAtomic(USERS_FILE, users);
       }
 
       const token = generateSessionToken(targetUser);
+      const barbers = readJsonFile(BARBERS_FILE, DEFAULT_BARBERS);
       const barber = targetUser.barberId ? barbers.find((b) => b.id === targetUser.barberId) || null : null;
 
       // Devolver objeto de usuario sin exponer el passwordHash
@@ -1091,6 +974,42 @@ const server = http.createServer(async (req, res) => {
       res.end(JSON.stringify({ error: err.message }));
       return;
     }
+  }
+
+  // --------------------------------------------------------------------------
+  // API DE VERIFICACION DE SESION: GET /api/auth/me
+  // --------------------------------------------------------------------------
+  if (reqUrl === '/api/auth/me' && req.method === 'GET') {
+    const authUser = getAuthenticatedUser(req);
+    if (!authUser) {
+      res.statusCode = 401;
+      res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      res.end(JSON.stringify({ error: 'Sesion no valida o expirada.' }));
+      return;
+    }
+    const users = readJsonFile(USERS_FILE, DEFAULT_USERS);
+    const user = users.find((u) => u.id === authUser.sub || u.username === authUser.username);
+    if (!user || !user.active) {
+      res.statusCode = 401;
+      res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      res.end(JSON.stringify({ error: 'Usuario no encontrado o inactivo.' }));
+      return;
+    }
+    const barbers = readJsonFile(BARBERS_FILE, DEFAULT_BARBERS);
+    const barber = user.barberId ? barbers.find((b) => b.id === user.barberId) || null : null;
+    res.statusCode = 200;
+    res.setHeader('Content-Type', 'application/json; charset=utf-8');
+    res.end(JSON.stringify({
+      user: {
+        id: user.id,
+        username: user.username,
+        role: user.role,
+        barberId: user.barberId,
+        active: user.active
+      },
+      barber
+    }));
+    return;
   }
 
   // --------------------------------------------------------------------------
@@ -1366,11 +1285,12 @@ const server = http.createServer(async (req, res) => {
         name: String(barberData.name || 'Barbero').trim(),
         specialty: String(barberData.specialty || 'Barbero Profesional').trim(),
         phone: String(barberData.phone || '+57 321 989 7910').trim(),
-        avatar: barberData.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=600&q=80',
-        active: barberData.active !== false
+        avatar: String(barberData.avatar || '').trim(),
+        active: barberData.active !== false,
+        onShift: barberData.onShift !== false
       };
 
-      const passwordHash = hashPasswordScrypt(String(userData.password).trim());
+      const passwordHash = hashPasswordScrypt(userData.password);
       const targetRole = (authUser.role === 'JEFE' && userData.role === 'ADMIN') ? 'BARBERO' : (userData.role || 'BARBERO');
       const newUser = {
         id: userId,
@@ -1387,9 +1307,6 @@ const server = http.createServer(async (req, res) => {
 
       writeJsonFileAtomic(BARBERS_FILE, barbers);
       writeJsonFileAtomic(USERS_FILE, users);
-
-      // Desbloquear cualquier limite de intentos de autenticacion al crear barbero
-      ipAuthAttempts.clear();
 
       res.statusCode = 201;
       res.setHeader('Content-Type', 'application/json; charset=utf-8');
@@ -1459,20 +1376,35 @@ const server = http.createServer(async (req, res) => {
 
   if (reqUrl.startsWith('/api/barbers/') && req.method === 'PUT') {
     const authUser = getAuthenticatedUser(req);
-    if (!authUser || (authUser.role !== 'ADMIN' && authUser.role !== 'JEFE')) {
+    const barberId = reqUrl.substring('/api/barbers/'.length);
+    const isAdminOrJefe = authUser && (authUser.role === 'ADMIN' || authUser.role === 'JEFE');
+    const isOwnStation = authUser && authUser.barberId === barberId;
+
+    if (!isAdminOrJefe && !isOwnStation) {
       res.statusCode = 403;
       res.setHeader('Content-Type', 'application/json; charset=utf-8');
-      res.end(JSON.stringify({ error: 'Acceso denegado: se requieren permisos administrativos.' }));
+      res.end(JSON.stringify({ error: 'Acceso denegado: se requieren permisos administrativos o ser titular de la estacion.' }));
       return;
     }
 
-    const barberId = reqUrl.substring('/api/barbers/'.length);
     try {
       const updateData = await readJsonBody(req);
       const barbers = readJsonFile(BARBERS_FILE, DEFAULT_BARBERS);
       const idx = barbers.findIndex((b) => b.id === barberId);
       if (idx !== -1) {
-        barbers[idx] = { ...barbers[idx], ...updateData };
+        if (isAdminOrJefe) {
+          barbers[idx] = { ...barbers[idx], ...updateData };
+        } else {
+          // El barbero titular solo puede alternar su estado En Turno / Fuera de Turno
+          const allowedChanges = {};
+          if (updateData.onShift !== undefined) {
+            allowedChanges.onShift = Boolean(updateData.onShift);
+          }
+          if (updateData.active !== undefined) {
+            allowedChanges.active = Boolean(updateData.active);
+          }
+          barbers[idx] = { ...barbers[idx], ...allowedChanges };
+        }
         writeJsonFileAtomic(BARBERS_FILE, barbers);
         res.statusCode = 200;
         res.setHeader('Content-Type', 'application/json; charset=utf-8');
@@ -1500,14 +1432,23 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
-    const barberId = decodeURIComponent(reqUrl.substring('/api/barbers/'.length));
+    const barberId = reqUrl.substring('/api/barbers/'.length);
     const barbers = readJsonFile(BARBERS_FILE, DEFAULT_BARBERS);
+    const targetBarber = barbers.find((b) => b.id === barberId);
     const filtered = barbers.filter((b) => b.id !== barberId);
     writeJsonFileAtomic(BARBERS_FILE, filtered);
 
+    // Cascada bidireccional: Eliminar la cuenta de usuario asociada en USERS_FILE (siempre preservando al Administrador principal)
     const users = readJsonFile(USERS_FILE, DEFAULT_USERS);
-    const filteredUsers = users.filter((u) => u.role === 'ADMIN' || u.barberId !== barberId);
-    writeJsonFileAtomic(USERS_FILE, filteredUsers);
+    const filteredUsers = users.filter((u) => {
+      if (u.role === 'ADMIN') return true;
+      if (barberId && u.barberId === barberId) return false;
+      if (targetBarber && targetBarber.userId && u.id === targetBarber.userId) return false;
+      return true;
+    });
+    if (filteredUsers.length !== users.length) {
+      writeJsonFileAtomic(USERS_FILE, filteredUsers);
+    }
 
     res.statusCode = 200;
     res.setHeader('Content-Type', 'application/json; charset=utf-8');
@@ -1560,29 +1501,18 @@ const server = http.createServer(async (req, res) => {
           return;
         }
 
-        const rawPassword = String(newUser.passwordHash || newUser.password || 'Lopez2026*').trim();
-        newUser.passwordHash = rawPassword.startsWith('scrypt:') ? rawPassword : hashPasswordScrypt(rawPassword);
+        const rawPassword = newUser.passwordHash || newUser.password || 'Lopez2026*';
+        newUser.passwordHash = hashPasswordScrypt(rawPassword);
         delete newUser.password;
 
-        const cleanUsername = String(newUser.username).replace(/^@/, '').toLowerCase().trim();
-        newUser.username = cleanUsername;
-        if (!newUser.id) {
-          newUser.id = generateUuid();
-        }
-
         const users = readJsonFile(USERS_FILE, DEFAULT_USERS);
-        const existingIdx = users.findIndex((u) =>
-          u.id === newUser.id ||
-          (u.username || '').replace(/^@/, '').toLowerCase().trim() === cleanUsername
-        );
+        const existingIdx = users.findIndex((u) => u.id === newUser.id);
         if (existingIdx !== -1) {
           users[existingIdx] = { ...users[existingIdx], ...newUser };
         } else {
           users.push(newUser);
         }
         writeJsonFileAtomic(USERS_FILE, users);
-
-        ipAuthAttempts.clear();
 
         const safeResponse = {
           id: newUser.id,
@@ -1607,10 +1537,12 @@ const server = http.createServer(async (req, res) => {
 
   if (reqUrl.startsWith('/api/users/') && req.method === 'PUT') {
     const authUser = getAuthenticatedUser(req);
-    const userId = decodeURIComponent(reqUrl.substring('/api/users/'.length));
+    const rawUserId = reqUrl.substring('/api/users/'.length);
+    const userId = decodeURIComponent(rawUserId).trim();
+    const cleanId = userId.replace(/^@/, '').toLowerCase().trim();
 
     // Solo admin, jefe o el propio usuario modificandose
-    if (!authUser || (authUser.role !== 'ADMIN' && authUser.role !== 'JEFE' && authUser.sub !== userId)) {
+    if (!authUser || (authUser.role !== 'ADMIN' && authUser.role !== 'JEFE' && authUser.sub !== userId && authUser.username !== cleanId)) {
       res.statusCode = 403;
       res.setHeader('Content-Type', 'application/json; charset=utf-8');
       res.end(JSON.stringify({ error: 'Acceso denegado.' }));
@@ -1620,56 +1552,33 @@ const server = http.createServer(async (req, res) => {
     try {
       const updateData = await readJsonBody(req);
       const users = readJsonFile(USERS_FILE, DEFAULT_USERS);
-      const cleanIdOrUser = String(userId).replace(/^@/, '').toLowerCase().trim();
-      const cleanBodyUser = updateData.username ? String(updateData.username).replace(/^@/, '').toLowerCase().trim() : '';
-
-      let idx = users.findIndex((u) =>
-        u.id === userId ||
-        (u.username || '').replace(/^@/, '').toLowerCase().trim() === cleanIdOrUser ||
-        (cleanBodyUser && (u.username || '').replace(/^@/, '').toLowerCase().trim() === cleanBodyUser)
+      const idx = users.findIndex((u) => 
+        u.id === userId || 
+        (u.username && (u.username === userId || u.username.replace(/^@/, '').toLowerCase().trim() === cleanId))
       );
-
-      // Si el usuario se desincronizo tras un reinicio de servidor pero un ADMIN o JEFE lo esta actualizando, reconstruirlo
-      if (idx === -1 && (authUser.role === 'ADMIN' || authUser.role === 'JEFE') && (updateData.password || updateData.passwordHash)) {
-        const rawPwd = String(updateData.password || updateData.passwordHash).trim();
-        const recoveredUser = {
-          id: userId,
-          username: cleanBodyUser || cleanIdOrUser,
-          passwordHash: rawPwd.startsWith('scrypt:') ? rawPwd : hashPasswordScrypt(rawPwd),
-          role: updateData.role || 'BARBERO',
-          barberId: updateData.barberId || null,
-          active: updateData.active !== false,
-          createdAt: new Date().toISOString()
-        };
-        users.push(recoveredUser);
-        idx = users.length - 1;
-      }
-
       if (idx !== -1) {
-        if (authUser.role !== 'ADMIN') {
-          if (users[idx].role === 'ADMIN') {
-            res.statusCode = 403;
-            res.setHeader('Content-Type', 'application/json; charset=utf-8');
-            res.end(JSON.stringify({ error: 'No tiene permisos para modificar al Administrador.' }));
-            return;
-          }
-          delete updateData.role;
+        if (users[idx].role === 'ADMIN' && authUser.role !== 'ADMIN') {
+          res.statusCode = 403;
+          res.setHeader('Content-Type', 'application/json; charset=utf-8');
+          res.end(JSON.stringify({ error: 'Acceso denegado: solo el Administrador principal puede modificar su propia cuenta.' }));
+          return;
         }
 
-        if (updateData.passwordHash && !updateData.passwordHash.startsWith('scrypt:')) {
-          updateData.passwordHash = hashPasswordScrypt(String(updateData.passwordHash).trim());
+        if (updateData.passwordHash) {
+          updateData.passwordHash = hashPasswordScrypt(updateData.passwordHash);
         }
         if (updateData.password) {
-          const cleanPwd = String(updateData.password).trim();
-          updateData.passwordHash = cleanPwd.startsWith('scrypt:') ? cleanPwd : hashPasswordScrypt(cleanPwd);
+          updateData.passwordHash = hashPasswordScrypt(updateData.password);
           delete updateData.password;
         }
 
+        if (authUser.role !== 'ADMIN') {
+          delete updateData.role;
+        }
+        delete updateData.id;
+
         users[idx] = { ...users[idx], ...updateData };
         writeJsonFileAtomic(USERS_FILE, users);
-
-        // Desbloquear posibles limites de intentos tras cambio de contrasena
-        ipAuthAttempts.clear();
 
         const safeUser = {
           id: users[idx].id,
@@ -1705,35 +1614,46 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
-    const userId = decodeURIComponent(reqUrl.substring('/api/users/'.length));
-    const cleanIdOrUser = String(userId).replace(/^@/, '').toLowerCase().trim();
+    const rawUserId = reqUrl.substring('/api/users/'.length);
+    const userId = decodeURIComponent(rawUserId).trim();
+    const cleanId = userId.replace(/^@/, '').toLowerCase().trim();
+
     const users = readJsonFile(USERS_FILE, DEFAULT_USERS);
-    const target = users.find((u) =>
-      u.id === userId ||
-      (u.username || '').replace(/^@/, '').toLowerCase().trim() === cleanIdOrUser
+    const targetIdx = users.findIndex((u) => 
+      u.id === userId || 
+      (u.username && (u.username === userId || u.username.replace(/^@/, '').toLowerCase().trim() === cleanId))
     );
-    if (target && target.role === 'ADMIN') {
+
+    if (targetIdx !== -1 && users[targetIdx].role === 'ADMIN') {
       res.statusCode = 400;
       res.setHeader('Content-Type', 'application/json; charset=utf-8');
       res.end(JSON.stringify({ error: 'No se permite eliminar al usuario Administrador.' }));
       return;
     }
 
-    const filtered = users.filter((u) =>
-      u.id !== userId &&
-      (u.username || '').replace(/^@/, '').toLowerCase().trim() !== cleanIdOrUser
-    );
+    if (targetIdx === -1) {
+      res.statusCode = 404;
+      res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      res.end(JSON.stringify({ error: 'Usuario no encontrado' }));
+      return;
+    }
+
+    const targetUser = users[targetIdx];
+    const filtered = users.filter((u, i) => i !== targetIdx);
     writeJsonFileAtomic(USERS_FILE, filtered);
 
-    if (target && target.barberId) {
+    // Cascada bidireccional: Eliminar barbero en BARBERS_FILE si corresponde
+    if (targetUser.barberId || targetUser.id) {
       const barbers = readJsonFile(BARBERS_FILE, DEFAULT_BARBERS);
-      const filteredBarbers = barbers.filter((b) => b.id !== target.barberId);
-      writeJsonFileAtomic(BARBERS_FILE, filteredBarbers);
+      const filteredBarbers = barbers.filter((b) => b.id !== targetUser.barberId && b.userId !== targetUser.id);
+      if (filteredBarbers.length !== barbers.length) {
+        writeJsonFileAtomic(BARBERS_FILE, filteredBarbers);
+      }
     }
 
     res.statusCode = 200;
     res.setHeader('Content-Type', 'application/json; charset=utf-8');
-    res.end(JSON.stringify({ success: true }));
+    res.end(JSON.stringify({ success: true, username: targetUser.username }));
     return;
   }
 
@@ -1840,11 +1760,597 @@ const server = http.createServer(async (req, res) => {
   }
 
   // --------------------------------------------------------------------------
+  // API DE TIENDA E INVENTARIO DE PRODUCTOS (/api/products y /api/store/orders)
+  // --------------------------------------------------------------------------
+  if (reqUrl === '/api/products') {
+    if (req.method === 'GET') {
+      const products = readJsonFile(PRODUCTS_FILE, DEFAULT_PRODUCTS);
+      res.statusCode = 200;
+      res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      res.end(JSON.stringify(products));
+      return;
+    }
+
+    if (req.method === 'POST') {
+      const authUser = getAuthenticatedUser(req);
+      if (!authUser || (authUser.role !== 'ADMIN' && authUser.role !== 'JEFE')) {
+        res.statusCode = 403;
+        res.setHeader('Content-Type', 'application/json; charset=utf-8');
+        res.end(JSON.stringify({ error: 'Acceso denegado: solo el Barbero Jefe o Administrador pueden agregar nuevos productos al catálogo.' }));
+        return;
+      }
+
+      try {
+        const body = await readJsonBody(req);
+        const name = String(body.name || '').trim();
+        const category = String(body.category || 'Cuidado Personal').trim();
+        const description = String(body.description || '').trim();
+        const priceCop = Math.max(0, Number(body.priceCop) || 0);
+        const stock = Math.max(0, Math.floor(Number(body.stock) || 0));
+        const imageUrl = String(body.imageUrl || 'https://images.unsplash.com/photo-1621607512214-68297480165e?w=600&auto=format&fit=crop&q=80').trim();
+
+        if (!name || priceCop <= 0) {
+          res.statusCode = 400;
+          res.setHeader('Content-Type', 'application/json; charset=utf-8');
+          res.end(JSON.stringify({ error: 'Nombre del producto y precio mayor a cero son obligatorios.' }));
+          return;
+        }
+
+        const products = readJsonFile(PRODUCTS_FILE, DEFAULT_PRODUCTS);
+        const newProduct = {
+          id: body.id || `prod-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+          name,
+          category,
+          description: description || 'Producto oficial de cuidado masculino Barberia Lopez.',
+          priceCop,
+          stock,
+          imageUrl,
+          active: true,
+          createdAt: new Date().toISOString()
+        };
+
+        products.push(newProduct);
+        writeJsonFileAtomic(PRODUCTS_FILE, products);
+
+        res.statusCode = 200;
+        res.setHeader('Content-Type', 'application/json; charset=utf-8');
+        res.end(JSON.stringify({ success: true, product: newProduct, products }));
+        return;
+      } catch (err) {
+        res.statusCode = 400;
+        res.setHeader('Content-Type', 'application/json; charset=utf-8');
+        res.end(JSON.stringify({ error: err.message }));
+        return;
+      }
+    }
+  }
+
+  if (reqUrl.startsWith('/api/products/') && req.method === 'PUT') {
+    const authUser = getAuthenticatedUser(req);
+    if (!authUser || (authUser.role !== 'ADMIN' && authUser.role !== 'JEFE')) {
+      res.statusCode = 403;
+      res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      res.end(JSON.stringify({ error: 'Acceso denegado: solo el Barbero Jefe o Administrador puede editar el inventario.' }));
+      return;
+    }
+
+    try {
+      const productId = decodeURIComponent(reqUrl.substring('/api/products/'.length));
+      const updates = await readJsonBody(req);
+      const products = readJsonFile(PRODUCTS_FILE, DEFAULT_PRODUCTS);
+      const idx = products.findIndex((p) => p.id === productId);
+
+      if (idx === -1) {
+        res.statusCode = 404;
+        res.setHeader('Content-Type', 'application/json; charset=utf-8');
+        res.end(JSON.stringify({ error: 'Producto no encontrado.' }));
+        return;
+      }
+
+      if (updates.name !== undefined) products[idx].name = String(updates.name).trim();
+      if (updates.category !== undefined) products[idx].category = String(updates.category).trim();
+      if (updates.description !== undefined) products[idx].description = String(updates.description).trim();
+      if (updates.priceCop !== undefined) products[idx].priceCop = Math.max(0, Number(updates.priceCop) || 0);
+      if (updates.stock !== undefined) products[idx].stock = Math.max(0, Math.floor(Number(updates.stock) || 0));
+      if (updates.imageUrl !== undefined && String(updates.imageUrl).trim()) {
+        products[idx].imageUrl = String(updates.imageUrl).trim();
+      }
+      if (updates.active !== undefined) products[idx].active = Boolean(updates.active);
+
+      writeJsonFileAtomic(PRODUCTS_FILE, products);
+      res.statusCode = 200;
+      res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      res.end(JSON.stringify({ success: true, product: products[idx], products }));
+      return;
+    } catch (err) {
+      res.statusCode = 400;
+      res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      res.end(JSON.stringify({ error: err.message }));
+      return;
+    }
+  }
+
+  if (reqUrl.startsWith('/api/products/') && reqUrl.endsWith('/image') && req.method === 'POST') {
+    const authUser = getAuthenticatedUser(req);
+    if (!authUser || (authUser.role !== 'ADMIN' && authUser.role !== 'JEFE')) {
+      res.statusCode = 403;
+      res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      res.end(JSON.stringify({ error: 'Acceso denegado: solo el Barbero Jefe o Administrador puede actualizar fotos de productos.' }));
+      return;
+    }
+
+    const segments = reqUrl.split('/');
+    // Formato: /api/products/:id/image -> segments[3] es el id
+    const productId = decodeURIComponent(segments[3] || '');
+    const products = readJsonFile(PRODUCTS_FILE, DEFAULT_PRODUCTS);
+    const idx = products.findIndex((p) => p.id === productId);
+    if (idx === -1) {
+      res.statusCode = 404;
+      res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      res.end(JSON.stringify({ error: 'Producto no encontrado.' }));
+      return;
+    }
+
+    try {
+      const body = await readJsonBody(req, 2 * 1024 * 1024);
+      const dataUri = String(body.dataUri || body.imageBase64 || '').trim();
+      if (!dataUri.startsWith('data:image/')) {
+        res.statusCode = 400;
+        res.setHeader('Content-Type', 'application/json; charset=utf-8');
+        res.end(JSON.stringify({ error: 'Formato de imagen no valido. Debe ser una imagen WebP o JPEG.' }));
+        return;
+      }
+
+      const commaIdx = dataUri.indexOf(',');
+      if (commaIdx === -1) {
+        res.statusCode = 400;
+        res.setHeader('Content-Type', 'application/json; charset=utf-8');
+        res.end(JSON.stringify({ error: 'Cuerpo de imagen invalido.' }));
+        return;
+      }
+
+      const meta = dataUri.substring(0, commaIdx);
+      const rawBase64 = dataUri.substring(commaIdx + 1);
+      const ext = meta.includes('webp') ? 'webp' : meta.includes('png') ? 'png' : 'jpg';
+
+      const imgBuffer = Buffer.from(rawBase64, 'base64');
+      if (imgBuffer.length > 2 * 1024 * 1024) {
+        res.statusCode = 413;
+        res.setHeader('Content-Type', 'application/json; charset=utf-8');
+        res.end(JSON.stringify({ error: 'La imagen excede el limite maximo de 2 MB.' }));
+        return;
+      }
+
+      const safeName = `prod-${productId.replace(/[^a-zA-Z0-9_-]/g, '')}-${Date.now()}.${ext}`;
+      const filePath = path.join(PRODUCTS_IMG_DIR, safeName);
+      fs.writeFileSync(filePath, imgBuffer);
+
+      const relativeUrl = `./assets/products/${safeName}`;
+      products[idx].imageUrl = relativeUrl;
+      writeJsonFileAtomic(PRODUCTS_FILE, products);
+
+      res.statusCode = 200;
+      res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      res.end(JSON.stringify({ success: true, imageUrl: relativeUrl, product: products[idx] }));
+      return;
+    } catch (err) {
+      res.statusCode = 400;
+      res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      res.end(JSON.stringify({ error: err.message }));
+      return;
+    }
+  }
+
+  if (reqUrl.startsWith('/api/products/') && req.method === 'DELETE') {
+    const authUser = getAuthenticatedUser(req);
+    if (!authUser || (authUser.role !== 'ADMIN' && authUser.role !== 'JEFE')) {
+      res.statusCode = 403;
+      res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      res.end(JSON.stringify({ error: 'Acceso denegado: solo el Barbero Jefe o Administrador pueden eliminar productos del catálogo.' }));
+      return;
+    }
+
+    const productId = decodeURIComponent(reqUrl.substring('/api/products/'.length));
+    const products = readJsonFile(PRODUCTS_FILE, DEFAULT_PRODUCTS);
+    const filtered = products.filter((p) => p.id !== productId);
+    writeJsonFileAtomic(PRODUCTS_FILE, filtered);
+
+    res.statusCode = 200;
+    res.setHeader('Content-Type', 'application/json; charset=utf-8');
+    res.end(JSON.stringify({ success: true, products: filtered }));
+    return;
+  }
+
+  // Helper para verificar si el usuario/barbero autenticado se encuentra activo y EN TURNO
+  function getActiveBarberShiftContext(authUser) {
+    if (!authUser) return { onShift: false, user: null, barber: null, barberId: null, barberName: null };
+    const users = readJsonFile(USERS_FILE, DEFAULT_USERS);
+    const barbers = readJsonFile(BARBERS_FILE, DEFAULT_BARBERS);
+    const dbUser = users.find((u) => u.id === authUser.sub || u.username === authUser.username);
+    if (!dbUser || dbUser.active === false) {
+      return { onShift: false, user: dbUser || null, barber: null, barberId: null, barberName: null };
+    }
+    const barberId = dbUser.barberId || authUser.barberId || null;
+    const barber = barberId ? barbers.find((b) => b.id === barberId) : null;
+
+    // Si tiene estacion de barbero asociada y dicha estacion figura Fuera de Turno o inactiva, bloquear operaciones de caja/tienda
+    const isShiftActive = barber ? (barber.onShift !== false && barber.active !== false) : true;
+    if (barberId && (!barber || !isShiftActive)) {
+      return {
+        onShift: false,
+        user: dbUser,
+        barber: barber || null,
+        barberId,
+        barberName: barber ? barber.name : dbUser.username
+      };
+    }
+
+    return {
+      onShift: true,
+      user: dbUser,
+      barber: barber || null,
+      barberId: barber ? barber.id : null,
+      barberName: barber ? barber.name : (dbUser.role === 'ADMIN' ? 'Administracion General' : dbUser.username)
+    };
+  }
+
+  // Pedidos de Tienda con Referencia Unica Anti-Robo, Escenarios Cliente/Barbero y Pago Solo en Efectivo
+  if (reqUrl === '/api/store/orders') {
+    if (req.method === 'GET') {
+      const orders = readJsonFile(STORE_ORDERS_FILE, DEFAULT_STORE_ORDERS);
+      res.statusCode = 200;
+      res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      res.end(JSON.stringify(orders));
+      return;
+    }
+
+    if (req.method === 'POST') {
+      let body;
+      try {
+        body = await readJsonBody(req);
+      } catch (err) {
+        res.statusCode = 400;
+        res.setHeader('Content-Type', 'application/json; charset=utf-8');
+        res.end(JSON.stringify({ error: err.message }));
+        return;
+      }
+
+      await (storeOrderLock = storeOrderLock.catch(() => {}).then(async () => {
+        try {
+        const isDirectSale = Boolean(body.directSale);
+        const productId = String(body.productId || '').trim();
+        const quantity = Math.max(1, Math.floor(Number(body.quantity) || 1));
+
+        // Si es Venta Directa en Estacion (realizada por el barbero cuando el cliente pide en silla/mostrador)
+        let shiftCtx = null;
+        if (isDirectSale) {
+          const authUser = getAuthenticatedUser(req);
+          if (!authUser) {
+            res.statusCode = 401;
+            res.setHeader('Content-Type', 'application/json; charset=utf-8');
+            res.end(JSON.stringify({ error: 'Debes iniciar sesion para registrar una venta directa en mostrador.' }));
+            return;
+          }
+          shiftCtx = getActiveBarberShiftContext(authUser);
+          if (!shiftCtx.onShift) {
+            res.statusCode = 403;
+            res.setHeader('Content-Type', 'application/json; charset=utf-8');
+            res.end(JSON.stringify({ error: 'Accion bloqueada: Tu estacion figura FUERA DE TURNO. Activa tu turno para poder cobrar y registrar ventas de productos.' }));
+            return;
+          }
+        }
+
+        const clientName = String(body.clientName || (isDirectSale ? 'Cliente en Estacion' : '')).trim();
+        const clientPhone = String(body.clientPhone || (isDirectSale ? 'Venta Presencial' : '')).trim();
+
+        if (!productId || !clientName || !clientPhone) {
+          res.statusCode = 400;
+          res.setHeader('Content-Type', 'application/json; charset=utf-8');
+          res.end(JSON.stringify({ error: 'Debes indicar producto, tu nombre completo y tu numero de WhatsApp.' }));
+          return;
+        }
+
+        const products = readJsonFile(PRODUCTS_FILE, DEFAULT_PRODUCTS);
+        const prodIdx = products.findIndex((p) => p.id === productId);
+        if (prodIdx === -1) {
+          res.statusCode = 404;
+          res.setHeader('Content-Type', 'application/json; charset=utf-8');
+          res.end(JSON.stringify({ error: 'El producto seleccionado no existe.' }));
+          return;
+        }
+
+        const product = products[prodIdx];
+        if (product.stock < quantity) {
+          res.statusCode = 409;
+          res.setHeader('Content-Type', 'application/json; charset=utf-8');
+          res.end(JSON.stringify({
+            error: product.stock === 0
+              ? 'Lo sentimos, este producto se encuentra agotado en este momento.'
+              : `Solo quedan ${product.stock} unidades disponibles de ${product.name}.`
+          }));
+          return;
+        }
+
+        const barbers = readJsonFile(BARBERS_FILE, DEFAULT_BARBERS);
+        const deliveryMode = isDirectSale
+          ? 'VENTA_DIRECTA'
+          : (body.deliveryMode === 'EN_BARBERIA' ? 'EN_BARBERIA' : 'APARTADO_RECOGIDA');
+
+        let preferredBarberId = body.preferredBarberId && body.preferredBarberId !== 'ANY'
+          ? String(body.preferredBarberId).trim()
+          : null;
+        let preferredBarberName = 'Cualquier barbero en turno';
+
+        if (preferredBarberId) {
+          const targetBarber = barbers.find((b) => b.id === preferredBarberId);
+          const isTargetOnShift = targetBarber && targetBarber.active !== false && targetBarber.onShift !== false;
+          if (!targetBarber || !isTargetOnShift) {
+            if (deliveryMode === 'EN_BARBERIA') {
+              res.statusCode = 409;
+              res.setHeader('Content-Type', 'application/json; charset=utf-8');
+              res.end(JSON.stringify({
+                error: 'El barbero seleccionado no se encuentra de turno en este momento. Selecciona un barbero en turno o "Cualquier barbero en turno".'
+              }));
+              return;
+            }
+            preferredBarberId = null;
+          } else {
+            preferredBarberName = targetBarber.name;
+          }
+        }
+
+        const orders = readJsonFile(STORE_ORDERS_FILE, DEFAULT_STORE_ORDERS);
+
+        // Generar codigo de referencia unico e irrepetible formato REF-BL-XXXXXX (Base32 Crockford)
+        const chars = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
+        let referenceCode = '';
+        let exists = true;
+        while (exists) {
+          let suffix = '';
+          for (let i = 0; i < 6; i++) {
+            suffix += chars.charAt(crypto.randomInt(0, chars.length));
+          }
+          referenceCode = `REF-BL-${suffix}`;
+          exists = orders.some((o) => o.referenceCode === referenceCode);
+        }
+
+        // Descontar del stock inmediatamente para reservar o entregar el producto
+        products[prodIdx].stock -= quantity;
+        writeJsonFileAtomic(PRODUCTS_FILE, products);
+
+        // Fecha actual en zona horaria de Colombia (UTC-5)
+        const nowCol = new Date(Date.now() - (5 * 60 * 60 * 1000));
+        const dateStr = nowCol.toISOString().split('T')[0];
+
+        let deliveredByBarberId = null;
+        let deliveredByName = null;
+        if (isDirectSale && shiftCtx) {
+          const requestedBarberId = body.barberId ? String(body.barberId).trim() : shiftCtx.barberId;
+          const assignedBarber = requestedBarberId ? barbers.find((b) => b.id === requestedBarberId) : shiftCtx.barber;
+          const isAssignedOnShift = assignedBarber && assignedBarber.active !== false && assignedBarber.onShift !== false;
+          if (assignedBarber && !isAssignedOnShift) {
+            // Rollback stock si intentan asignar venta directa a un barbero fuera de turno
+            products[prodIdx].stock += quantity;
+            writeJsonFileAtomic(PRODUCTS_FILE, products);
+            res.statusCode = 403;
+            res.setHeader('Content-Type', 'application/json; charset=utf-8');
+            res.end(JSON.stringify({ error: `No se puede asignar la venta a ${assignedBarber.name} porque su estacion esta FUERA DE TURNO.` }));
+            return;
+          }
+          deliveredByBarberId = assignedBarber ? assignedBarber.id : shiftCtx.barberId;
+          deliveredByName = assignedBarber ? assignedBarber.name : shiftCtx.barberName;
+        }
+
+        const newOrder = {
+          id: `ord-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+          referenceCode,
+          productId: product.id,
+          productName: product.name,
+          productCategory: product.category,
+          unitPriceCop: product.priceCop,
+          quantity,
+          totalCop: product.priceCop * quantity,
+          clientName,
+          clientPhone,
+          deliveryMode, // EN_BARBERIA | APARTADO_RECOGIDA | VENTA_DIRECTA
+          preferredBarberId: isDirectSale ? deliveredByBarberId : preferredBarberId,
+          preferredBarberName: isDirectSale ? (deliveredByName || 'Venta en Mostrador') : preferredBarberName,
+          paymentMethod: 'EFECTIVO',
+          status: isDirectSale ? 'ENTREGADO' : 'PENDIENTE', // PENDIENTE | ENTREGADO | CANCELADO
+          date: dateStr,
+          createdAt: new Date().toISOString(),
+          deliveredAt: isDirectSale ? new Date().toISOString() : null,
+          deliveredDate: isDirectSale ? dateStr : null,
+          deliveredBy: isDirectSale && shiftCtx ? shiftCtx.user.username : null,
+          deliveredByBarberId,
+          deliveredByName
+        };
+
+        orders.unshift(newOrder);
+        writeJsonFileAtomic(STORE_ORDERS_FILE, orders);
+
+        res.statusCode = 200;
+        res.setHeader('Content-Type', 'application/json; charset=utf-8');
+        res.end(JSON.stringify({
+          success: true,
+          order: newOrder,
+          product: products[prodIdx],
+          orders,
+          products
+        }));
+        return;
+      } catch (err) {
+        res.statusCode = 400;
+        res.setHeader('Content-Type', 'application/json; charset=utf-8');
+        res.end(JSON.stringify({ error: err.message }));
+        return;
+      }
+      }));
+      return;
+    }
+  }
+
+  if (reqUrl.startsWith('/api/store/orders/') && reqUrl.endsWith('/deliver') && req.method === 'PUT') {
+    const authUser = getAuthenticatedUser(req);
+    if (!authUser) {
+      res.statusCode = 401;
+      res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      res.end(JSON.stringify({ error: 'Debes iniciar sesion como barbero o administrador para verificar y entregar pedidos.' }));
+      return;
+    }
+
+    const shiftCtx = getActiveBarberShiftContext(authUser);
+    if (!shiftCtx.onShift) {
+      res.statusCode = 403;
+      res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      res.end(JSON.stringify({
+        error: 'Accion bloqueada: Tu estacion figura FUERA DE TURNO. Solo un barbero activo en turno dentro de la barberia puede recibir efectivo y confirmar entregas.'
+      }));
+      return;
+    }
+
+    const orderId = decodeURIComponent(reqUrl.slice('/api/store/orders/'.length, -'/deliver'.length));
+    const orders = readJsonFile(STORE_ORDERS_FILE, DEFAULT_STORE_ORDERS);
+    const idx = orders.findIndex((o) => o.id === orderId || o.referenceCode === orderId);
+
+    if (idx === -1) {
+      res.statusCode = 404;
+      res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      res.end(JSON.stringify({ error: 'Pedido o referencia no encontrada.' }));
+      return;
+    }
+
+    if (orders[idx].status === 'ENTREGADO') {
+      res.statusCode = 409;
+      res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      res.end(JSON.stringify({ error: 'ALERTA: Esta referencia ya fue cobrada y entregada anteriormente.' }));
+      return;
+    }
+
+    if (orders[idx].status === 'CANCELADO') {
+      res.statusCode = 409;
+      res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      res.end(JSON.stringify({ error: 'Este pedido fue cancelado y su stock ya fue devuelto.' }));
+      return;
+    }
+
+    let body = {};
+    try {
+      body = await readJsonBody(req);
+    } catch (e) {
+      body = {};
+    }
+
+    const barbers = readJsonFile(BARBERS_FILE, DEFAULT_BARBERS);
+    let collectorBarberId = shiftCtx.barberId;
+    let collectorBarberName = shiftCtx.barberName;
+
+    // Si un ADMIN (sin estacion propia) confirma el pedido, adjudicar al barbero en turno indicado o al preferido del pedido si esta en turno
+    if (!collectorBarberId) {
+      const candidateId = body.barberId || orders[idx].preferredBarberId;
+      if (candidateId) {
+        const candidateBarber = barbers.find((b) => b.id === candidateId && b.active !== false);
+        if (candidateBarber) {
+          collectorBarberId = candidateBarber.id;
+          collectorBarberName = candidateBarber.name;
+        }
+      }
+    }
+
+    const nowCol = new Date(Date.now() - (5 * 60 * 60 * 1000));
+    const deliveredDate = nowCol.toISOString().split('T')[0];
+
+    orders[idx].status = 'ENTREGADO';
+    orders[idx].deliveredAt = new Date().toISOString();
+    orders[idx].deliveredDate = deliveredDate;
+    orders[idx].deliveredBy = shiftCtx.user.username;
+    orders[idx].deliveredByBarberId = collectorBarberId;
+    orders[idx].deliveredByName = collectorBarberName;
+
+    writeJsonFileAtomic(STORE_ORDERS_FILE, orders);
+
+    res.statusCode = 200;
+    res.setHeader('Content-Type', 'application/json; charset=utf-8');
+    res.end(JSON.stringify({ success: true, order: orders[idx], orders }));
+    return;
+  }
+
+  if (reqUrl.startsWith('/api/store/orders/') && reqUrl.endsWith('/cancel') && req.method === 'PUT') {
+    const authUser = getAuthenticatedUser(req);
+    if (!authUser) {
+      res.statusCode = 401;
+      res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      res.end(JSON.stringify({ error: 'Debes iniciar sesion para cancelar un pedido y restaurar el stock.' }));
+      return;
+    }
+
+    const shiftCtx = getActiveBarberShiftContext(authUser);
+    if (!shiftCtx.onShift) {
+      res.statusCode = 403;
+      res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      res.end(JSON.stringify({
+        error: 'Accion bloqueada: Tu estacion figura FUERA DE TURNO. Solo personal activo en turno puede cancelar pedidos.'
+      }));
+      return;
+    }
+
+    const orderId = decodeURIComponent(reqUrl.slice('/api/store/orders/'.length, -'/cancel'.length));
+    const orders = readJsonFile(STORE_ORDERS_FILE, DEFAULT_STORE_ORDERS);
+    const idx = orders.findIndex((o) => o.id === orderId || o.referenceCode === orderId);
+
+    if (idx === -1) {
+      res.statusCode = 404;
+      res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      res.end(JSON.stringify({ error: 'Pedido o referencia no encontrada.' }));
+      return;
+    }
+
+    if (orders[idx].status === 'CANCELADO') {
+      res.statusCode = 409;
+      res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      res.end(JSON.stringify({ error: 'Este pedido ya se encuentra cancelado.' }));
+      return;
+    }
+
+    if (orders[idx].status === 'ENTREGADO') {
+      res.statusCode = 409;
+      res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      res.end(JSON.stringify({ error: 'No se puede cancelar un pedido que ya fue cobrado y entregado.' }));
+      return;
+    }
+
+    // Restaurar las unidades al inventario del producto bajo exclusion mutua
+    let products = [];
+    await (storeOrderLock = storeOrderLock.catch(() => {}).then(() => {
+      products = readJsonFile(PRODUCTS_FILE, DEFAULT_PRODUCTS);
+      const prodIdx = products.findIndex((p) => p.id === orders[idx].productId);
+      if (prodIdx !== -1) {
+        products[prodIdx].stock += Number(orders[idx].quantity) || 1;
+        writeJsonFileAtomic(PRODUCTS_FILE, products);
+      }
+
+      orders[idx].status = 'CANCELADO';
+      orders[idx].cancelledAt = new Date().toISOString();
+      orders[idx].cancelledBy = shiftCtx.user.username;
+      orders[idx].cancelledByName = shiftCtx.barberName;
+
+      writeJsonFileAtomic(STORE_ORDERS_FILE, orders);
+    }));
+
+    res.statusCode = 200;
+    res.setHeader('Content-Type', 'application/json; charset=utf-8');
+    res.end(JSON.stringify({ success: true, order: orders[idx], orders, products }));
+    return;
+  }
+
+  // --------------------------------------------------------------------------
   // ARCHIVOS ESTATICOS CON AISLAMIENTO ESTRICTO DE CARPETAS Y SEGURIDAD
   // --------------------------------------------------------------------------
   if (reqUrl === '/' || reqUrl === '') {
     reqUrl = '/src/index.html';
   } else if (reqUrl.startsWith('/ui/')) {
+    reqUrl = `/src${reqUrl}`;
+  } else if (reqUrl.startsWith('/assets/')) {
     reqUrl = `/src${reqUrl}`;
   } else if (reqUrl === '/theme.css' || reqUrl === '/animations.css') {
     reqUrl = `/src/ui/styles${reqUrl}`;
@@ -1852,6 +2358,10 @@ const server = http.createServer(async (req, res) => {
     reqUrl = '/src/bundle.js';
   } else if (reqUrl === '/logo_barberia_lopez_hd.jpg') {
     reqUrl = '/src/logo_barberia_lopez_hd.jpg';
+  } else if (reqUrl === '/dossier_barberia_lopez.html') {
+    reqUrl = '/docs/dossier/dossier_barberia_lopez.html';
+  } else if (reqUrl === '/Dossier_Plataforma_Barberia_Lopez.pdf') {
+    reqUrl = '/docs/dossier/Dossier_Plataforma_Barberia_Lopez.pdf';
   }
 
   const rawPath = path.join(ROOT_DIR, reqUrl);
@@ -1900,6 +2410,10 @@ const server = http.createServer(async (req, res) => {
     });
   });
 });
+
+server.keepAliveTimeout = 65000;
+server.headersTimeout = 66000;
+server.maxHeadersCount = 100;
 
 server.listen(PORT, HOST, () => {
   console.log(`\n======================================================`);

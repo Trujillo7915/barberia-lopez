@@ -2,6 +2,7 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 
+const ROOT_DIR = path.resolve(__dirname, '..');
 const PORT = 3000;
 const HOST = 'localhost';
 
@@ -47,7 +48,7 @@ async function runTests() {
 
   // 1. Probar persistencia de AUTH_SECRET en disco
   try {
-    const secretPath = path.join(__dirname, 'data', '.auth_secret');
+    const secretPath = path.join(ROOT_DIR, 'data', '.auth_secret');
     if (fs.existsSync(secretPath)) {
       const sec = fs.readFileSync(secretPath, 'utf8').trim();
       if (sec.length >= 32) {
@@ -66,30 +67,34 @@ async function runTests() {
     failed++;
   }
 
-  // 2. Iniciar sesion como JEFE (lopez.barber)
+  // 2. Iniciar sesion como JEFE o ADMIN
   let jefeToken = null;
   try {
-    const resLogin = await makeRequest({
-      path: '/api/auth/login',
-      method: 'POST',
-      body: { username: 'lopez.barber', password: 'password123' }
-    });
-    // Si la contraseña en pruebas es lopez2026 o similar, verificar
-    let data = JSON.parse(resLogin.data);
-    if (!data.token) {
-      const resLogin2 = await makeRequest({
-        path: '/api/auth/login',
-        method: 'POST',
-        body: { username: 'admin', password: 'admin2026' }
-      });
-      data = JSON.parse(resLogin2.data);
+    const candidates = [
+      { username: 'david.barber', password: 'david2026' },
+      { username: 'david.barber', password: 'BarberiaLopez' },
+      { username: 'admin', password: 'admin2026' }
+    ];
+    for (const cred of candidates) {
+      try {
+        const resLogin = await makeRequest({
+          path: '/api/auth/login',
+          method: 'POST',
+          body: cred
+        });
+        const data = JSON.parse(resLogin.data);
+        if (data.token) {
+          jefeToken = data.token;
+          break;
+        }
+      } catch (e) {}
     }
-    if (data.token) {
-      jefeToken = data.token;
+
+    if (jefeToken) {
       console.log('[PASS] 2. Autenticacion administrativa exitosa con token HMAC');
       passed++;
     } else {
-      console.error('[FAIL] 2. No fue posible autenticar:', resLogin.data);
+      console.error('[FAIL] 2. No fue posible autenticar como administrador o jefe');
       failed++;
     }
   } catch (err) {
@@ -273,7 +278,7 @@ async function runTests() {
 
   // 8. Descarga individual .ics (verificando soporte en /api/appointment/:id.ics y /api/calendar/appointment/:id.ics)
   try {
-    const appointmentsFile = path.join(__dirname, 'data', 'appointments.json');
+    const appointmentsFile = path.join(ROOT_DIR, 'data', 'appointments.json');
     const appts = JSON.parse(fs.readFileSync(appointmentsFile, 'utf8'));
     const target = appts.find(a => a.barberId === testBarberId);
     if (target) {
@@ -312,7 +317,7 @@ async function runTests() {
       });
     }
     // Limpiar citas de prueba
-    const appointmentsFile = path.join(__dirname, 'data', 'appointments.json');
+    const appointmentsFile = path.join(ROOT_DIR, 'data', 'appointments.json');
     let appts = JSON.parse(fs.readFileSync(appointmentsFile, 'utf8'));
     appts = appts.filter(a => a.barberId !== testBarberId);
     fs.writeFileSync(appointmentsFile, JSON.stringify(appts, null, 2), 'utf8');

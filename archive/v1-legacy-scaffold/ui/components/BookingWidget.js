@@ -49,7 +49,7 @@ export function renderBookingWidget(state, publicBarbers) {
                     <div class="flex-1">
                       <div class="flex items-center justify-between">
                         <h4 class="font-bold text-sm text-[#f7f4ef]">${b.name}</h4>
-                        ${isSelected ? '<span class="text-[#d4af37] text-xs">✓</span>' : ''}
+                        ${isSelected ? '<svg class="w-4 h-4 text-[#d4af37]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>' : ''}
                       </div>
                       <p class="text-[11px] text-[#a39f97]">${b.specialty}</p>
                     </div>

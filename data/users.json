@@ -2,27 +2,27 @@
   {
     "id": "u-admin-01",
     "username": "admin",
-    "passwordHash": "scrypt:d71c37557d299bae020f8760e3b9fe9b:1cd29592c6212aeda47199d46e9aa53499ec8a29ca1191cf87266690ff7a66fe4765880b1f2928123c6ea0a2a8105438736224d0a24b8825be34f070a81b6c6f",
+    "passwordHash": "scrypt:a62d343f82a54881f5655a8b0aebc5aa:0352c650904964d490292b4106326df6d77b066f3a0a8301d59f09d2c7b3a853b52c97d1a53049c364de8794f6ea9f5db869c6870387e9c13b575d728a8e8783",
     "role": "ADMIN",
     "barberId": null,
     "active": true
   },
   {
-    "id": "3c7e0bc2-c1f7-438c-8ef8-355fcf2f2b62",
-    "username": "lopez.barber",
-    "passwordHash": "lopez2026",
+    "id": "u-david-01",
+    "username": "david.barber",
+    "passwordHash": "scrypt:c69d39f3fab5c1a73ced895be89315b9:476aafe97c119e6b012dffca9c1feb0653e6c99cfec8cae651998ad2ce415961b14a78ed309441cb0417dc5f1b6ca53ef20efb59802bb77811bb20680cce8c40",
     "role": "JEFE",
-    "barberId": "87f4c9b4-5564-4964-8593-d02c8ee125ce",
+    "barberId": "b-david-01",
     "active": true,
-    "createdAt": "2026-10-20T12:00:00.000Z"
+    "createdAt": "2026-10-20T07:45:00.000Z"
   },
   {
-    "id": "3fe4f419-2825-406e-8165-b6e944c083a0",
+    "id": "u-matta-01",
     "username": "matta.barber",
-    "passwordHash": "matta2026",
+    "passwordHash": "scrypt:6098647c63f04d97264dd62602747535:2f877bb9e83c853372a0c527eed251f5c4d4b935f76f3342c80bc08ea6a0bbddcfd44b09abb7411b4d5375612c929d92b282f5dbad297ba9f16fb8aa07af33f5",
     "role": "BARBERO",
-    "barberId": "3f8f88d7-6582-4607-9d9a-07275f8e618c",
+    "barberId": "b-matta-01",
     "active": true,
-    "createdAt": "2026-10-20T12:00:00.000Z"
+    "createdAt": "2026-10-20T07:45:00.000Z"
   }
 ]

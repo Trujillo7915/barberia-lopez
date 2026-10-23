@@ -18,10 +18,10 @@ export function renderBarberDashboard(state, { cashData, historyData, appointmen
       <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-8 pb-6 border-b border-[#d4af37]/20">
         <div>
           <div class="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-[#d4af37]/10 border border-[#d4af37]/25 text-[#d4af37] text-[10px] font-mono uppercase tracking-wider mb-2">
-            ${isJefe ? '👑 ESTACIÓN MAESTRA DE CONTROL' : '💈 ESTACIÓN DE PRACTICANTE / AYUDANTE'}
+            ${isJefe ? 'ESTACIÓN PRINCIPAL DE CONTROL' : 'ESTACIÓN DE BARBERO PROFESIONAL'}
           </div>
           <h2 class="font-editorial text-2xl sm:text-4xl font-bold text-[#f7f4ef]">
-            Bienvenido, <span class="italic text-[#d4af37]">${isJefe ? 'Maestro Lopez' : 'Barbero Practicante'}</span>
+            Bienvenido, <span class="italic text-[#d4af37]">${isJefe ? 'David (Barbero Jefe)' : 'Maicol Matta (Barbero)'}</span>
           </h2>
           <p class="text-xs text-[#a39f97] mt-1">
             ${isJefe 
@@ -94,8 +94,8 @@ export function renderBarberDashboard(state, { cashData, historyData, appointmen
                   </div>
 
                   <h4 class="font-bold text-base text-[#f7f4ef]">${appt.clientName}</h4>
-                  <p class="text-xs text-[#a39f97] mb-1">📱 ${appt.clientPhone || 'Sin teléfono'}</p>
-                  <p class="text-xs text-[#a39f97] mb-3">💈 Estación: <strong class="text-[#f7f4ef]">${barberName}</strong></p>
+                  <p class="text-xs text-[#a39f97] mb-1">Tel: ${appt.clientPhone || 'Sin teléfono'}</p>
+                  <p class="text-xs text-[#a39f97] mb-3">Estación: <strong class="text-[#f7f4ef]">${barberName}</strong></p>
                   
                   <div class="text-[11px] text-[#d4af37] font-semibold bg-[#d4af37]/10 p-2 rounded-lg border border-[#d4af37]/20 mb-4">
                     Pago: ${appt.paymentMethod}
@@ -106,11 +106,11 @@ export function renderBarberDashboard(state, { cashData, historyData, appointmen
                   <button 
                     data-appt-id="${appt.id}" 
                     class="btn-complete-cut btn-gold w-full py-2.5 text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-1.5">
-                    <span>✓ Finalizar Corte & Guardar</span>
+                    <span>Finalizar Corte & Guardar</span>
                   </button>
                 ` : `
                   <div class="text-center text-xs text-green-400 py-1 font-semibold">
-                    ✓ Corte Completado y Guardado en BD
+                    Corte Completado y Guardado en BD
                   </div>
                 `}
               </div>

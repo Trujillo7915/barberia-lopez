@@ -1,6 +1,17 @@
 /**
- * Barbería Lopez — Bundle Transaccional Arquitectura Onion
- * Estilo Visual: Josh Warner — Black Void Gallery Wall (#0f0f0f, #f0f0f0, #b8b8b8, #08ff00, Inter 400)
+ * Barberia Lopez — SPA Cliente Arquitectura Onion Consolidada
+ * Estilo Visual: Josh Warner — Black Void Gallery Wall (#0a0b0d, #14161a, #d4af37)
+ * Indice Quirurgico de Capas (Consulte CODEMAP.md para detalles):
+ * - Capa 1: Domain Types & Models (Roles, User, Barber, Product, Order): L40 - L140
+ * - Capa 2: Domain Services (AccessControl, Availability, CashCalculator): L141 - L245
+ * - Capa 4: Infrastructure (LocalStorageRepository, HMAC Sync, Offline Queue): L246 - L1200
+ * - Capa 3: Application Use Cases (Book, Complete, Login, Users, Cash): L1220 - L1460
+ * - Grillas de Calendario y Franjas Horarias (30 min continuos): L1465 - L1670
+ * - Capa 4: UI State (appState): L1671 - L1730
+ * - Renderizado Principal renderApp() (Navbar, Hero, Booking, Tienda): L1731 - L3730
+ * - Modales de Interfaz (Auth, Checkout, Referencia, Venta Directa): L3731 - L3990
+ * - Manejadores de Eventos setupEventListeners(): L3991 - L5015
+ * - Preloader dismissPreloader() e Inicializacion: L5016 - L5150
  */
 (() => {
   'use strict';
@@ -145,7 +156,7 @@
   }
 
   class CashCalculatorService {
-    static calculateDailyCash(historyList, dateStr) {
+    static calculateDailyCash(historyList, dateStr, storeOrdersList = []) {
       const dayRecords = (historyList || []).filter((r) => {
         if (!r) return false;
         if (r.executionDate) {
@@ -158,23 +169,45 @@
           : null;
         return r.date === dateStr || createdDate === dateStr;
       });
-      let totalConsolidated = 0;
+      let cutsTotal = 0;
       const byBarber = {};
 
       for (const record of dayRecords) {
         const price = Number(record.priceCop) || 0;
-        totalConsolidated += price;
+        cutsTotal += price;
         if (!byBarber[record.barberId]) {
-          byBarber[record.barberId] = { count: 0, total: 0 };
+          byBarber[record.barberId] = { count: 0, total: 0, storeCount: 0, storeTotal: 0, combinedTotal: 0 };
         }
         byBarber[record.barberId].count += 1;
         byBarber[record.barberId].total += price;
+        byBarber[record.barberId].combinedTotal = byBarber[record.barberId].total + byBarber[record.barberId].storeTotal;
+      }
+
+      const deliveredStoreOrders = (storeOrdersList || []).filter(
+        (o) => o.status === 'ENTREGADO' && (o.deliveredDate || o.date) === dateStr
+      );
+      const storeTotalCop = deliveredStoreOrders.reduce((sum, o) => sum + (Number(o.totalCop) || 0), 0);
+
+      for (const ord of deliveredStoreOrders) {
+        const bId = ord.deliveredByBarberId || ord.preferredBarberId;
+        if (bId) {
+          if (!byBarber[bId]) {
+            byBarber[bId] = { count: 0, total: 0, storeCount: 0, storeTotal: 0, combinedTotal: 0 };
+          }
+          const ordAmount = Number(ord.totalCop) || 0;
+          byBarber[bId].storeCount += 1;
+          byBarber[bId].storeTotal += ordAmount;
+          byBarber[bId].combinedTotal = byBarber[bId].total + byBarber[bId].storeTotal;
+        }
       }
 
       return {
         date: dateStr,
         totalCount: dayRecords.length,
-        totalConsolidatedCop: totalConsolidated,
+        cutsTotalCop: cutsTotal,
+        storeOrdersCount: deliveredStoreOrders.length,
+        storeTotalCop: storeTotalCop,
+        totalConsolidatedCop: cutsTotal + storeTotalCop,
         breakdownByBarber: byBarber
       };
     }
@@ -191,11 +224,21 @@
       return user.role === Roles.ADMIN || user.role === Roles.JEFE;
     }
 
+    static canManageCatalog(user) {
+      if (!user) return false;
+      return user.role === Roles.ADMIN || user.role === Roles.JEFE;
+    }
+
+    static canEditStockAndPrices(user) {
+      if (!user) return false;
+      return user.role === Roles.ADMIN || user.role === Roles.JEFE;
+    }
+
     static filterPublicBarbers(barbersList, usersList) {
       const adminUserIds = new Set(
         usersList.filter((u) => u.role === Roles.ADMIN).map((u) => u.id)
       );
-      return barbersList.filter((b) => b.active && !adminUserIds.has(b.userId));
+      return barbersList.filter((b) => b.active !== false && !adminUserIds.has(b.userId));
     }
   }
 
@@ -210,41 +253,43 @@
       active: true
     },
     {
-      id: '3c7e0bc2-c1f7-438c-8ef8-355fcf2f2b62',
-      username: 'lopez.barber',
-      passwordHash: 'lopez2026',
+      id: 'u-david-01',
+      username: 'david.barber',
+      passwordHash: 'david2026',
       role: Roles.JEFE,
-      barberId: '87f4c9b4-5564-4964-8593-d02c8ee125ce',
+      barberId: 'b-david-01',
       active: true
     },
     {
-      id: '3fe4f419-2825-406e-8165-b6e944c083a0',
+      id: 'u-matta-01',
       username: 'matta.barber',
       passwordHash: 'matta2026',
       role: Roles.BARBERO,
-      barberId: '3f8f88d7-6582-4607-9d9a-07275f8e618c',
+      barberId: 'b-matta-01',
       active: true
     }
   ];
 
   const SEED_BARBERS = [
     {
-      id: '87f4c9b4-5564-4964-8593-d02c8ee125ce',
-      userId: '3c7e0bc2-c1f7-438c-8ef8-355fcf2f2b62',
+      id: 'b-david-01',
+      userId: 'u-david-01',
       name: 'David',
-      specialty: 'Barbero Profesional',
-      phone: '321 9897910',
-      avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=600&q=80',
-      active: true
+      specialty: 'Barbero Jefe · Maestro Barbero',
+      phone: '+57 321 989 7910',
+      avatar: '',
+      active: true,
+      onShift: true
     },
     {
-      id: '3f8f88d7-6582-4607-9d9a-07275f8e618c',
-      userId: '3fe4f419-2825-406e-8165-b6e944c083a0',
+      id: 'b-matta-01',
+      userId: 'u-matta-01',
       name: 'Maicol Matta',
-      specialty: 'Barbero Profesional',
-      phone: '3203181496',
-      avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=600&q=80',
-      active: true
+      specialty: 'Barbero Profesional · Degradados & Barba',
+      phone: '+57 300 000 0000',
+      avatar: '',
+      active: true,
+      onShift: true
     }
   ];
 
@@ -311,6 +356,69 @@
 
   const SEED_APPOINTMENTS = [];
   const SEED_HISTORY = [];
+  const SEED_PRODUCTS = [
+    {
+      id: 'p-01',
+      name: 'Cera Mate Fijacion Extrema Lopez',
+      category: 'Cuidado Capilar',
+      priceCop: 32000,
+      stock: 15,
+      description: 'Acabado seco natural sin residuos grasos. Fijacion de alta duracion ideal para peinados texturizados y clasicos.',
+      imageUrl: 'https://images.unsplash.com/photo-1621607512214-68297480165e?w=600&auto=format&fit=crop&q=80',
+      active: true
+    },
+    {
+      id: 'p-02',
+      name: 'Pomada Clasica Brillo Imperial',
+      category: 'Cuidado Capilar',
+      priceCop: 30000,
+      stock: 12,
+      description: 'Formula a base de agua con brillo elegante para estilos clasicos, slick back y pompadour. Se retira facilmente con agua.',
+      imageUrl: 'https://images.unsplash.com/photo-1585751119414-ef2636f8aede?w=600&auto=format&fit=crop&q=80',
+      active: true
+    },
+    {
+      id: 'p-03',
+      name: 'Aceite Hidratante de Barba Cedro y Argan',
+      category: 'Barba y Piel',
+      priceCop: 35000,
+      stock: 10,
+      description: 'Nutre el vello facial desde la raiz, elimina la resequedad e irritacion y deja un aroma masculino amaderado.',
+      imageUrl: 'https://images.unsplash.com/photo-1608248597359-0e6d526a6828?w=600&auto=format&fit=crop&q=80',
+      active: true
+    },
+    {
+      id: 'p-04',
+      name: 'Tonico Capilar y de Barba Crecimiento 5%',
+      category: 'Tratamiento',
+      priceCop: 45000,
+      stock: 8,
+      description: 'Locion activadora de foliculos para poblar zonas abiertas en barba y fortalecer la densidad capilar.',
+      imageUrl: 'https://images.unsplash.com/photo-1556228720-195a672e8a03?w=600&auto=format&fit=crop&q=80',
+      active: true
+    },
+    {
+      id: 'p-05',
+      name: 'Polvo Texturizador Volumen Instantaneo',
+      category: 'Styling',
+      priceCop: 38000,
+      stock: 14,
+      description: 'Control de gravedad y volumen inmediato en la raiz con efecto mate invisible para cortes modernos y crop.',
+      imageUrl: 'https://images.unsplash.com/photo-1526947425960-945c6e72858f?w=600&auto=format&fit=crop&q=80',
+      active: true
+    },
+    {
+      id: 'p-06',
+      name: 'Cepillo Militar Cerdas Naturales para Barba',
+      category: 'Accesorios',
+      priceCop: 22000,
+      stock: 9,
+      description: 'Madera de nogal tallada con cerdas firmes para distribuir aceites, exfoliar la piel y domar la barba rebelde.',
+      imageUrl: 'https://images.unsplash.com/photo-1503951914875-452162b0f3f1?w=600&auto=format&fit=crop&q=80',
+      active: true
+    }
+  ];
+  const SEED_STORE_ORDERS = [];
 
   class LocalStorageRepository {
     constructor() {
@@ -319,17 +427,15 @@
     }
 
     _initializeStorage() {
-      // Actualización automática: purgar cache local obsoleto para sincronizar con el servidor
-      const CLEAN_DEPLOY_VERSION = 'v7_main_clean_authoritative';
+      // Sincronización autoritativa: limpiar cachés locales desactualizadas y usar datos vivos del servidor
+      const CLEAN_DEPLOY_VERSION = 'v6_david_matta_accounts';
       try {
         if (localStorage.getItem('blopez_clean_version') !== CLEAN_DEPLOY_VERSION) {
-          localStorage.setItem('blopez_services', JSON.stringify(SEED_SERVICES));
-          localStorage.removeItem('blopez_users');
           localStorage.removeItem('blopez_barbers');
-          localStorage.removeItem('blopez_token');
-          localStorage.removeItem('blopez_current_user');
-          localStorage.setItem('blopez_appointments', JSON.stringify([]));
-          localStorage.setItem('blopez_history', JSON.stringify([]));
+          localStorage.removeItem('blopez_users');
+          localStorage.removeItem('blopez_services');
+          localStorage.removeItem('blopez_appointments');
+          localStorage.removeItem('blopez_history');
           localStorage.setItem('blopez_clean_version', CLEAN_DEPLOY_VERSION);
         }
       } catch (e) {}
@@ -339,6 +445,8 @@
       this._ensureKey('blopez_services', SEED_SERVICES);
       this._ensureKey('blopez_appointments', SEED_APPOINTMENTS);
       this._ensureKey('blopez_history', SEED_HISTORY);
+      this._ensureKey('blopez_products', SEED_PRODUCTS);
+      this._ensureKey('blopez_store_orders', SEED_STORE_ORDERS);
     }
 
     _ensureKey(key, seed) {
@@ -396,11 +504,8 @@
 
     async findUserById(id) {
       const list = await this.findAllUsers();
-      const cleanId = String(id || '').replace(/^@/, '').toLowerCase().trim();
-      return list.find((u) =>
-        u.id === id ||
-        (u.username || '').replace(/^@/, '').toLowerCase().trim() === cleanId
-      ) || null;
+      const clean = String(id || '').replace(/^@/, '').toLowerCase().trim();
+      return list.find((u) => u.id === id || (u.username && u.username.replace(/^@/, '').toLowerCase().trim() === clean)) || null;
     }
 
     async verifyPassword(user, plainPassword) {
@@ -420,33 +525,23 @@
       return false;
     }
 
-    async updatePassword(userId, newPassword, userObj = null) {
+    async updatePassword(userId, newPassword) {
+      const list = this._get('blopez_users') || [];
+      const clean = String(userId || '').replace(/^@/, '').toLowerCase().trim();
+      const idx = list.findIndex((u) => u.id === userId || (u.username && u.username.replace(/^@/, '').toLowerCase().trim() === clean));
       try {
-        const payload = { password: newPassword };
-        if (userObj) {
-          payload.username = userObj.username;
-          payload.role = userObj.role;
-          payload.barberId = userObj.barberId;
-          payload.active = userObj.active;
-        }
         const res = await fetch(`/api/users/${encodeURIComponent(userId)}`, {
           method: 'PUT',
           headers: this._getAuthHeaders(),
-          body: JSON.stringify(payload)
+          body: JSON.stringify({ password: newPassword })
         });
         if (!res.ok) {
           const errData = await res.json().catch(() => ({}));
-          throw new Error(errData.error || 'No fue posible actualizar la contrasena.');
+          throw new Error(errData.error || 'No fue posible actualizar la contraseña.');
         }
         const data = await res.json().catch(() => ({}));
-        if (data.user) {
-          const list = this._get('blopez_users');
-          const idx = list.findIndex((u) => u.id === data.user.id || u.id === userId);
-          if (idx !== -1) {
-            list[idx] = { ...list[idx], ...data.user };
-          } else {
-            list.push(data.user);
-          }
+        if (data.user && idx !== -1) {
+          list[idx] = { ...list[idx], ...data.user };
           this._set('blopez_users', list);
         }
         return true;
@@ -484,7 +579,7 @@
 
     async updateUser(user) {
       try {
-        const res = await fetch(`/api/users/${encodeURIComponent(user.id)}`, {
+        const res = await fetch(`/api/users/${user.id}`, {
           method: 'PUT',
           headers: this._getAuthHeaders(),
           body: JSON.stringify(user)
@@ -507,57 +602,8 @@
       }
     }
 
-    _saveToAdminVault({ user, barber = null, password = null }) {
-      if (!user || !user.username) return;
-      try {
-        const cleanU = String(user.username).replace(/^@/, '').toLowerCase().trim();
-        const vault = this._get('blopez_admin_vault') || [];
-        const idx = vault.findIndex((item) => item && item.username === cleanU);
-        const existing = idx !== -1 ? vault[idx] : {};
-        const currentToken = localStorage.getItem('blopez_token') || existing.authToken || null;
-        const entry = {
-          username: cleanU,
-          user: { ...(existing.user || {}), ...user, username: cleanU },
-          barber: barber || existing.barber || null,
-          password: password || existing.password || null,
-          authToken: currentToken
-        };
-        if (idx !== -1) {
-          vault[idx] = entry;
-        } else {
-          vault.push(entry);
-        }
-        this._set('blopez_admin_vault', vault);
-      } catch (e) {}
-    }
-
-    _removeFromAdminVault(userId, username = '') {
-      try {
-        const cleanU = String(username || '').replace(/^@/, '').toLowerCase().trim();
-        const vault = this._get('blopez_admin_vault') || [];
-        const filtered = vault.filter((item) => {
-          if (!item) return false;
-          if (userId && item.user && item.user.id === userId) return false;
-          if (cleanU && item.username === cleanU) return false;
-          return true;
-        });
-        this._set('blopez_admin_vault', filtered);
-      } catch (e) {}
-    }
-
     async findAllUsers() {
       try {
-        const vault = this._get('blopez_admin_vault') || [];
-        if (vault.length > 0 && !this._vaultSyncedThisSession) {
-          this._vaultSyncedThisSession = true;
-          try {
-            await fetch('/api/auth/vault-sync', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ vault })
-            });
-          } catch (err) {}
-        }
         const res = await fetch('/api/users');
         if (res.ok) {
           const serverUsers = await res.json();
@@ -572,7 +618,7 @@
 
     async deleteUser(userId) {
       try {
-        const res = await fetch(`/api/users/${encodeURIComponent(userId)}`, {
+        const res = await fetch(`/api/users/${userId}`, {
           method: 'DELETE',
           headers: this._getAuthHeaders()
         });
@@ -580,15 +626,9 @@
           const errData = await res.json().catch(() => ({}));
           throw new Error(errData.error || 'No fue posible eliminar el usuario.');
         }
-        let list = this._get('blopez_users');
-        const target = list.find((u) => u.id === userId);
+        let list = this._get('blopez_users') || [];
         list = list.filter((u) => u.id !== userId);
         this._set('blopez_users', list);
-        if (target && target.barberId) {
-          let barbers = this._get('blopez_barbers');
-          barbers = barbers.filter((b) => b.id !== target.barberId);
-          this._set('blopez_barbers', barbers);
-        }
         return true;
       } catch (e) {
         throw e;
@@ -643,7 +683,7 @@
 
     async updateBarber(barber) {
       try {
-        const res = await fetch(`/api/barbers/${encodeURIComponent(barber.id)}`, {
+        const res = await fetch(`/api/barbers/${barber.id}`, {
           method: 'PUT',
           headers: this._getAuthHeaders(),
           body: JSON.stringify(barber)
@@ -668,7 +708,7 @@
 
     async deleteBarber(barberId) {
       try {
-        const res = await fetch(`/api/barbers/${encodeURIComponent(barberId)}`, {
+        const res = await fetch(`/api/barbers/${barberId}`, {
           method: 'DELETE',
           headers: this._getAuthHeaders()
         });
@@ -723,22 +763,23 @@
       try {
         const res = await fetch('/api/appointments');
         if (res.ok) {
-          let serverList = await res.json();
+          const serverList = await res.json();
           if (Array.isArray(serverList)) {
-            if (serverList.length === 0 && localList.length > 0) {
-              for (const appt of localList) {
-                try {
-                  await fetch('/api/appointments', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(appt)
-                  });
-                } catch (err) {}
+            const map = new Map();
+            localList.forEach((a) => { if (a && a.id) map.set(a.id, a); });
+            serverList.forEach((a) => {
+              if (a && a.id) {
+                const local = map.get(a.id);
+                if (local && local.status === 'COMPLETADA' && a.status !== 'COMPLETADA') {
+                  map.set(a.id, { ...a, status: 'COMPLETADA' });
+                } else {
+                  map.set(a.id, { ...(local || {}), ...a });
+                }
               }
-              serverList = localList;
-            }
-            this._set('blopez_appointments', serverList);
-            return serverList;
+            });
+            const merged = Array.from(map.values());
+            this._set('blopez_appointments', merged);
+            return merged;
           }
         }
       } catch (e) {}
@@ -858,6 +899,191 @@
       return localHistory;
     }
 
+
+async findAllProducts() {
+      try {
+        const res = await fetch('/api/products');
+        if (res.ok) {
+          const serverProducts = await res.json();
+          if (Array.isArray(serverProducts)) {
+            this._set('blopez_products', serverProducts);
+            return serverProducts;
+          }
+        }
+      } catch (e) {}
+      return this._get('blopez_products');
+    }
+
+    async saveProduct(productData) {
+      const res = await fetch('/api/products', {
+        method: 'POST',
+        headers: this._getAuthHeaders(),
+        body: JSON.stringify(productData)
+      });
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || 'No fue posible crear el producto.');
+      }
+      const data = await res.json();
+      if (Array.isArray(data.products)) {
+        this._set('blopez_products', data.products);
+      }
+      return data.product;
+    }
+
+    async updateProduct(productId, updates) {
+      const res = await fetch(`/api/products/${encodeURIComponent(productId)}`, {
+        method: 'PUT',
+        headers: this._getAuthHeaders(),
+        body: JSON.stringify(updates)
+      });
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || 'No fue posible actualizar el producto.');
+      }
+      const data = await res.json();
+      if (Array.isArray(data.products)) {
+        this._set('blopez_products', data.products);
+      }
+      return data.product;
+    }
+
+    async uploadProductImage(productId, dataUri) {
+      const res = await fetch(`/api/products/${encodeURIComponent(productId)}/image`, {
+        method: 'POST',
+        headers: this._getAuthHeaders(),
+        body: JSON.stringify({ dataUri })
+      });
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || 'No fue posible subir la imagen del producto.');
+      }
+      const data = await res.json();
+      if (data.product) {
+        const prods = this._get('blopez_products') || [];
+        const idx = prods.findIndex((p) => p.id === productId);
+        if (idx !== -1) {
+          prods[idx] = { ...prods[idx], ...data.product };
+          this._set('blopez_products', prods);
+        }
+      }
+      return data;
+    }
+
+    async deleteProduct(productId) {
+      const res = await fetch(`/api/products/${encodeURIComponent(productId)}`, {
+        method: 'DELETE',
+        headers: this._getAuthHeaders()
+      });
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || 'No fue posible eliminar el producto.');
+      }
+      const data = await res.json();
+      if (Array.isArray(data.products)) {
+        this._set('blopez_products', data.products);
+      }
+      return true;
+    }
+
+    async findAllStoreOrders() {
+      try {
+        const res = await fetch('/api/store/orders');
+        if (res.ok) {
+          const serverOrders = await res.json();
+          if (Array.isArray(serverOrders)) {
+            this._set('blopez_store_orders', serverOrders);
+            return serverOrders;
+          }
+        }
+      } catch (e) {}
+      return this._get('blopez_store_orders');
+    }
+
+    async createStoreOrder({
+      productId,
+      quantity,
+      clientName,
+      clientPhone,
+      deliveryMode = 'APARTADO_RECOGIDA',
+      preferredBarberId = null,
+      directSale = false,
+      barberId = null
+    }) {
+      const headers = directSale ? this._getAuthHeaders() : { 'Content-Type': 'application/json' };
+      const res = await fetch('/api/store/orders', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          productId,
+          quantity,
+          clientName,
+          clientPhone,
+          deliveryMode,
+          preferredBarberId,
+          directSale,
+          barberId
+        })
+      });
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || 'No fue posible registrar el pedido en tienda.');
+      }
+      const data = await res.json();
+      if (Array.isArray(data.orders)) {
+        this._set('blopez_store_orders', data.orders);
+      }
+      if (Array.isArray(data.products)) {
+        this._set('blopez_products', data.products);
+      }
+      if (!directSale && data.order && data.order.referenceCode) {
+        try {
+          const savedRefs = JSON.parse(localStorage.getItem('blopez_my_store_refs') || '[]');
+          if (!savedRefs.includes(data.order.referenceCode)) {
+            savedRefs.unshift(data.order.referenceCode);
+            localStorage.setItem('blopez_my_store_refs', JSON.stringify(savedRefs.slice(0, 15)));
+          }
+        } catch (e) {}
+      }
+      return data;
+    }
+
+    async deliverStoreOrder(orderIdOrRef, barberId = null) {
+      const res = await fetch(`/api/store/orders/${encodeURIComponent(orderIdOrRef)}/deliver`, {
+        method: 'PUT',
+        headers: this._getAuthHeaders(),
+        body: JSON.stringify(barberId ? { barberId } : {})
+      });
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || 'No fue posible confirmar la entrega del pedido.');
+      }
+      const data = await res.json();
+      if (Array.isArray(data.orders)) {
+        this._set('blopez_store_orders', data.orders);
+      }
+      return data.order;
+    }
+
+    async cancelStoreOrder(orderIdOrRef) {
+      const res = await fetch(`/api/store/orders/${encodeURIComponent(orderIdOrRef)}/cancel`, {
+        method: 'PUT',
+        headers: this._getAuthHeaders()
+      });
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || 'No fue posible cancelar el pedido.');
+      }
+      const data = await res.json();
+      if (Array.isArray(data.orders)) {
+        this._set('blopez_store_orders', data.orders);
+      }
+      if (Array.isArray(data.products)) {
+        this._set('blopez_products', data.products);
+      }
+      return data.order;
+    }
+
     async deleteAppointment(id) {
       try {
         const res = await fetch(`/api/appointments/${id}`, {
@@ -912,6 +1138,7 @@
       this._set('blopez_appointments', []);
       this._set('blopez_history', []);
       return true;
+
     }
   }
 
@@ -1148,11 +1375,10 @@
     constructor({ repo }) { this.repo = repo; }
     async execute({ username, password }) {
       try {
-        const vault = this.repo._get('blopez_admin_vault') || [];
         const res = await fetch('/api/auth/login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ username, password, vault })
+          body: JSON.stringify({ username, password })
         });
         if (res.ok) {
           const data = await res.json();
@@ -1179,63 +1405,36 @@
       const existing = await this.repo.findUserByUsername(username);
       if (existing) throw new Error(`El usuario '@${username}' ya existe.`);
 
-      // Intento de creacion atomica integral en el servidor
-      try {
-        const res = await fetch('/api/barbers/with-user', {
-          method: 'POST',
-          headers: this.repo._getAuthHeaders(),
-          body: JSON.stringify({
-            barberData: { name, specialty, phone },
-            userData: { username, password, role }
-          })
-        });
+      // Creación atómica integral en el servidor
+      const res = await fetch('/api/barbers/with-user', {
+        method: 'POST',
+        headers: this.repo._getAuthHeaders(),
+        body: JSON.stringify({
+          barberData: { name, specialty, phone },
+          userData: { username, password, role }
+        })
+      });
 
-        if (res.ok) {
-          const data = await res.json();
-          if (data.barber && data.user) {
-            const barbers = this.repo._get('blopez_barbers');
-            barbers.push(data.barber);
-            this.repo._set('blopez_barbers', barbers);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.barber && data.user) {
+          const barbers = this.repo._get('blopez_barbers') || [];
+          const bIdx = barbers.findIndex((b) => b.id === data.barber.id);
+          if (bIdx !== -1) barbers[bIdx] = data.barber; else barbers.push(data.barber);
+          this.repo._set('blopez_barbers', barbers);
 
-            const users = this.repo._get('blopez_users');
-            users.push(data.user);
-            this.repo._set('blopez_users', users);
+          const users = this.repo._get('blopez_users') || [];
+          const uIdx = users.findIndex((u) => u.id === data.user.id || u.username === data.user.username);
+          if (uIdx !== -1) users[uIdx] = data.user; else users.push(data.user);
+          this.repo._set('blopez_users', users);
 
-            this.repo._saveToAdminVault({ user: data.user, barber: data.barber, password });
-
-            return { user: data.user, barber: data.barber };
-          }
-        } else {
-          const errData = await res.json().catch(() => ({}));
-          throw new Error(errData.error || 'No fue posible registrar el barbero en el servidor.');
+          return { user: data.user, barber: data.barber };
         }
-      } catch (err) {
-        if (err.message && (err.message.includes('servidor') || err.message.includes('ya existe') || err.message.includes('denegado'))) {
-          throw err;
-        }
+        return data;
+      } else {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || 'No fue posible registrar el barbero en el servidor.');
       }
-
-      // Fallback transaccional seguro
-      const barber = new Barber({
-        name,
-        specialty,
-        phone,
-        avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=600&q=80'
-      });
-      await this.repo.saveBarber(barber);
-
-      const user = new User({
-        username,
-        passwordHash: password,
-        role,
-        barberId: barber.id
-      });
-      await this.repo.saveUser(user);
-
-      barber.userId = user.id;
-      await this.repo.updateBarber(barber);
-      this.repo._saveToAdminVault({ user, barber, password });
-      return { user, barber };
     }
 
     async changePassword({ adminUser, userId, newPassword }) {
@@ -1243,13 +1442,10 @@
         throw new Error("Acceso denegado.");
       }
       const user = await this.repo.findUserById(userId);
-      const targetId = user ? user.id : userId;
-      const targetName = user ? user.username : userId;
-      await this.repo.updatePassword(targetId, newPassword, user);
-      if (user) {
-        this.repo._saveToAdminVault({ user, password: newPassword });
-      }
-      return { success: true, message: `Contrasena de @${targetName} actualizada con exito.` };
+      if (!user) throw new Error("Usuario no encontrado.");
+      await this.repo.updatePassword(user.id, newPassword);
+      await this.repo.findAllUsers();
+      return { success: true, message: `Contraseña de @${user.username} actualizada con éxito.` };
     }
 
     async toggleUserStatus({ adminUser, userId }) {
@@ -1268,6 +1464,8 @@
           await this.repo.updateBarber(barber);
         }
       }
+      await this.repo.findAllUsers();
+      await this.repo.findAllBarbers();
       return { user };
     }
 
@@ -1280,12 +1478,13 @@
       if (user.role === Roles.ADMIN) throw new Error("No se puede eliminar la cuenta del Administrador.");
 
       const barberId = user.barberId;
-      this.repo._removeFromAdminVault(userId, user.username);
-      await this.repo.deleteUser(userId);
+      await this.repo.deleteUser(user.id);
       if (barberId) {
-        await this.repo.deleteBarber(barberId);
+        await this.repo.deleteBarber(barberId).catch(() => {});
       }
-      return { success: true, message: `La cuenta de @${user.username} ha sido eliminada con exito.` };
+      await this.repo.findAllUsers();
+      await this.repo.findAllBarbers();
+      return { success: true, message: `La cuenta de @${user.username} ha sido eliminada con éxito.` };
     }
   }
 
@@ -1499,7 +1698,19 @@
     barbers: [],
     appointments: [],
     history: [],
+    products: [],
+    storeOrders: [],
+    dashboardAccordions: {
+      appointments: true,
+      orders: false,
+      stock: false,
+      history: false
+    },
     activeView: 'home',
+    storeCategoryFilter: 'ALL',
+    storeOrderSearch: '',
+    storeOrderStatusFilter: 'ALL',
+    storeOrderDateFilter: 'ALL',
     calendarYear: initialNow.getFullYear(),
     calendarMonth: initialNow.getMonth(),
     selectedDate: initialDateStr,
@@ -1532,6 +1743,33 @@
   const loginUseCase = new LoginUseCase({ repo });
   const manageUsersUseCase = new ManageUsersUseCase({ repo });
 
+  // Desvanecimiento suave del cargado inicial con logo oficial (minimo 2 segundos en pantalla)
+  const MIN_PRELOADER_DISPLAY_MS = 2200;
+  let preloaderDismissScheduled = false;
+
+  function dismissPreloader() {
+    if (preloaderDismissScheduled) return;
+    const pl = document.getElementById('page-preloader');
+    if (!pl) return;
+
+    preloaderDismissScheduled = true;
+    const startTime = (typeof window !== 'undefined' && window.__preloaderStartTime) || Date.now();
+    const elapsed = Date.now() - startTime;
+    const remainingTime = Math.max(0, MIN_PRELOADER_DISPLAY_MS - elapsed);
+
+    setTimeout(() => {
+      if (!pl.classList.contains('preloader-hidden')) {
+        pl.classList.add('preloader-hidden');
+        setTimeout(() => {
+          if (pl && pl.parentNode) {
+            pl.parentNode.removeChild(pl);
+          }
+        }, 650);
+      }
+    }, remainingTime);
+  }
+  window.dismissPagePreloader = dismissPreloader;
+
   // --- RENDERIZADO PRINCIPAL (JOSH WARNER — BLACK VOID GALLERY WALL) ---
   async function renderApp() {
     const root = document.getElementById('app-root');
@@ -1542,11 +1780,15 @@
     const services = await repo.findAllServices();
     const appointments = await repo.findAllAppointments();
     const history = await repo.findAllCutHistory();
+    const products = await repo.findAllProducts();
+    const storeOrders = await repo.findAllStoreOrders();
 
     state.services = services;
     state.barbers = barbers;
     state.appointments = appointments;
     state.history = history;
+    state.products = products;
+    state.storeOrders = storeOrders;
 
     const publicBarbers = AccessControlService.filterPublicBarbers(barbers, users);
     const activeBarberIds = new Set(publicBarbers.map((b) => b.id));
@@ -1568,77 +1810,187 @@
 
     if (state.activeView === 'home') {
       mainContent = `
-        <!-- HERO & PILLARS WITH BARBERÍA LOPEZ LOGO BACKGROUND (Dentro del recuadro rojo) -->
-        <section id="hero" class="relative overflow-hidden bg-[#0a0b0d] pt-6 pb-16 border-b border-[#d4af37]/20">
+        <!-- SECTION 1: PORTADA MAJESTUOSA DEL LOGO (COMPACTO Y ARMONICO) -->
+        <section id="hero" class="relative py-8 sm:py-14 md:py-16 flex flex-col items-center justify-center overflow-hidden bg-[#0a0b0d] px-4 sm:px-6 text-center border-b border-[#d4af37]/20 select-none">
           
-          <!-- LOGO WATERMARK / HERO BACKDROP (Proporción exacta 1:1 preservada, nitidez HD sin pixelado) -->
-          <div class="absolute inset-0 pointer-events-none select-none flex items-center justify-center overflow-hidden z-0">
-            <!-- Aura luminosa ambiental en oro cálido -->
-            <div class="absolute w-[500px] md:w-[750px] h-[500px] md:h-[750px] rounded-full bg-[#d4af37]/10 blur-[130px] -translate-y-6"></div>
+          <!-- Halo de luz ambiental dorada en el centro (Air Ambient Glow) -->
+          <div class="absolute w-[300px] sm:w-[480px] md:w-[600px] h-[300px] sm:h-[480px] md:h-[600px] rounded-full bg-[#d4af37]/12 blur-[100px] pointer-events-none air-glow-pulse"></div>
+          
+          <!-- Contenedor central del Logo con doble anillo orbital y halo de lujo -->
+          <div class="relative z-10 flex flex-col items-center justify-center max-w-xl mx-auto py-2 sm:py-4">
             
-            <!-- Logotipo oficial HD renderizado en proporción nativa perfecta (no se deforma ni se pixela) -->
-            <img 
-              src="./logo_barberia_lopez_hd.jpg" 
-              alt="Barbería Lopez Fondo" 
-              class="w-[480px] sm:w-[600px] md:w-[700px] lg:w-[800px] max-w-[92vw] h-auto object-contain opacity-35 md:opacity-40 mix-blend-screen filter drop-shadow-[0_0_35px_rgba(212,175,55,0.2)]"
-              loading="eager"
-            >
-
-            <!-- Máscaras de gradiente radial y lineal: los bordes se funden en #0a0b0d y el texto es 100% legible -->
-            <div class="absolute inset-0 bg-gradient-to-t from-[#0a0b0d] via-transparent to-[#0a0b0d]/85"></div>
-            <div class="absolute inset-0 bg-gradient-to-r from-[#0a0b0d]/90 via-transparent to-[#0a0b0d]/90"></div>
-            <div class="absolute inset-0 [background:radial-gradient(ellipse_at_center,transparent_25%,#0a0b0d_82%)]"></div>
-          </div>
-
-          <div class="relative z-10 max-w-[1240px] mx-auto px-6 md:px-12">
-            
-            <!-- Layout Hero Centrado y Majestuoso sobre el Logo de Fondo -->
-            <div class="max-w-3xl mx-auto text-center flex flex-col items-center justify-center min-h-[52vh] py-10">
+            <div class="relative flex items-center justify-center mb-4 sm:mb-6 air-floating">
+              <!-- Doble anillo orbital dorado sutil -->
+              <div class="absolute -inset-3 sm:-inset-5 rounded-full border border-[#d4af37]/25 animate-[spin_24s_linear_infinite] pointer-events-none"></div>
+              <div class="absolute -inset-6 sm:-inset-8 rounded-full border border-dashed border-[#d4af37]/15 animate-[spin_36s_linear_infinite_reverse] pointer-events-none"></div>
               
-              <div class="inline-flex items-center gap-2 mb-6 px-3.5 py-1 rounded-full bg-[#d4af37]/15 text-[#f3e5ab] border border-[#d4af37]/35 text-xs font-sans-ui font-semibold tracking-wide w-fit backdrop-blur-sm">
-                <span class="w-2 h-2 rounded-full bg-[#d4af37] shadow-[0_0_8px_#d4af37]"></span>
-                <span>NEIVA, HUILA · AGENDA EN VIVO 2026</span>
-              </div>
-
-              <!-- Titular Display en blanco cálido y oro metálico -->
-              <h1 class="type-display-editorial mb-6 text-[#ffffff] tracking-tight">
-                Arquitectos de tu imagen.<br>
-                <span class="text-[#d4af37] italic font-normal">Precisión en cada corte.</span>
-              </h1>
-
-              <!-- Subtítulo descriptivo -->
-              <p class="font-serif-editorial text-[#c5c0b6] max-w-xl mx-auto text-[18px] sm:text-[20px] mb-8 font-normal leading-relaxed">
-                Estudio de barbería tradicional y alta peluquería masculina. Agenda tu turno directamente en nuestro registro en vivo y sincronízalo de inmediato en tu calendario personal.
-              </p>
-
-              <!-- Botones de Acción en Oro y Borde Bruñido -->
-              <div class="flex flex-wrap items-center justify-center gap-4">
-                <a href="#calendario" class="btn-clay">
-                  Reservar turno →
-                </a>
-                <button type="button" id="btn-open-client-sync" class="btn-stone-outline text-[#f3e5ab] cursor-pointer">
-                  Sincronizar mi calendario iPhone
-                </button>
-                <a href="https://wa.me/573219897910" target="_blank" class="btn-stone-outline">
-                  Línea WhatsApp (+57 321 989 7910)
-                </a>
-              </div>
+              <!-- Imagen oficial del Logo en HD -->
+              <img 
+                src="./logo_barberia_lopez_hd.jpg" 
+                alt="Barbería López" 
+                class="w-[150px] h-[150px] sm:w-[220px] sm:h-[220px] md:w-[260px] md:h-[260px] rounded-full object-cover border-2 border-[#d4af37]/60 shadow-[0_0_35px_rgba(212,175,55,0.22),0_0_60px_rgba(0,0,0,0.9)]"
+                loading="eager"
+                onerror="this.src='./logo_barberia_lopez.png'"
+              >
             </div>
 
-            <!-- TRES PILARES / ESTÁNDARES EN ORO & OBSIDIANA -->
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4">
-              <div class="bg-[#12151b]/85 backdrop-blur-md border border-[#d4af37]/25 rounded-[22px] p-7 flex flex-col justify-between shadow-lg hover:border-[#d4af37]/50 transition-all">
-                <div class="font-serif-editorial text-[44px] sm:text-[52px] font-normal leading-none text-[#d4af37] mb-3">100%</div>
-                <p class="font-sans-ui text-[14px] text-[#c5c0b6] leading-snug">Cero esperas en sala. Tu turno reservado en agenda es atendido al minuto exacto.</p>
+            <!-- Titular de la Marca y Ubicación -->
+            <h1 class="font-serif-editorial text-2xl sm:text-3xl md:text-4xl font-normal tracking-[0.22em] text-[#ffffff] uppercase drop-shadow-[0_4px_16px_rgba(0,0,0,0.8)]">
+              Barbería López
+            </h1>
+            <p class="shimmer-gold font-sans-ui text-xs sm:text-sm tracking-[0.3em] uppercase font-semibold mt-1.5 sm:mt-2">
+              Estudio Tradicional · Neiva, Huila
+            </p>
+            <p class="font-serif-editorial text-[#c5c0b6] italic text-xs sm:text-sm mt-1.5 max-w-md">
+              "Somos los arquitectos de tu imagen"
+            </p>
+
+            <!-- Indicador animado para invitar al cliente a scrolear / bajar -->
+            <a href="#informacion" class="mt-4 sm:mt-6 inline-flex flex-col items-center gap-1.5 text-[#c5c0b6] hover:text-[#d4af37] transition-all no-underline group cursor-pointer">
+              <span class="font-sans-ui text-[10px] sm:text-[11px] font-medium tracking-[0.22em] uppercase text-[#9e9587] group-hover:text-[#d4af37] transition-colors">
+                Desliza para ver la información
+              </span>
+              <div class="w-5 h-8 sm:w-6 sm:h-9 rounded-full border-2 border-[#d4af37]/45 flex items-start justify-center p-1 group-hover:border-[#d4af37] transition-colors">
+                <div class="w-1.5 h-2 bg-[#d4af37] rounded-full animate-bounce"></div>
               </div>
-              <div class="bg-[#12151b]/85 backdrop-blur-md border border-[#d4af37]/25 rounded-[22px] p-7 flex flex-col justify-between shadow-lg hover:border-[#d4af37]/50 transition-all">
-                <div class="font-serif-editorial text-[44px] sm:text-[52px] font-normal leading-none text-[#d4af37] mb-3">+12 Años</div>
-                <p class="font-sans-ui text-[14px] text-[#c5c0b6] leading-snug">Maestro Lopez al frente de la alta escuela de peluquería clásica en Neiva, Huila.</p>
+            </a>
+          </div>
+
+          <!-- Degradado de desvanecimiento hacia la siguiente sección -->
+          <div class="absolute bottom-0 inset-x-0 h-10 bg-gradient-to-t from-[#0a0b0d] to-transparent pointer-events-none"></div>
+        </section>
+
+        <!-- SECTION 1.5: INFORMACION DE LA BARBERIA (Aparece al hacer scroll o bajar) -->
+        <section id="informacion" class="relative overflow-hidden bg-[#0a0b0d] py-8 sm:py-14 md:py-16 border-b border-[#d4af37]/20">
+          
+          <!-- Fondo ambiental sutil -->
+          <div class="absolute inset-0 pointer-events-none select-none flex items-center justify-center overflow-hidden z-0">
+            <div class="absolute w-[500px] h-[500px] rounded-full bg-[#d4af37]/6 blur-[120px]"></div>
+          </div>
+
+          <div class="relative z-10 max-w-[1240px] mx-auto px-4 sm:px-6 md:px-12 py-2 sm:py-4">
+            
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
+              
+              <!-- COLUMNA IZQUIERDA: INFORMACION Y BOTONES -->
+              <div class="lg:col-span-7 flex flex-col items-start text-left">
+                
+                <div class="inline-flex items-center gap-2 mb-4 px-3.5 py-1 rounded-full bg-[#d4af37]/15 text-[#f3e5ab] border border-[#d4af37]/35 text-xs font-sans-ui font-semibold tracking-wide w-fit backdrop-blur-sm">
+                  <span class="w-2 h-2 rounded-full bg-[#d4af37] shadow-[0_0_8px_#d4af37]"></span>
+                  <span>NEIVA, HUILA · AGENDA EN VIVO</span>
+                </div>
+
+                <!-- Titular Display en blanco cálido y oro metálico -->
+                <h2 class="type-display-editorial mb-4 text-[#ffffff] tracking-tight text-[32px] sm:text-[44px] md:text-[50px] leading-[1.1]">
+                  Arquitectos de tu imagen.<br>
+                  <span class="text-[#d4af37] italic font-normal">Precisión en cada corte.</span>
+                </h2>
+
+                <!-- Subtítulo conciso -->
+                <p class="font-sans-ui text-[#c5c0b6] text-sm sm:text-base mb-6 leading-relaxed max-w-xl">
+                  Agenda tu cita en vivo en menos de 1 minuto, selecciona a tu barbero y asegura tu turno sin filas ni esperas.
+                </p>
+
+                <!-- Botones de Acción Directos (Botones) -->
+                <div class="flex flex-wrap items-center gap-3 mb-8 w-full sm:w-auto">
+                  <a href="#calendario" class="btn-clay py-3 px-6 text-xs sm:text-sm font-bold shadow-lg">
+                    Reservar turno ahora →
+                  </a>
+                  <button type="button" id="btn-hero-open-store" class="btn-stone-outline text-[#f3e5ab] border-[#d4af37]/40 py-3 px-5 text-xs sm:text-sm font-semibold cursor-pointer">
+                    Tienda de productos →
+                  </button>
+                  <a href="https://wa.me/573219897910" target="_blank" rel="noopener noreferrer" class="btn-stone-outline py-3 px-4 text-xs font-semibold inline-flex items-center gap-2">
+                    <span>WhatsApp</span>
+                  </a>
+                  <a 
+                    href="https://www.tiktok.com/@barber_lopez_neiva" 
+                    target="_blank" 
+                    rel="noopener noreferrer" 
+                    class="btn-stone-outline inline-flex items-center gap-2 text-[#f3e5ab] hover:text-[#ffffff] hover:border-[#d4af37] py-3 px-4 text-xs font-semibold transition-all"
+                  >
+                    <svg class="w-3.5 h-3.5 fill-current shrink-0" viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.63.41-1.11 1.04-1.36 1.75-.21.51-.24 1.07-.14 1.61.24 1.64 1.82 3.02 3.5 2.87 1.12-.01 2.19-.66 2.77-1.61.19-.33.4-.67.41-1.06.1-1.79.06-3.57.07-5.36.01-4.03-.01-8.05.02-12.07z"/>
+                    </svg>
+                    <span>TikTok</span>
+                  </a>
+                </div>
+
+                <!-- Pasos Rápidos en Horizontal / Compactos -->
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 w-full">
+                  <div class="spotlight-card bg-[#12151b]/80 border border-[#d4af37]/25 rounded-[14px] p-3.5">
+                    <div class="font-mono-tech text-[10px] font-bold text-[#d4af37] uppercase">01 / SERVICIO</div>
+                    <div class="font-serif-editorial text-sm text-[#ffffff] font-normal mt-0.5">Elige tu corte</div>
+                    <p class="font-sans-ui text-[11px] text-[#c5c0b6] mt-1 leading-snug">Clásico, degradado o combo spa.</p>
+                  </div>
+                  <div class="spotlight-card bg-[#12151b]/80 border border-[#d4af37]/25 rounded-[14px] p-3.5">
+                    <div class="font-mono-tech text-[10px] font-bold text-[#d4af37] uppercase">02 / AGENDA</div>
+                    <div class="font-serif-editorial text-sm text-[#ffffff] font-normal mt-0.5">Barbero & hora</div>
+                    <p class="font-sans-ui text-[11px] text-[#c5c0b6] mt-1 leading-snug">Turnos en vivo sin esperas.</p>
+                  </div>
+                  <div class="spotlight-card bg-[#12151b]/80 border border-[#d4af37]/25 rounded-[14px] p-3.5">
+                    <div class="font-mono-tech text-[10px] font-bold text-[#d4af37] uppercase">03 / ATENCIÓN</div>
+                    <div class="font-serif-editorial text-sm text-[#ffffff] font-normal mt-0.5">Paga en efectivo</div>
+                    <p class="font-sans-ui text-[11px] text-[#c5c0b6] mt-1 leading-snug">Puntual en la estación de corte.</p>
+                  </div>
+                </div>
+
               </div>
-              <div class="bg-[#12151b]/85 backdrop-blur-md border border-[#d4af37]/25 rounded-[22px] p-7 flex flex-col justify-between shadow-lg hover:border-[#d4af37]/50 transition-all">
-                <div class="font-serif-editorial text-[44px] sm:text-[52px] font-normal leading-none text-[#d4af37] mb-3">4.9 / 5.0</div>
-                <p class="font-sans-ui text-[14px] text-[#c5c0b6] leading-snug">Visagismo anatómico, toallas calientes y satisfacción absoluta en cada estación.</p>
+
+              <!-- COLUMNA DERECHA: REPRODUCTOR DE VIDEOS OFICIAL (VIDEOS CON GESTO DESLIZABLE) -->
+              <div class="lg:col-span-5 flex flex-col items-center justify-center w-full mt-4 lg:mt-0">
+                <div id="hero-reel-card" class="spotlight-card relative w-full max-w-[340px] sm:max-w-[370px] h-[460px] sm:h-[500px] bg-[#12151b] border-2 border-[#d4af37]/45 rounded-[26px] overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.92),0_0_30px_rgba(212,175,55,0.22)] flex items-center justify-center select-none cursor-grab active:cursor-grabbing">
+                  
+                  <!-- Video Principal Optimizado para Rendimiento Móvil -->
+                  <video 
+                    id="hero-reel-video"
+                    src="/assets/videos/Download.mp4"
+                    autoplay 
+                    muted 
+                    loop 
+                    playsinline 
+                    webkit-playsinline
+                    preload="metadata"
+                    class="w-full h-full object-cover object-center pointer-events-none"
+                  ></video>
+
+                  <!-- Sombreado de contraste ligero sin filtros pesados -->
+                  <div class="absolute inset-0 bg-gradient-to-t from-[#0a0b0d] via-transparent to-[#0a0b0d]/70 pointer-events-none"></div>
+
+                  <!-- Barra Superior con Badge de Corte y Control de Audio -->
+                  <div class="absolute top-3.5 inset-x-3.5 flex items-center justify-between z-20">
+                    <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#0a0b0d]/90 border border-[#d4af37]/40 text-[11px] font-sans-ui font-semibold text-[#f3e5ab]">
+                      <span class="w-2 h-2 rounded-full bg-emerald-400 indicator-on-shift"></span>
+                      <span id="hero-reel-title">Corte Tradicional & Degradado</span>
+                    </div>
+                    <button type="button" id="btn-toggle-video-sound" class="w-8 h-8 rounded-full bg-[#0a0b0d]/90 border border-[#d4af37]/40 text-[#f3e5ab] hover:text-[#ffffff] hover:border-[#d4af37] flex items-center justify-center transition-all cursor-pointer shadow-md" title="Activar / Desactivar sonido">
+                      <svg id="icon-sound-off" class="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24"><path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"/></svg>
+                      <svg id="icon-sound-on" class="w-3.5 h-3.5 fill-current hidden" viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>
+                    </button>
+                  </div>
+
+                  <!-- Botones Discretos de Navegación Lateral -->
+                  <button type="button" id="btn-reel-prev" class="absolute left-2.5 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-[#0a0b0d]/75 border border-[#d4af37]/35 text-[#f3e5ab] hover:border-[#d4af37] flex items-center justify-center transition-all z-20 cursor-pointer text-xs select-none" aria-label="Video anterior">
+                    &#10094;
+                  </button>
+                  <button type="button" id="btn-reel-next" class="absolute right-2.5 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-[#0a0b0d]/75 border border-[#d4af37]/35 text-[#f3e5ab] hover:border-[#d4af37] flex items-center justify-center transition-all z-20 cursor-pointer text-xs select-none" aria-label="Siguiente video">
+                    &#10095;
+                  </button>
+
+                  <!-- Indicador de Paginación Minimalista (Deslizable / Puntos) -->
+                  <div class="absolute bottom-3.5 inset-x-3 flex flex-col items-center justify-center gap-1.5 z-20 pointer-events-none">
+                    <span class="text-[10px] font-sans-ui text-[#f3e5ab]/80 tracking-widest uppercase font-medium">
+                      Desliza para cambiar de video
+                    </span>
+                    <div id="reel-dots-container" class="flex items-center gap-1.5 pointer-events-auto">
+                      <button type="button" class="reel-dot w-6 h-1.5 rounded-full bg-[#d4af37] transition-all cursor-pointer" data-video-index="0" aria-label="Ver video 1"></button>
+                      <button type="button" class="reel-dot w-2 h-1.5 rounded-full bg-white/40 transition-all cursor-pointer" data-video-index="1" aria-label="Ver video 2"></button>
+                      <button type="button" class="reel-dot w-2 h-1.5 rounded-full bg-white/40 transition-all cursor-pointer" data-video-index="2" aria-label="Ver video 3"></button>
+                    </div>
+                  </div>
+
+                </div>
               </div>
+
             </div>
 
           </div>
@@ -1648,15 +2000,15 @@
         <section id="calendario" class="max-w-[1240px] mx-auto px-6 md:px-12 py-[72px]">
           
           <!-- Encabezado de la Sección -->
-          <div class="flex flex-col md:flex-row md:items-end justify-between mb-10 gap-6">
+          <div class="flex flex-col md:flex-row md:items-end justify-between mb-8 gap-4">
             <div>
-              <div class="font-sans-ui text-xs font-semibold uppercase tracking-wider text-[#d4af37] mb-2">02 / CALENDARIO EN VIVO</div>
-              <h2 class="type-display-editorial text-[36px] sm:text-[46px] leading-[1.05] text-[#ffffff]">
-                Agenda de turnos en tiempo real
+              <div class="font-sans-ui text-xs font-semibold uppercase tracking-wider text-[#d4af37] mb-1.5">RESERVA EN LÍNEA</div>
+              <h2 class="type-display-editorial text-[30px] sm:text-[40px] leading-tight text-[#ffffff]">
+                Agenda en tiempo real
               </h2>
             </div>
-            <p class="font-serif-editorial text-[#c5c0b6] max-w-md text-[16px] sm:text-[17px] leading-relaxed">
-              Explora las fechas disponibles y haz clic sobre el día u hora que desees. Se abrirá el formulario para registrar tus datos, conectar tu calendario y apartar tu corte con tu barbero favorito.
+            <p class="font-sans-ui text-[#c5c0b6] max-w-sm text-xs sm:text-sm leading-relaxed">
+              Toca la hora libre que prefieras para apartar tu turno en menos de 1 minuto.
             </p>
           </div>
 
@@ -1725,19 +2077,20 @@
 
         </section>
 
-        <!-- SECTION 03: SERVICIOS & FILOSOFÍA -->
+        <!-- SECTION 03: SERVICIOS & PRECIOS -->
         <section id="servicios" class="max-w-[1240px] mx-auto px-6 md:px-12 py-[72px] border-t border-[#d4af37]/20">
-          <div class="mb-10">
-            <div class="font-sans-ui text-xs font-semibold uppercase tracking-wider text-[#d4af37] mb-2">03 / CATÁLOGO OFICIAL & SERVICIOS</div>
-            <h2 class="type-display-editorial text-[36px] sm:text-[46px] leading-[1.05] text-[#ffffff]">
-              Servicios de autor & combos insignia
+          <div class="mb-8">
+            <div class="font-sans-ui text-xs font-semibold uppercase tracking-wider text-[#d4af37] mb-1.5">CATÁLOGO DE SERVICIOS</div>
+            <h2 class="type-display-editorial text-[30px] sm:text-[40px] leading-tight text-[#ffffff]">
+              Servicios & Combos
             </h2>
+            <p class="font-sans-ui text-xs sm:text-sm text-[#c5c0b6] mt-1">Precios en efectivo sin costos ocultos.</p>
           </div>
 
           <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             
             <!-- Card 1: Corte Básico -->
-            <div class="bg-[#12151b] border border-[#d4af37]/25 rounded-[24px] p-7 flex flex-col justify-between min-h-[240px] hover:border-[#d4af37]/50 transition-all shadow-lg">
+            <div class="spotlight-card bg-[#12151b] border border-[#d4af37]/25 rounded-[24px] p-7 flex flex-col justify-between min-h-[240px] hover:border-[#d4af37]/50 transition-all shadow-lg">
               <div>
                 <span class="font-sans-ui text-xs font-semibold uppercase tracking-wider text-[#a39578] block mb-2">01 / CORTE TRADICIONAL</span>
                 <h3 class="font-serif-editorial text-[26px] font-normal text-[#ffffff] mb-2">Corte Básico</h3>
@@ -1752,7 +2105,7 @@
             </div>
 
             <!-- Card 2: Combo 1 -->
-            <div class="bg-[#12151b] border border-[#d4af37]/25 rounded-[24px] p-7 flex flex-col justify-between min-h-[240px] hover:border-[#d4af37]/50 transition-all shadow-lg">
+            <div class="spotlight-card bg-[#12151b] border border-[#d4af37]/25 rounded-[24px] p-7 flex flex-col justify-between min-h-[240px] hover:border-[#d4af37]/50 transition-all shadow-lg">
               <div>
                 <span class="font-sans-ui text-xs font-semibold uppercase tracking-wider text-[#a39578] block mb-2">02 / CORTE + RELAJACIÓN</span>
                 <h3 class="font-serif-editorial text-[26px] font-normal text-[#ffffff] mb-2">Combo 1</h3>
@@ -1767,7 +2120,7 @@
             </div>
 
             <!-- Card 3: Combo 2 -->
-            <div class="bg-[#12151b] border border-[#d4af37]/25 rounded-[24px] p-7 flex flex-col justify-between min-h-[240px] hover:border-[#d4af37]/50 transition-all shadow-lg">
+            <div class="spotlight-card bg-[#12151b] border border-[#d4af37]/25 rounded-[24px] p-7 flex flex-col justify-between min-h-[240px] hover:border-[#d4af37]/50 transition-all shadow-lg">
               <div>
                 <span class="font-sans-ui text-xs font-semibold uppercase tracking-wider text-[#a39578] block mb-2">03 / CORTE + BARBA + SPA</span>
                 <h3 class="font-serif-editorial text-[26px] font-normal text-[#ffffff] mb-2">Combo 2</h3>
@@ -1782,7 +2135,7 @@
             </div>
 
             <!-- Card 4: Combo 3 -->
-            <div class="bg-[#12151b] border border-[#d4af37]/25 rounded-[24px] p-7 flex flex-col justify-between min-h-[240px] hover:border-[#d4af37]/50 transition-all shadow-lg">
+            <div class="spotlight-card bg-[#12151b] border border-[#d4af37]/25 rounded-[24px] p-7 flex flex-col justify-between min-h-[240px] hover:border-[#d4af37]/50 transition-all shadow-lg">
               <div>
                 <span class="font-sans-ui text-xs font-semibold uppercase tracking-wider text-[#a39578] block mb-2">04 / SPA FACIAL COMPLETO</span>
                 <h3 class="font-serif-editorial text-[26px] font-normal text-[#ffffff] mb-2">Combo 3</h3>
@@ -1797,7 +2150,7 @@
             </div>
 
             <!-- Card 5: Combi Completa VIP -->
-            <div class="bg-[#12151b] border border-[#d4af37]/25 rounded-[24px] p-7 flex flex-col justify-between min-h-[240px] hover:border-[#d4af37]/50 transition-all shadow-lg">
+            <div class="spotlight-card bg-[#12151b] border border-[#d4af37]/25 rounded-[24px] p-7 flex flex-col justify-between min-h-[240px] hover:border-[#d4af37]/50 transition-all shadow-lg">
               <div>
                 <span class="font-sans-ui text-xs font-semibold uppercase tracking-wider text-[#a39578] block mb-2">05 / EXPERIENCIA TOTAL VIP</span>
                 <h3 class="font-serif-editorial text-[26px] font-normal text-[#ffffff] mb-2">Combi Completa VIP</h3>
@@ -1812,7 +2165,7 @@
             </div>
 
             <!-- Card 6: Adicionales & Pigmentación -->
-            <div class="bg-gradient-to-br from-[#161a22] to-[#101217] border border-[#d4af37]/45 rounded-[24px] p-7 flex flex-col justify-between min-h-[240px] shadow-xl">
+            <div class="spotlight-card bg-gradient-to-br from-[#161a22] to-[#101217] border border-[#d4af37]/45 rounded-[24px] p-7 flex flex-col justify-between min-h-[240px] shadow-xl">
               <div>
                 <span class="font-sans-ui text-xs font-semibold uppercase tracking-wider text-[#d4af37] block mb-2">OPCIONALES / PERSONALIZACIÓN</span>
                 <h3 class="font-serif-editorial text-[26px] font-normal text-[#ffffff] mb-2">Adicionales de Autor</h3>
@@ -1832,10 +2185,226 @@
           </div>
         </section>
       `;
+    } else if (state.activeView === 'store') {
+      const activeProducts = products.filter((p) => p.active !== false);
+      const categories = ['ALL', ...Array.from(new Set(activeProducts.map((p) => p.category || 'General')))];
+      const filteredProducts = state.storeCategoryFilter === 'ALL'
+        ? activeProducts
+        : activeProducts.filter((p) => (p.category || 'General') === state.storeCategoryFilter);
+
+      let savedClientRefs = [];
+      try {
+        savedClientRefs = JSON.parse(localStorage.getItem('blopez_my_store_refs') || '[]');
+      } catch (e) {
+        savedClientRefs = [];
+      }
+      const lookupQuery = (state.clientOrderLookup || '').trim().toLowerCase();
+      const myVisibleOrders = (state.storeOrders || []).filter((o) => {
+        if (lookupQuery.length >= 3) {
+          const matchRef = (o.referenceCode || '').toLowerCase().includes(lookupQuery);
+          const matchPhone = (o.clientPhone || '').replace(/\D/g, '').includes(lookupQuery.replace(/\D/g, '')) && lookupQuery.replace(/\D/g, '').length >= 6;
+          return matchRef || matchPhone;
+        }
+        return savedClientRefs.includes(o.referenceCode);
+      });
+
+      mainContent = `
+        <section class="max-w-[1240px] mx-auto px-6 md:px-12 py-12 font-sans-ui">
+          
+          <!-- Encabezado Editorial de la Tienda (Limpio y Minimalista) -->
+          <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8 pb-6 border-b border-[rgba(212,175,55,0.2)]">
+            <div class="flex items-center gap-3.5">
+              <img 
+                src="./logo_barberia_lopez_hd.jpg" 
+                alt="Logo Tienda Barberia Lopez" 
+                class="w-12 h-12 sm:w-14 sm:h-14 rounded-full object-cover border border-[rgba(212,175,55,0.4)] shadow-[0_0_15px_rgba(212,175,55,0.2)] shrink-0"
+                onerror="this.src='./logo_barberia_lopez.png'"
+              >
+              <div>
+                <h1 class="font-serif-editorial text-2xl sm:text-3xl text-[#ffffff] tracking-tight leading-tight">
+                  Tienda Oficial López
+                </h1>
+                <p class="font-sans-ui text-xs sm:text-sm text-[#d4af37] font-medium mt-0.5">
+                  Aparta en línea y paga en efectivo en la barbería.
+                </p>
+              </div>
+            </div>
+            <button type="button" id="btn-store-back-home" class="btn-stone-outline text-xs font-semibold py-2 px-4 whitespace-nowrap cursor-pointer self-stretch sm:self-auto text-center">
+              ← Volver a la agenda
+            </button>
+          </div>
+
+          <!-- PANEL DEL CLIENTE: CONSULTA DE PEDIDO -->
+          <div class="bg-[#12151b] border border-[rgba(212,175,55,0.25)] rounded-[16px] p-4 mb-8">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div class="flex items-center gap-2">
+                <span class="w-2 h-2 rounded-full bg-[#d4af37]"></span>
+                <span class="text-xs font-sans-ui font-semibold text-[#f3e5ab] uppercase tracking-wide">
+                  Consultar estado de pedido:
+                </span>
+              </div>
+              <div class="flex items-center gap-2 w-full sm:w-auto">
+                <input
+                  type="text"
+                  id="input-client-order-lookup"
+                  placeholder="Código REF-BL-XXXX o celular"
+                  value="${escapeHtml(state.clientOrderLookup || '')}"
+                  class="input-parchment py-1.5 px-3 text-xs font-mono-tech w-full sm:w-64"
+                >
+                ${state.clientOrderLookup ? `
+                  <button type="button" id="btn-clear-client-lookup" class="btn-stone-outline py-1.5 px-3 text-xs cursor-pointer">Limpiar</button>
+                ` : ''}
+              </div>
+            </div>
+
+            ${myVisibleOrders.length > 0 ? `
+              <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mt-4 pt-4 border-t border-[rgba(212,175,55,0.16)]">
+                ${myVisibleOrders.map((ord) => {
+                  const isPending = ord.status === 'PENDIENTE';
+                  const isDelivered = ord.status === 'ENTREGADO';
+                  const modeLabel = ord.deliveryMode === 'EN_BARBERIA'
+                    ? 'En barbería · Entrega inmediata'
+                    : ord.deliveryMode === 'VENTA_DIRECTA'
+                    ? 'Venta presencial en estación'
+                    : 'Apartado para recoger en barbería';
+                  return `
+                    <div class="bg-[#161a22] border ${isPending ? 'border-[#d4af37]/50' : isDelivered ? 'border-emerald-700/50' : 'border-stone-800 opacity-70'} rounded-[12px] p-4 flex flex-col justify-between gap-3">
+                      <div>
+                        <div class="flex items-center justify-between gap-2 mb-2">
+                          <span class="font-mono-tech text-xs font-bold text-[#d4af37] bg-[#0a0b0d] px-2.5 py-1 rounded border border-[#d4af37]/40">${escapeHtml(ord.referenceCode)}</span>
+                          <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full ${
+                            isPending
+                              ? 'bg-[#d4af37]/20 text-[#f3e5ab] border border-[#d4af37]/40'
+                              : isDelivered
+                              ? 'bg-emerald-950/80 text-emerald-300 border border-emerald-700/50'
+                              : 'bg-red-950/60 text-red-300 border border-red-800/50'
+                          }">
+                            ${isPending ? 'PENDIENTE DE PAGO' : isDelivered ? 'ENTREGADO' : 'CANCELADO'}
+                          </span>
+                        </div>
+                        <div class="font-serif-editorial text-base text-[#ffffff]">${escapeHtml(ord.productName)} (x${ord.quantity})</div>
+                        <div class="text-xs font-mono-tech text-[#d4af37] font-bold mt-0.5">$${Number(ord.totalCop || 0).toLocaleString('es-CO')} COP en efectivo</div>
+                        <div class="text-[11px] text-[#c5c0b6] mt-1.5">${escapeHtml(modeLabel)}</div>
+                        <div class="text-[11px] text-[#8a8275] mt-0.5">
+                          ${isDelivered
+                            ? `Atendido por: ${escapeHtml(ord.deliveredByName || ord.deliveredBy || 'Barbero en turno')}`
+                            : `Barbero: ${escapeHtml(ord.preferredBarberName || 'Cualquier barbero en turno')}`}
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        data-open-voucher-ref="${escapeHtml(ord.referenceCode)}"
+                        class="btn-reopen-store-voucher btn-stone-outline w-full py-1.5 text-xs font-semibold text-[#f3e5ab] justify-center cursor-pointer">
+                        Ver comprobante de referencia →
+                      </button>
+                    </div>
+                  `;
+                }).join('')}
+              </div>
+            ` : state.clientOrderLookup ? `
+              <div class="mt-4 pt-3 border-t border-[rgba(212,175,55,0.15)] text-xs text-[#c5c0b6]">
+                No se encontraron pedidos con la referencia o teléfono ingresado.
+              </div>
+            ` : ''}
+          </div>
+
+          <!-- FILTRO DE CATEGORÍAS -->
+          <div class="flex flex-wrap items-center justify-between gap-4 mb-8 bg-[#12151b] border border-[rgba(212,175,55,0.2)] rounded-[16px] p-4">
+            <div class="flex items-center gap-2">
+              <span class="w-2 h-2 rounded-full bg-[#d4af37]"></span>
+              <span class="text-xs font-semibold uppercase tracking-wider text-[#f3e5ab]">CATEGORÍAS DE TIENDA:</span>
+            </div>
+            <div class="flex flex-wrap gap-2">
+              ${categories.map((cat) => {
+                const isSelected = state.storeCategoryFilter === cat;
+                const label = cat === 'ALL' ? `Todos los productos (${activeProducts.length})` : cat;
+                return `
+                  <button
+                    type="button"
+                    data-store-cat="${escapeHtml(cat)}"
+                    class="btn-store-cat ${isSelected ? 'btn-clay' : 'btn-stone-outline'} py-1.5 px-4 text-xs font-semibold cursor-pointer">
+                    ${escapeHtml(label)}
+                  </button>
+                `;
+              }).join('')}
+            </div>
+          </div>
+
+          <!-- CATÁLOGO DE PRODUCTOS -->
+          ${filteredProducts.length === 0 ? `
+            <div class="anthropic-card p-12 text-center">
+              <h3 class="font-serif-editorial text-2xl text-[#ffffff] mb-2">No hay productos en esta categoría</h3>
+              <p class="text-sm text-[#c5c0b6]">Selecciona otra categoría o consulta nuevamente más tarde.</p>
+            </div>
+          ` : `
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-7">
+              ${filteredProducts.map((p) => {
+                const outOfStock = (Number(p.stock) || 0) <= 0;
+                return `
+                  <div class="spotlight-card bg-[#12151b] border ${outOfStock ? 'border-stone-800 opacity-75' : 'border-[rgba(212,175,55,0.28)] hover:border-[#d4af37]'} rounded-[22px] overflow-hidden flex flex-col justify-between transition-all shadow-xl">
+                    <div>
+                      <div class="relative h-56 w-full bg-[#0a0b0d] overflow-hidden border-b border-[rgba(212,175,55,0.18)]">
+                        <img
+                          src="${escapeHtml(p.imageUrl || './logo_barberia_lopez_hd.jpg')}"
+                          alt="${escapeHtml(p.name)}"
+                          loading="lazy"
+                          decoding="async"
+                          class="w-full h-full object-cover object-center transition-transform duration-500 hover:scale-105"
+                          onerror="this.src='./logo_barberia_lopez_hd.jpg'"
+                        >
+                        <div class="absolute top-3 left-3 px-3 py-1 rounded-full bg-[#0a0b0d]/85 backdrop-blur-md border border-[rgba(212,175,55,0.35)] text-[11px] font-semibold text-[#f3e5ab] uppercase tracking-wider">
+                          ${escapeHtml(p.category || 'Cuidado Personal')}
+                        </div>
+                        <div class="absolute top-3 right-3 px-3 py-1 rounded-full font-mono-tech text-[11px] font-bold ${
+                          outOfStock
+                            ? 'bg-red-950/90 border border-red-700 text-red-300'
+                            : 'bg-[#0a0b0d]/90 border border-[#d4af37] text-[#d4af37]'
+                        }">
+                          ${outOfStock ? 'AGOTADO' : `${p.stock} EN STOCK`}
+                        </div>
+                      </div>
+
+                      <div class="p-6">
+                        <h3 class="font-serif-editorial text-[24px] font-normal text-[#ffffff] leading-snug mb-2">
+                          ${escapeHtml(p.name)}
+                        </h3>
+                        <p class="font-sans-ui text-xs sm:text-sm text-[#c5c0b6] leading-relaxed">
+                          ${escapeHtml(p.description || 'Producto profesional de barbería.')}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div class="px-6 pb-6 pt-4 border-t border-[rgba(212,175,55,0.16)] flex items-center justify-between gap-4">
+                      <div>
+                        <span class="block text-[10px] font-semibold uppercase tracking-wider text-[#8a8275]">Pago en efectivo</span>
+                        <span class="font-mono-tech text-[22px] font-bold text-[#d4af37]">$${Number(p.priceCop || 0).toLocaleString('es-CO')} <span class="text-xs font-sans-ui text-[#f3e5ab]">COP</span></span>
+                      </div>
+                      ${outOfStock ? `
+                        <button type="button" disabled class="btn-stone-outline py-2.5 px-4 text-xs font-semibold opacity-50 cursor-not-allowed">
+                          Sin existencias
+                        </button>
+                      ` : `
+                        <button
+                          type="button"
+                          data-buy-product-id="${escapeHtml(p.id)}"
+                          class="btn-buy-store-product btn-clay py-2.5 px-5 text-xs font-semibold cursor-pointer">
+                          Comprar y generar referencia →
+                        </button>
+                      `}
+                    </div>
+                  </div>
+                `;
+              }).join('')}
+            </div>
+          `}
+
+        </section>
+      `;
     } else if (state.activeView === 'dashboard' && state.currentUser) {
       const todayStr = getLocalDateString();
-      const cashData = CashCalculatorService.calculateDailyCash(state.history, todayStr);
+      const cashData = CashCalculatorService.calculateDailyCash(state.history, todayStr, state.storeOrders);
       const isJefe = state.currentUser.role === Roles.JEFE || state.currentUser.role === Roles.ADMIN;
+      const isAdmin = state.currentUser.role === Roles.ADMIN;
 
       const visibleAppointments = isJefe
         ? appointments
@@ -1924,58 +2493,200 @@
 
       const totalFilteredCop = activeHistoryDisplayCuts.reduce((sum, h) => sum + (h.priceCop || 0), 0);
 
+      const myBarber = state.currentUser.barberId
+        ? barbers.find((b) => b.id === state.currentUser.barberId)
+        : null;
+      const isMyStationOnShift = myBarber ? (myBarber.onShift !== false && myBarber.active !== false) : true;
+      const activeShiftBarbers = barbers.filter((b) => b.active !== false && b.onShift !== false);
+      const inStockProducts = products.filter((p) => p.active !== false && (Number(p.stock) || 0) > 0);
+
       mainContent = `
         <section class="max-w-[1240px] mx-auto px-6 md:px-12 py-10 font-sans-ui">
           
-          <!-- Encabezado del Perfil -->
+          <!-- Encabezado del Perfil y Control de Turno -->
           <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-8 pb-6 border-b border-[rgba(212,175,55,0.22)]">
             <div>
-              <div class="inline-flex items-center gap-2 mb-2 px-3 py-1 rounded-full bg-[#181c24] border border-[rgba(212,175,55,0.3)] text-[#f3e5ab] text-xs font-semibold">
-                <span class="w-2 h-2 rounded-full bg-[#d4af37]"></span>
-                <span>${isJefe ? 'Estación Maestra · Control General' : state.currentUser.role === Roles.BARBERO ? 'Estación Barbero · Vista de Turnos' : 'Estación Practicante · Vista Aislada'}</span>
+              <div class="flex flex-wrap items-center gap-2 mb-2">
+                <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#181c24] border border-[rgba(212,175,55,0.3)] text-[#f3e5ab] text-xs font-semibold">
+                  <span class="w-2 h-2 rounded-full bg-[#d4af37]"></span>
+                  <span>${isJefe ? 'Estación Maestra · Control General' : state.currentUser.role === Roles.BARBERO ? 'Estación Barbero · Vista de Turnos' : 'Estación Practicante · Vista Aislada'}</span>
+                </div>
+                ${myBarber ? `
+                  <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-mono-tech font-bold ${
+                    isMyStationOnShift
+                      ? 'bg-emerald-950/80 border border-emerald-600/60 text-emerald-300'
+                      : 'bg-red-950/80 border border-red-600/60 text-red-300'
+                  }">
+                    <span class="w-2 h-2 rounded-full ${isMyStationOnShift ? 'bg-emerald-400' : 'bg-red-400'}"></span>
+                    <span>${isMyStationOnShift ? 'ESTACIÓN EN TURNO' : 'ESTACIÓN FUERA DE TURNO'}</span>
+                  </span>
+                ` : ''}
               </div>
               <h2 class="font-serif-editorial text-2xl sm:text-3xl font-normal text-[#ffffff] tracking-tight">
-                ${isJefe ? `Panel de ${barbersMap.get(state.currentUser.barberId) || 'Barbero Jefe'}` : state.currentUser.role === Roles.BARBERO ? `Panel de ${barbersMap.get(state.currentUser.barberId) || 'Barbero'}` : `Panel de ${barbersMap.get(state.currentUser.barberId) || 'Barbero Practicante'}`}
+                ${myBarber ? `Panel de ${escapeHtml(myBarber.name)}` : isJefe ? 'Panel de Barbero Jefe' : 'Panel de Estación'}
               </h2>
               <p class="font-sans-ui text-[#c5c0b6] text-sm mt-1">
-                ${isJefe ? 'Supervisión de cortes, caja consolidada en COP y agenda de turnos organizada por sectores de estación.' : 'Turnos asignados a tu estación e historial personal de cortes.'}
+                ${isJefe ? 'Supervisión de cortes, ventas de tienda, control de barberos en turno y caja consolidada en COP.' : 'Turnos asignados a tu estación, verificación de tienda e historial personal de cortes.'}
               </p>
             </div>
-            <div class="flex items-center gap-2">
-              ${isJefe ? `
-                <button id="btn-clear-control-tests" class="btn-stone-outline text-xs text-red-400 hover:text-red-300 hover:border-red-500 font-medium py-2 px-3">
-                  Limpiar solicitudes de prueba
+            <div class="flex flex-wrap items-center gap-2">
+              ${myBarber ? `
+                <button
+                  type="button"
+                  data-toggle-shift-barber-id="${escapeHtml(myBarber.id)}"
+                  class="btn-toggle-barber-shift ${isMyStationOnShift ? 'btn-stone-outline text-amber-300 border-amber-500/40' : 'btn-clay'} text-xs font-semibold py-2 px-3.5 cursor-pointer">
+                  ${isMyStationOnShift ? 'Pasar mi estación a Fuera de Turno' : 'Activar mi estación (Entrar en Turno)'}
                 </button>
               ` : ''}
-              <button id="btn-dashboard-back-home" class="btn-stone-outline text-xs font-medium py-2 px-4">
+              ${isAdmin ? `
+                <button id="btn-clear-control-tests" class="btn-stone-outline text-xs text-red-400 hover:text-red-300 hover:border-red-500 font-medium py-2 px-3">
+                  Limpiar registros de prueba
+                </button>
+              ` : ''}
+              <button type="button" data-user-id="${state.currentUser.id}" data-username="${escapeHtml(state.currentUser.username)}" class="btn-change-password btn-stone-outline text-xs font-medium py-2 px-3.5 cursor-pointer">
+                Cambiar mi clave
+              </button>
+              <button id="btn-dashboard-back-home" class="btn-stone-outline text-xs font-medium py-2 px-4 cursor-pointer">
                 ← Volver al inicio
               </button>
             </div>
           </div>
 
           ${isJefe ? `
-            <!-- CAJA CONSOLIDADA HOY (EXCLUSIVO BARBERO JEFE) -->
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 mb-10">
-              <div class="anthropic-card p-6">
-                <span class="block text-xs font-semibold text-[#c5c0b6] uppercase tracking-wider mb-2">Caja consolidada hoy</span>
-                <div class="text-3xl sm:text-4xl font-mono-tech font-bold text-[#ffffff] tracking-tight">
+            <!-- CAJA CONSOLIDADA HOY Y DESGLOSE POR BARBERO (EXCLUSIVO BARBERO JEFE / ADMIN) -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mb-10">
+              <div class="anthropic-card p-6 border border-[rgba(212,175,55,0.4)]">
+                <span class="block text-xs font-semibold text-[#d4af37] uppercase tracking-wider mb-2">Gran Total Caja Hoy</span>
+                <div class="text-2xl sm:text-3xl font-mono-tech font-bold text-[#ffffff] tracking-tight">
                   $${cashData.totalConsolidatedCop.toLocaleString('es-CO')} <span class="text-xs font-sans-ui font-semibold text-[#d4af37]">COP</span>
                 </div>
-                <span class="text-xs font-medium text-[#8a8275] mt-2 block">${cashData.totalCount} cortes completados hoy</span>
+                <span class="text-xs font-medium text-[#c5c0b6] mt-2 block">Cortes ($${cashData.cutsTotalCop.toLocaleString('es-CO')}) + Tienda ($${cashData.storeTotalCop.toLocaleString('es-CO')})</span>
               </div>
-              ${barbers.map((b) => `
-                <div class="anthropic-card p-6">
-                  <span class="block text-xs font-semibold text-[#c5c0b6] uppercase tracking-wider mb-2">Estación ${b.name}</span>
-                  <div class="text-2xl sm:text-3xl font-mono-tech font-bold text-[#ffffff] tracking-tight">
-                    $${(cashData.breakdownByBarber[b.id]?.total || 0).toLocaleString('es-CO')} <span class="text-xs font-sans-ui font-semibold text-[#8a8275]">COP</span>
-                  </div>
-                  <span class="text-xs font-medium text-[#8a8275] mt-2 block">Cortes realizados: ${cashData.breakdownByBarber[b.id]?.count || 0}</span>
+              <div class="anthropic-card p-6">
+                <span class="block text-xs font-semibold text-[#f3e5ab] uppercase tracking-wider mb-2">Ventas Tienda Hoy (Efectivo)</span>
+                <div class="text-2xl sm:text-3xl font-mono-tech font-bold text-[#d4af37] tracking-tight">
+                  $${cashData.storeTotalCop.toLocaleString('es-CO')} <span class="text-xs font-sans-ui font-semibold text-[#8a8275]">COP</span>
                 </div>
-              `).join('')}
+                <span class="text-xs font-medium text-[#8a8275] mt-2 block">${cashData.storeOrdersCount} ${cashData.storeOrdersCount === 1 ? 'pedido entregado hoy' : 'pedidos entregados hoy'}</span>
+              </div>
+              ${barbers.map((b) => {
+                const bStats = cashData.breakdownByBarber[b.id] || { count: 0, total: 0, storeCount: 0, storeTotal: 0, combinedTotal: 0 };
+                const bOnShift = b.onShift !== false && b.active !== false;
+                return `
+                  <div class="anthropic-card p-5 flex flex-col justify-between">
+                    <div>
+                      <div class="flex items-center justify-between gap-2 mb-2">
+                        <span class="text-xs font-semibold text-[#c5c0b6] uppercase tracking-wider">Estación ${escapeHtml(b.name)}</span>
+                        <span class="text-[10px] font-mono-tech font-bold px-2 py-0.5 rounded-full ${bOnShift ? 'bg-emerald-950/80 text-emerald-300 border border-emerald-700/50' : 'bg-red-950/70 text-red-300 border border-red-800/50'}">
+                          ${bOnShift ? 'EN TURNO' : 'FUERA DE TURNO'}
+                        </span>
+                      </div>
+                      <div class="text-2xl font-mono-tech font-bold text-[#ffffff] tracking-tight">
+                        $${(bStats.combinedTotal || bStats.total || 0).toLocaleString('es-CO')} <span class="text-xs font-sans-ui font-semibold text-[#d4af37]">COP en estación</span>
+                      </div>
+                      <div class="text-[11px] text-[#c5c0b6] mt-2 space-y-0.5 font-sans-ui">
+                        <div>Cortes hoy: <strong class="text-[#ffffff] font-mono-tech">$${(bStats.total || 0).toLocaleString('es-CO')}</strong> (${bStats.count || 0})</div>
+                        <div>Tienda cobrada: <strong class="text-[#d4af37] font-mono-tech">$${(bStats.storeTotal || 0).toLocaleString('es-CO')}</strong> (${bStats.storeCount || 0})</div>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      data-toggle-shift-barber-id="${escapeHtml(b.id)}"
+                      class="btn-toggle-barber-shift btn-stone-outline w-full mt-3 py-1 px-2.5 text-[11px] font-semibold justify-center cursor-pointer">
+                      ${bOnShift ? 'Marcar Fuera de Turno' : 'Poner En Turno'}
+                    </button>
+                  </div>
+                `;
+              }).join('')}
             </div>
+          ` : myBarber ? `
+            <!-- RESUMEN DE EFECTIVO EN LA ESTACIÓN DEL BARBERO -->
+            ${(() => {
+              const myStats = cashData.breakdownByBarber[myBarber.id] || { count: 0, total: 0, storeCount: 0, storeTotal: 0, combinedTotal: 0 };
+              return `
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-10">
+                  <div class="anthropic-card p-5 border border-[rgba(212,175,55,0.35)]">
+                    <span class="block text-xs font-semibold text-[#d4af37] uppercase tracking-wider mb-1">Efectivo Total en Mi Estación Hoy</span>
+                    <div class="text-2xl font-mono-tech font-bold text-[#ffffff]">$${(myStats.combinedTotal || 0).toLocaleString('es-CO')} COP</div>
+                    <span class="text-[11px] text-[#c5c0b6] mt-1 block">Efectivo recibido por tus cortes y entregas de tienda hoy</span>
+                  </div>
+                  <div class="anthropic-card p-5">
+                    <span class="block text-xs font-semibold text-[#c5c0b6] uppercase tracking-wider mb-1">Mis Cortes Hoy</span>
+                    <div class="text-2xl font-mono-tech font-bold text-[#ffffff]">$${(myStats.total || 0).toLocaleString('es-CO')} COP</div>
+                    <span class="text-[11px] text-[#8a8275] mt-1 block">${myStats.count || 0} cortes completados hoy</span>
+                  </div>
+                  <div class="anthropic-card p-5">
+                    <span class="block text-xs font-semibold text-[#f3e5ab] uppercase tracking-wider mb-1">Productos Cobrados por Mí Hoy</span>
+                    <div class="text-2xl font-mono-tech font-bold text-[#d4af37]">$${(myStats.storeTotal || 0).toLocaleString('es-CO')} COP</div>
+                    <span class="text-[11px] text-[#8a8275] mt-1 block">${myStats.storeCount || 0} productos entregados en mi estación</span>
+                  </div>
+                </div>
+              `;
+            })()}
           ` : ''}
 
-          <!-- AGENDA DE TURNOS SECTORIZADA -->
+          
+          ${(() => {
+            state.dashboardAccordions = state.dashboardAccordions || {
+              appointments: true,
+              orders: false,
+              stock: false,
+              history: false
+            };
+            const isApptsOpen = state.dashboardAccordions.appointments !== false;
+            const isOrdersOpen = !!state.dashboardAccordions.orders;
+            const isStockOpen = !!state.dashboardAccordions.stock;
+            const isHistoryOpen = !!state.dashboardAccordions.history;
+            const pendingOrdersCount = state.storeOrders.filter((o) => o.status === 'PENDIENTE').length;
+
+            return `
+              <!-- CONTENEDOR DE MODULOS DESPLEGABLES (ACORDEONES PARA EVITAR SATURACIÓN VISUAL) -->
+              <div class="space-y-5 mb-10">
+
+                <!-- MODULO 1: AGENDA Y CITAS DE TURNO -->
+                <div class="accordion-card rounded-[18px] bg-[#12151b] border border-[rgba(212,175,55,0.28)] shadow-lg overflow-hidden transition-all">
+                  <button 
+                    type="button" 
+                    class="btn-dashboard-accordion w-full flex items-center justify-between p-4 sm:p-5 text-left bg-gradient-to-r from-[#141822] via-[#12151b] to-[#141822] hover:bg-[#181c26] transition-all cursor-pointer select-none"
+                    data-accordion-target="accordion-content-citas"
+                    data-accordion-key="appointments"
+                    aria-expanded="${isApptsOpen ? 'true' : 'false'}"
+                  >
+                    <div class="flex items-center gap-3 sm:gap-4 min-w-0">
+                      <div class="w-10 h-10 sm:w-11 sm:h-11 rounded-full bg-[#181c24] border border-[#d4af37]/50 flex items-center justify-center text-[#d4af37] shrink-0 shadow-sm">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H8a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                        </svg>
+                      </div>
+                      <div class="min-w-0">
+                        <div class="flex flex-wrap items-center gap-2">
+                          <span class="font-serif-editorial text-lg sm:text-xl font-normal text-[#ffffff] tracking-tight">
+                            Agenda y Citas de Turno
+                          </span>
+                          <span class="text-[10px] font-mono-tech font-bold px-2.5 py-0.5 rounded-full ${activeBarberFilterCount > 0 ? 'bg-amber-500/20 text-amber-200 border border-amber-500/40' : 'bg-[#181c24] text-[#8a8275] border border-stone-800'} shrink-0">
+                            ${activeBarberFilterCount} ${activeBarberFilterCount === 1 ? 'turno asignado' : 'turnos asignados'}
+                          </span>
+                        </div>
+                        <p class="font-sans-ui text-xs text-[#c5c0b6] mt-0.5 truncate hidden sm:block">
+                          Turnos programados, finalización de cortes y sincronización móvil.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div class="flex items-center gap-2.5 pl-3 shrink-0">
+                      <span class="accordion-indicator-text text-[11px] font-sans-ui font-semibold text-[#d4af37] uppercase tracking-wider hidden md:inline">
+                        ${isApptsOpen ? 'Ocultar' : 'Desplegar'}
+                      </span>
+                      <div class="accordion-chevron w-8 h-8 rounded-full bg-[#181c24] border border-[#d4af37]/40 flex items-center justify-center text-[#d4af37] transition-transform duration-300 ${isApptsOpen ? 'rotate-180' : ''}">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7"></path>
+                        </svg>
+                      </div>
+                    </div>
+                  </button>
+
+                  <div id="accordion-content-citas" class="accordion-content ${isApptsOpen ? '' : 'hidden'} p-4 sm:p-6 border-t border-[rgba(212,175,55,0.18)] bg-[#0c0e13]">
+                    <!-- AGENDA DE TURNOS SECTORIZADA -->
           <div class="mb-12">
             <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 pb-4 border-b border-[rgba(212,175,55,0.22)]">
               <div>
@@ -2163,7 +2874,7 @@
                                   Finalizar corte y guardar en historial →
                                 </button>
                                 <button data-delete-appt-id="${appt.id}" class="btn-delete-appt btn-stone-outline w-full py-1.5 px-3 text-xs text-red-400 hover:text-red-300 hover:border-red-500 justify-center cursor-pointer mt-2">
-                                  Cancelar / Eliminar turno de prueba
+                                  Cancelar turno
                                 </button>
                               ` : `
                                 <div class="text-xs font-semibold text-[#d4af37] py-2.5 px-3 text-center bg-[#181c24] border border-[rgba(212,175,55,0.3)] rounded-[8px] flex items-center justify-center gap-2">
@@ -2184,8 +2895,631 @@
               }).join('')}
             </div>
           </div>
+                  </div>
+                </div>
 
-          <!-- HISTORIAL EN BASE DE DATOS CON FILTRO POR MES Y SECTORES -->
+                <!-- MODULO 2: APROBAR COMPROBANTES Y PEDIDOS DE TIENDA -->
+                <div class="accordion-card rounded-[18px] bg-[#12151b] border border-[rgba(212,175,55,0.28)] shadow-lg overflow-hidden transition-all">
+                  <button 
+                    type="button" 
+                    class="btn-dashboard-accordion w-full flex items-center justify-between p-4 sm:p-5 text-left bg-gradient-to-r from-[#141822] via-[#12151b] to-[#141822] hover:bg-[#181c26] transition-all cursor-pointer select-none"
+                    data-accordion-target="accordion-content-pedidos"
+                    data-accordion-key="orders"
+                    aria-expanded="${isOrdersOpen ? 'true' : 'false'}"
+                  >
+                    <div class="flex items-center gap-3 sm:gap-4 min-w-0">
+                      <div class="w-10 h-10 sm:w-11 sm:h-11 rounded-full bg-[#181c24] border border-[#d4af37]/50 flex items-center justify-center text-[#d4af37] shrink-0 shadow-sm">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                        </svg>
+                      </div>
+                      <div class="min-w-0">
+                        <div class="flex flex-wrap items-center gap-2">
+                          <span class="font-serif-editorial text-lg sm:text-xl font-normal text-[#ffffff] tracking-tight">
+                            Aprobar Comprobantes y Pedidos de Tienda
+                          </span>
+                          <span class="text-[10px] font-mono-tech font-bold px-2.5 py-0.5 rounded-full ${pendingOrdersCount > 0 ? 'bg-amber-500/20 text-amber-200 border border-amber-500/40' : 'bg-emerald-950/70 text-emerald-300 border border-emerald-700/40'} shrink-0">
+                            ${pendingOrdersCount} ${pendingOrdersCount === 1 ? 'pendiente de cobro' : 'pendientes de cobro'}
+                          </span>
+                        </div>
+                        <p class="font-sans-ui text-xs text-[#c5c0b6] mt-0.5 truncate hidden sm:block">
+                          Validación de referencias REF-BL, cobro en efectivo y entrega de productos.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div class="flex items-center gap-2.5 pl-3 shrink-0">
+                      <span class="accordion-indicator-text text-[11px] font-sans-ui font-semibold text-[#d4af37] uppercase tracking-wider hidden md:inline">
+                        ${isOrdersOpen ? 'Ocultar' : 'Desplegar'}
+                      </span>
+                      <div class="accordion-chevron w-8 h-8 rounded-full bg-[#181c24] border border-[#d4af37]/40 flex items-center justify-center text-[#d4af37] transition-transform duration-300 ${isOrdersOpen ? 'rotate-180' : ''}">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7"></path>
+                        </svg>
+                      </div>
+                    </div>
+                  </button>
+
+                  <div id="accordion-content-pedidos" class="accordion-content ${isOrdersOpen ? '' : 'hidden'} p-4 sm:p-6 border-t border-[rgba(212,175,55,0.18)] bg-[#0c0e13]">
+                    <!-- DESPACHO DE TIENDA, VENTA DIRECTA Y VERIFICACIÓN DE REFERENCIAS DE PAGO (ANTI-ROBO) -->
+          <div class="mb-12">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5 pb-4 border-b border-[rgba(212,175,55,0.22)]">
+              <div>
+                <div class="inline-flex items-center gap-2 mb-1 px-2.5 py-0.5 rounded-full bg-[#181c24] border border-[rgba(212,175,55,0.3)] text-[#f3e5ab] text-[11px] font-semibold">
+                  <span class="w-1.5 h-1.5 rounded-full bg-[#d4af37]"></span>
+                  <span>CONTROL ANTI-ROBO · CLIENTES EN LOCAL Y APARTADOS REMOTOS</span>
+                </div>
+                <h3 class="font-serif-editorial text-xl sm:text-2xl font-normal text-[#ffffff] tracking-tight">
+                  Verificación de Referencias y Venta de Productos en Estación
+                </h3>
+                <p class="font-sans-ui text-xs sm:text-sm text-[#c5c0b6] mt-0.5">
+                  Valida códigos <strong>REF-BL-XXXX</strong> de clientes que apartaron en línea o registra una <strong>Venta Directa en Efectivo</strong> cuando el cliente te compra el producto en tu silla.
+                </p>
+              </div>
+              <div class="flex items-center gap-2 self-start sm:self-auto">
+                <span class="text-xs font-mono-tech font-bold text-[#d4af37] bg-[#181c24] px-3 py-1.5 rounded-full border border-[rgba(212,175,55,0.3)]">
+                  ${state.storeOrders.filter((o) => o.status === 'PENDIENTE').length} pendientes por reclamar
+                </span>
+              </div>
+            </div>
+
+            ${!isMyStationOnShift ? `
+              <!-- ALERTA DE BLOQUEO PARA BARBERO FUERA DE TURNO -->
+              <div class="bg-red-950/60 border border-red-600/60 rounded-[14px] p-4 mb-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div>
+                  <div class="text-xs font-mono-tech font-bold text-red-300 uppercase tracking-wider">ESTACIÓN FUERA DE TURNO · COBROS DE TIENDA BLOQUEADOS</div>
+                  <p class="text-xs text-[#f3e5ab] mt-1 leading-relaxed">
+                    Tu estación figura actualmente <strong>Fuera de Turno</strong>. Por seguridad de caja, un barbero que no está de turno no puede confirmar entregas en efectivo ni registrar ventas directas. Si ya estás en la barbería, activa tu turno.
+                  </p>
+                </div>
+                ${myBarber ? `
+                  <button
+                    type="button"
+                    data-toggle-shift-barber-id="${escapeHtml(myBarber.id)}"
+                    class="btn-toggle-barber-shift btn-clay py-2 px-4 text-xs font-semibold whitespace-nowrap cursor-pointer">
+                    Entrar en Turno Ahora →
+                  </button>
+                ` : ''}
+              </div>
+            ` : `
+              <!-- MÓDULO DE VENTA DIRECTA EN ESTACIÓN / MOSTRADOR (CLIENTE PRESENCIAL SIN CELULAR) -->
+              <div class="anthropic-card p-5 mb-5 border border-[rgba(212,175,55,0.32)] bg-[#141821]">
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-2 mb-3">
+                  <div>
+                    <span class="text-[11px] font-mono-tech font-bold uppercase tracking-wider text-[#d4af37]">VENTA DIRECTA EN SILLA / MOSTRADOR (CLIENTE PRESENCIAL)</span>
+                    <p class="text-xs text-[#c5c0b6]">Si el cliente está en la barbería y te entrega el efectivo directamente sin haber generado código en su celular, regístralo aquí en 1 paso.</p>
+                  </div>
+                </div>
+                <form id="form-direct-store-sale" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 items-end">
+                  <div class="lg:col-span-2">
+                    <label class="block text-[11px] font-semibold text-[#c5c0b6] mb-1">Producto en stock *</label>
+                    <select id="direct-sale-product" required class="input-parchment py-2 px-3 text-xs">
+                      ${inStockProducts.length === 0 ? `<option value="">Sin productos con stock</option>` : inStockProducts.map((p) => `
+                        <option value="${escapeHtml(p.id)}">${escapeHtml(p.name)} — $${Number(p.priceCop || 0).toLocaleString('es-CO')} (${p.stock} disp.)</option>
+                      `).join('')}
+                    </select>
+                  </div>
+                  <div>
+                    <label class="block text-[11px] font-semibold text-[#c5c0b6] mb-1">Cantidad y Cliente</label>
+                    <div class="flex gap-2">
+                      <input type="number" id="direct-sale-qty" min="1" max="10" value="1" required class="input-parchment py-2 px-2.5 text-xs font-mono-tech w-16" title="Cantidad">
+                      <input type="text" id="direct-sale-client" placeholder="Nombre cliente (opc.)" class="input-parchment py-2 px-2.5 text-xs flex-1">
+                    </div>
+                  </div>
+                  <div>
+                    <label class="block text-[11px] font-semibold text-[#c5c0b6] mb-1">Barbero en turno que cobra</label>
+                    ${isJefe ? `
+                      <select id="direct-sale-barber" class="input-parchment py-2 px-3 text-xs">
+                        ${activeShiftBarbers.map((b) => `
+                          <option value="${escapeHtml(b.id)}" ${myBarber && myBarber.id === b.id ? 'selected' : ''}>${escapeHtml(b.name)} (En Turno)</option>
+                        `).join('')}
+                      </select>
+                    ` : `
+                      <div class="input-parchment py-2 px-3 text-xs bg-[#12151b] text-[#f3e5ab] font-semibold truncate">
+                        ${escapeHtml(myBarber ? myBarber.name : state.currentUser.username)} (En Turno)
+                      </div>
+                    `}
+                  </div>
+                  <div>
+                    <button type="submit" ${inStockProducts.length === 0 ? 'disabled' : ''} class="btn-clay w-full py-2.5 px-3 text-xs font-semibold justify-center cursor-pointer">
+                      Cobrar efectivo y entregar →
+                    </button>
+                  </div>
+                </form>
+              </div>
+            `}
+
+            <!-- BUSCADOR DE REFERENCIA RÁPIDA, FILTRO DE ESTADO Y FILTRO POR DÍA -->
+            ${(() => {
+              const todayDayStr = getLocalDateString();
+              const yesterdayDateObj = new Date();
+              yesterdayDateObj.setDate(yesterdayDateObj.getDate() - 1);
+              const yesterdayDayStr = getLocalDateString(yesterdayDateObj);
+
+              const countAllDates = state.storeOrders.length;
+              const countToday = state.storeOrders.filter((o) => {
+                const d = o.deliveredDate || o.date || (o.createdAt ? o.createdAt.substring(0, 10) : '');
+                return d === todayDayStr;
+              }).length;
+              const countYesterday = state.storeOrders.filter((o) => {
+                const d = o.deliveredDate || o.date || (o.createdAt ? o.createdAt.substring(0, 10) : '');
+                return d === yesterdayDayStr;
+              }).length;
+
+              const isCustomDate = state.storeOrderDateFilter !== 'ALL' && state.storeOrderDateFilter !== 'TODAY' && state.storeOrderDateFilter !== 'YESTERDAY';
+
+              const activeDateLabel = state.storeOrderDateFilter === 'TODAY'
+                ? `Hoy (${todayDayStr})`
+                : state.storeOrderDateFilter === 'YESTERDAY'
+                ? `Ayer (${yesterdayDayStr})`
+                : isCustomDate
+                ? `Día seleccionado: ${state.storeOrderDateFilter}`
+                : 'Todos los días';
+
+              return `
+                <div class="anthropic-card p-4 mb-5 space-y-3.5">
+                  <!-- FILA 1: FILTRO DE ESTADO Y BUSCADOR -->
+                  <div class="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
+                    <div class="flex flex-wrap items-center gap-2">
+                      <span class="text-xs font-semibold text-[#8a8275] uppercase tracking-wider mr-1">Estado:</span>
+                      <button type="button" data-order-status-filter="ALL" class="btn-order-status-filter px-3 py-1.5 rounded-[8px] text-xs font-semibold cursor-pointer ${state.storeOrderStatusFilter === 'ALL' ? 'btn-clay' : 'btn-stone-outline'}">
+                        Todos (${state.storeOrders.length})
+                      </button>
+                      <button type="button" data-order-status-filter="PENDIENTE" class="btn-order-status-filter px-3 py-1.5 rounded-[8px] text-xs font-semibold cursor-pointer ${state.storeOrderStatusFilter === 'PENDIENTE' ? 'btn-clay' : 'btn-stone-outline'}">
+                        Pendientes de cobro (${state.storeOrders.filter((o) => o.status === 'PENDIENTE').length})
+                      </button>
+                      <button type="button" data-order-status-filter="ENTREGADO" class="btn-order-status-filter px-3 py-1.5 rounded-[8px] text-xs font-semibold cursor-pointer ${state.storeOrderStatusFilter === 'ENTREGADO' ? 'btn-clay' : 'btn-stone-outline'}">
+                        Entregados (${state.storeOrders.filter((o) => o.status === 'ENTREGADO').length})
+                      </button>
+                    </div>
+                    <div class="relative flex-1 md:max-w-xs">
+                      <input
+                        type="text"
+                        id="input-store-order-search"
+                        placeholder="Buscar referencia o cliente..."
+                        value="${escapeHtml(state.storeOrderSearch || '')}"
+                        class="input-parchment py-1.5 px-3 text-xs font-mono-tech uppercase"
+                      >
+                    </div>
+                  </div>
+
+                  <!-- FILA 2: FILTRO POR DÍA / FECHA Y TOTALES EN VIVO -->
+                  <div class="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3 pt-3 border-t border-[rgba(212,175,55,0.14)]">
+                    <div class="flex flex-wrap items-center gap-2">
+                      <span class="text-xs font-semibold text-[#8a8275] uppercase tracking-wider mr-1">Filtrar por día:</span>
+                      <button type="button" data-order-date-filter="ALL" class="btn-order-date-filter px-3 py-1.5 rounded-[8px] text-xs font-semibold cursor-pointer ${state.storeOrderDateFilter === 'ALL' ? 'btn-clay' : 'btn-stone-outline'}">
+                        Todos los días (${countAllDates})
+                      </button>
+                      <button type="button" data-order-date-filter="TODAY" class="btn-order-date-filter px-3 py-1.5 rounded-[8px] text-xs font-semibold cursor-pointer ${state.storeOrderDateFilter === 'TODAY' ? 'btn-clay' : 'btn-stone-outline'}">
+                        Hoy (${countToday})
+                      </button>
+                      <button type="button" data-order-date-filter="YESTERDAY" class="btn-order-date-filter px-3 py-1.5 rounded-[8px] text-xs font-semibold cursor-pointer ${state.storeOrderDateFilter === 'YESTERDAY' ? 'btn-clay' : 'btn-stone-outline'}">
+                        Ayer (${countYesterday})
+                      </button>
+
+                      <div class="flex items-center gap-1.5">
+                        <input
+                          type="date"
+                          id="input-store-order-date"
+                          value="${isCustomDate ? escapeHtml(state.storeOrderDateFilter) : ''}"
+                          class="input-parchment py-1 px-2.5 text-xs font-mono-tech w-auto cursor-pointer"
+                          title="Seleccionar fecha específica en el calendario"
+                        >
+                        ${state.storeOrderDateFilter !== 'ALL' ? `
+                          <button type="button" id="btn-clear-order-date" class="btn-stone-outline py-1 px-2 text-[11px] text-[#c5c0b6] hover:text-white cursor-pointer" title="Ver todos los días">
+                            Limpiar día
+                          </button>
+                        ` : ''}
+                      </div>
+                    </div>
+
+                    <div class="inline-flex items-center gap-2 self-start lg:self-auto px-3 py-1.5 rounded-[8px] bg-[#161a22] border border-[rgba(212,175,55,0.3)]">
+                      <span class="text-[11px] font-semibold text-[#c5c0b6]">${escapeHtml(activeDateLabel)}</span>
+                      <span class="text-stone-600">·</span>
+                      <span id="store-orders-summary-total" class="font-mono-tech text-xs font-bold text-[#d4af37]">Calculando...</span>
+                    </div>
+                  </div>
+                </div>
+              `;
+            })()}
+
+            <!-- TABLA / TARJETAS DE PEDIDOS DE TIENDA -->
+            ${(() => {
+              const todayDayStr = getLocalDateString();
+              const yesterdayDateObj = new Date();
+              yesterdayDateObj.setDate(yesterdayDateObj.getDate() - 1);
+              const yesterdayDayStr = getLocalDateString(yesterdayDateObj);
+
+              const filteredOrders = state.storeOrders.filter((o) => {
+                if (state.storeOrderStatusFilter !== 'ALL' && o.status !== state.storeOrderStatusFilter) return false;
+
+                const orderDay = o.deliveredDate || o.date || (o.createdAt ? o.createdAt.substring(0, 10) : '');
+                if (state.storeOrderDateFilter === 'TODAY') {
+                  if (orderDay !== todayDayStr) return false;
+                } else if (state.storeOrderDateFilter === 'YESTERDAY') {
+                  if (orderDay !== yesterdayDayStr) return false;
+                } else if (state.storeOrderDateFilter && state.storeOrderDateFilter !== 'ALL') {
+                  if (orderDay !== state.storeOrderDateFilter) return false;
+                }
+
+                if (state.storeOrderSearch && state.storeOrderSearch.trim() !== '') {
+                  const q = state.storeOrderSearch.toLowerCase().trim();
+                  const matchRef = (o.referenceCode || '').toLowerCase().includes(q);
+                  const matchClient = (o.clientName || '').toLowerCase().includes(q);
+                  const matchPhone = (o.clientPhone || '').toLowerCase().includes(q);
+                  const matchProd = (o.productName || '').toLowerCase().includes(q);
+                  const matchDeliveredBy = (o.deliveredByName || o.deliveredBy || '').toLowerCase().includes(q);
+                  return matchRef || matchClient || matchPhone || matchProd || matchDeliveredBy;
+                }
+                return true;
+              });
+
+              const totalDeliveredCop = filteredOrders
+                .filter((o) => o.status === 'ENTREGADO')
+                .reduce((sum, o) => sum + (Number(o.totalCop) || 0), 0);
+              const totalDeliveredUnits = filteredOrders
+                .filter((o) => o.status === 'ENTREGADO')
+                .reduce((sum, o) => sum + (Number(o.quantity) || 1), 0);
+
+              // Actualización reactiva del badge de total
+              setTimeout(() => {
+                const badge = document.getElementById('store-orders-summary-total');
+                if (badge) {
+                  badge.textContent = `$${totalDeliveredCop.toLocaleString('es-CO')} COP (${totalDeliveredUnits} ${totalDeliveredUnits === 1 ? 'unidad' : 'unidades'})`;
+                }
+              }, 0);
+
+              if (filteredOrders.length === 0) {
+                return `
+                  <div class="bg-[#12151b] rounded-[14px] border border-dashed border-[rgba(212,175,55,0.2)] p-8 text-center">
+                    <p class="font-serif-editorial text-lg text-[#c5c0b6]">No hay pedidos ni productos vendidos para este día o filtro</p>
+                    <p class="text-xs text-[#8a8275] mt-1">Prueba seleccionando "Todos los días" o escoge otra fecha en el calendario.</p>
+                  </div>
+                `;
+              }
+
+              return `
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  ${filteredOrders.map((ord) => {
+                    const isPending = ord.status === 'PENDIENTE';
+                    const isDelivered = ord.status === 'ENTREGADO';
+                    const isClientInShop = ord.deliveryMode === 'EN_BARBERIA';
+                    const isDirectSale = ord.deliveryMode === 'VENTA_DIRECTA';
+                    const modeBadgeText = isDirectSale
+                      ? 'VENTA DIRECTA EN ESTACIÓN'
+                      : isClientInShop
+                      ? 'CLIENTE EN BARBERÍA · ENTREGA INMEDIATA'
+                      : 'CLIENTE REMOTO · APARTADO PARA RECOGER';
+                    return `
+                      <div class="store-order-card anthropic-card p-5 flex flex-col justify-between border ${
+                        isPending
+                          ? 'border-[#d4af37]/50 bg-[#161a22]'
+                          : isDelivered
+                          ? 'border-emerald-700/40 bg-[#12151b]'
+                          : 'border-stone-800 bg-[#12151b] opacity-65'
+                      }">
+                        <div>
+                          <div class="flex items-center justify-between gap-2 mb-2 pb-2 border-b border-[rgba(212,175,55,0.15)]">
+                            <span class="font-mono-tech text-sm font-bold text-[#d4af37] bg-[#0a0b0d] px-3 py-1 rounded border border-[#d4af37]/40 tracking-wider">
+                              ${escapeHtml(ord.referenceCode)}
+                            </span>
+                            <span class="text-[11px] font-semibold px-2.5 py-0.5 rounded-full ${
+                              isPending
+                                ? 'bg-[#d4af37]/20 text-[#f3e5ab] border border-[#d4af37]/40'
+                                : isDelivered
+                                ? 'bg-emerald-950/80 text-emerald-300 border border-emerald-700/50'
+                                : 'bg-red-950/60 text-red-300 border border-red-800/50'
+                            }">
+                              ${isPending ? 'PENDIENTE DE PAGO' : isDelivered ? 'COBRADO Y ENTREGADO' : 'CANCELADO'}
+                            </span>
+                          </div>
+
+                          <div class="mb-2.5">
+                            <span class="inline-block text-[10px] font-mono-tech font-bold px-2 py-0.5 rounded ${
+                              isClientInShop
+                                ? 'bg-amber-500/20 text-amber-200 border border-amber-500/40'
+                                : isDirectSale
+                                ? 'bg-emerald-950/70 text-emerald-300 border border-emerald-700/40'
+                                : 'bg-[#181c24] text-[#c5c0b6] border border-[rgba(212,175,55,0.25)]'
+                            }">
+                              ${modeBadgeText}
+                            </span>
+                          </div>
+
+                          <h5 class="font-serif-editorial text-lg text-[#ffffff] leading-snug mb-1">
+                            ${escapeHtml(ord.productName)}
+                          </h5>
+                          <p class="text-xs font-mono-tech text-[#f3e5ab] mb-3">
+                            Cantidad: <strong>${ord.quantity} und</strong> · Total Efectivo: <strong class="text-[#d4af37]">$${Number(ord.totalCop || 0).toLocaleString('es-CO')} COP</strong>
+                          </p>
+
+                          <div class="space-y-1 text-xs bg-[#0a0b0d]/70 p-3 rounded-[8px] border border-[rgba(212,175,55,0.12)] mb-4">
+                            <div class="flex justify-between">
+                              <span class="text-[#8a8275]">Cliente:</span>
+                              <span class="text-[#ffffff] font-semibold">${escapeHtml(ord.clientName)}</span>
+                            </div>
+                            <div class="flex justify-between">
+                              <span class="text-[#8a8275]">WhatsApp:</span>
+                              <span class="text-[#c5c0b6] font-mono-tech">${escapeHtml(ord.clientPhone)}</span>
+                            </div>
+                            <div class="flex justify-between">
+                              <span class="text-[#8a8275]">Barbero solicitado:</span>
+                              <span class="text-[#f3e5ab] font-medium">${escapeHtml(ord.preferredBarberName || 'Cualquier barbero en turno')}</span>
+                            </div>
+                            <div class="flex justify-between">
+                              <span class="text-[#8a8275]">Fecha pedido:</span>
+                              <span class="text-[#c5c0b6]">${escapeHtml(ord.date || '')}</span>
+                            </div>
+                            ${isDelivered && (ord.deliveredByName || ord.deliveredBy) ? `
+                              <div class="flex justify-between pt-1 border-t border-[rgba(212,175,55,0.12)]">
+                                <span class="text-[#8a8275]">Efectivo recibido por:</span>
+                                <span class="text-[#d4af37] font-mono-tech font-bold">${escapeHtml(ord.deliveredByName || ('@' + ord.deliveredBy))}</span>
+                              </div>
+                            ` : ''}
+                          </div>
+                        </div>
+
+                        ${isPending ? `
+                          ${isMyStationOnShift ? `
+                            <div class="space-y-2">
+                              <button
+                                type="button"
+                                data-deliver-order-id="${escapeHtml(ord.id)}"
+                                data-deliver-ref="${escapeHtml(ord.referenceCode)}"
+                                class="btn-deliver-store-order btn-clay w-full py-2.5 px-3 text-xs font-semibold justify-center cursor-pointer">
+                                Confirmar pago en efectivo y entregar →
+                              </button>
+                              <button
+                                type="button"
+                                data-cancel-order-id="${escapeHtml(ord.id)}"
+                                data-cancel-ref="${escapeHtml(ord.referenceCode)}"
+                                class="btn-cancel-store-order btn-stone-outline w-full py-1.5 px-3 text-[11px] text-red-300 hover:text-red-200 hover:border-red-500 justify-center cursor-pointer">
+                                Cancelar pedido y devolver al stock
+                              </button>
+                            </div>
+                          ` : `
+                            <div class="text-[11px] font-semibold text-red-300 py-2 px-3 text-center bg-red-950/40 border border-red-800/50 rounded-[8px]">
+                              Estación fuera de turno · Activa tu turno para cobrar y entregar
+                            </div>
+                          `}
+                        ` : isDelivered ? `
+                          <div class="text-xs font-semibold text-emerald-300 py-2 text-center bg-emerald-950/40 border border-emerald-700/40 rounded-[8px]">
+                            Producto entregado · Efectivo en caja (${escapeHtml(ord.deliveredByName || ord.deliveredBy || 'En turno')})
+                          </div>
+                        ` : `
+                          <div class="text-xs font-semibold text-[#8a8275] py-2 text-center bg-[#14171f] border border-stone-800 rounded-[8px]">
+                            Pedido anulado · Stock restaurado
+                          </div>
+                        `}
+                      </div>
+                    `;
+                  }).join('')}
+                </div>
+              `;
+            })()}
+          </div>
+                  </div>
+                </div>
+
+                ${isJefe ? `
+                  <!-- MODULO 3: CONTROL DE STOCK Y CREAR PRODUCTOS (BARBERO JEFE Y ADMIN) -->
+                  <div class="accordion-card rounded-[18px] bg-[#12151b] border border-[rgba(212,175,55,0.28)] shadow-lg overflow-hidden transition-all">
+                    <button 
+                      type="button" 
+                      class="btn-dashboard-accordion w-full flex items-center justify-between p-4 sm:p-5 text-left bg-gradient-to-r from-[#141822] via-[#12151b] to-[#141822] hover:bg-[#181c26] transition-all cursor-pointer select-none"
+                      data-accordion-target="accordion-content-stock"
+                      data-accordion-key="stock"
+                      aria-expanded="${isStockOpen ? 'true' : 'false'}"
+                    >
+                      <div class="flex items-center gap-3 sm:gap-4 min-w-0">
+                        <div class="w-10 h-10 sm:w-11 sm:h-11 rounded-full bg-[#181c24] border border-[#d4af37]/50 flex items-center justify-center text-[#d4af37] shrink-0 shadow-sm">
+                          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
+                          </svg>
+                        </div>
+                        <div class="min-w-0">
+                          <div class="flex flex-wrap items-center gap-2">
+                            <span class="font-serif-editorial text-lg sm:text-xl font-normal text-[#ffffff] tracking-tight">
+                              Control de Stock y Crear Productos
+                            </span>
+                            <span class="text-[10px] font-mono-tech font-bold px-2.5 py-0.5 rounded-full bg-[#181c24] border border-[#d4af37]/35 text-[#f3e5ab] shrink-0">
+                              ${products.length} ${products.length === 1 ? 'artículo en tienda' : 'artículos en tienda'}
+                            </span>
+                          </div>
+                          <p class="font-sans-ui text-xs text-[#c5c0b6] mt-0.5 truncate hidden sm:block">
+                            Publicar nuevos artículos, ajustar existencias (+/-) y actualizar precios.
+                          </p>
+                        </div>
+                      </div>
+
+                      <div class="flex items-center gap-2.5 pl-3 shrink-0">
+                        <span class="accordion-indicator-text text-[11px] font-sans-ui font-semibold text-[#d4af37] uppercase tracking-wider hidden md:inline">
+                          ${isStockOpen ? 'Ocultar' : 'Desplegar'}
+                        </span>
+                        <div class="accordion-chevron w-8 h-8 rounded-full bg-[#181c24] border border-[#d4af37]/40 flex items-center justify-center text-[#d4af37] transition-transform duration-300 ${isStockOpen ? 'rotate-180' : ''}">
+                          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7"></path>
+                          </svg>
+                        </div>
+                      </div>
+                    </button>
+
+                    <div id="accordion-content-stock" class="accordion-content ${isStockOpen ? '' : 'hidden'} p-4 sm:p-6 border-t border-[rgba(212,175,55,0.18)] bg-[#0c0e13]">
+                      <!-- GESTIÓN DE STOCK Y PRECIOS DE PRODUCTOS (BARBERO JEFE Y ADMIN) -->
+            <div class="mb-12">
+              <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5 pb-4 border-b border-[rgba(212,175,55,0.22)]">
+                <div>
+                  <div class="inline-flex items-center gap-2 mb-1 px-2.5 py-0.5 rounded-full bg-[#181c24] border border-[rgba(212,175,55,0.3)] text-[#f3e5ab] text-[11px] font-semibold">
+                    <span class="w-1.5 h-1.5 rounded-full bg-[#d4af37]"></span>
+                    <span>${isAdmin ? 'ADMINISTRACIÓN GENERAL DE BOUTIQUE' : 'CONTROL DE STOCK Y PRECIOS DE ESTACIÓN'}</span>
+                  </div>
+                  <h3 class="font-serif-editorial text-xl sm:text-2xl font-normal text-[#ffffff] tracking-tight">
+                    ${isAdmin ? 'Control de Inventario y Catálogo de Productos' : 'Control de Stock y Precios de Productos'}
+                  </h3>
+                  <p class="font-sans-ui text-xs sm:text-sm text-[#c5c0b6] mt-0.5">
+                    ${isAdmin 
+                      ? 'Agrega nuevos productos a la tienda, ajusta precios en COP, recarga unidades de stock o elimina referencias.' 
+                      : 'Ajusta las existencias en stock (+ / -) y edita los precios en COP. El catálogo de productos es gestionado exclusivamente por el Administrador.'}
+                  </p>
+                </div>
+              </div>
+
+              <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- FORMULARIO PARA AGREGAR NUEVO PRODUCTO (ADMIN O BARBERO JEFE) -->
+                <div class="anthropic-card p-6">
+                  <h4 class="font-serif-editorial text-lg text-[#ffffff] mb-1">Agregar nuevo producto</h4>
+                  <p class="text-xs text-[#c5c0b6] mb-4">Publica un artículo inmediatamente en el apartado TIENDA.</p>
+                  <form id="form-create-product" class="space-y-3.5">
+                    <div>
+                      <label class="block text-xs font-semibold text-[#c5c0b6] mb-1">Nombre del producto *</label>
+                      <input type="text" id="new-prod-name" required placeholder="Ej. Cera Mate Imperial 120g" class="input-parchment text-xs">
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                      <div>
+                        <label class="block text-xs font-semibold text-[#c5c0b6] mb-1">Categoría</label>
+                        <input type="text" id="new-prod-category" placeholder="Ej. Cuidado Capilar" value="Cuidado Capilar" class="input-parchment text-xs">
+                      </div>
+                      <div>
+                        <label class="block text-xs font-semibold text-[#c5c0b6] mb-1">Stock inicial *</label>
+                        <input type="number" id="new-prod-stock" required min="0" value="10" class="input-parchment text-xs font-mono-tech">
+                      </div>
+                    </div>
+                    <div>
+                      <label class="block text-xs font-semibold text-[#c5c0b6] mb-1">Precio en Efectivo (COP) *</label>
+                      <input type="number" id="new-prod-price" required min="1000" step="500" placeholder="Ej. 32000" class="input-parchment text-xs font-mono-tech">
+                    </div>
+                    <!-- FOTO DEL PRODUCTO (SUBIR O TOMAR FOTO) -->
+                    <div class="p-3 bg-[#12151b] rounded-[12px] border border-[rgba(212,175,55,0.22)]">
+                      <label class="block font-sans-ui text-xs font-semibold text-[#f3e5ab] mb-2">Foto del producto</label>
+                      <div class="flex items-center gap-3">
+                        <img id="new-prod-preview" src="./logo_barberia_lopez_hd.jpg" alt="Foto producto" class="w-14 h-14 rounded-[8px] object-cover border border-[rgba(212,175,55,0.35)] bg-[#0a0b0d] shrink-0">
+                        <div class="flex-1 space-y-1.5">
+                          <label for="new-prod-file" class="btn-clay py-1.5 px-3 text-xs font-medium cursor-pointer inline-flex items-center gap-1.5 shadow-sm">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                            <span>Subir o tomar foto</span>
+                          </label>
+                          <input type="file" id="new-prod-file" accept="image/*" class="hidden">
+                          <p class="font-sans-ui text-[10px] text-[#8a8275]" id="new-prod-file-status">
+                            Comprime y optimiza la foto en el dispositivo.
+                          </p>
+                        </div>
+                      </div>
+                      <div class="mt-2.5 pt-2 border-t border-[rgba(212,175,55,0.12)]">
+                        <label class="block font-sans-ui text-[10px] text-[#c5c0b6] mb-1">O pegar enlace web directo (URL):</label>
+                        <input type="url" id="new-prod-image" placeholder="https://..." class="input-parchment text-xs font-mono-tech">
+                      </div>
+                    </div>
+                    <div>
+                      <label class="block text-xs font-semibold text-[#c5c0b6] mb-1">Descripción breve</label>
+                      <textarea id="new-prod-desc" rows="2" placeholder="Beneficios y características del producto..." class="input-parchment text-xs"></textarea>
+                    </div>
+                    <button type="submit" class="btn-clay w-full py-2.5 justify-center text-xs font-semibold cursor-pointer">
+                      Publicar producto en Tienda →
+                    </button>
+                  </form>
+                </div>
+
+                <!-- TABLA DE INVENTARIO ACTUAL -->
+                <div class="lg:col-span-2 anthropic-card p-6">
+                  <h4 class="font-serif-editorial text-lg text-[#ffffff] mb-1">Inventario activo en tienda (${products.length})</h4>
+                  <p class="text-xs text-[#c5c0b6] mb-4">
+                    Usa los botones rápidos para sumar/restar stock, cambiar precio, actualizar foto o eliminar un producto.
+                  </p>
+                  <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse font-sans-ui">
+                      <thead class="border-b border-[rgba(212,175,55,0.22)] bg-[#161a22] text-[11px] font-semibold text-[#c5c0b6] uppercase tracking-wider">
+                        <tr>
+                          <th class="p-3">Producto</th>
+                          <th class="p-3">Precio (COP)</th>
+                          <th class="p-3">Stock Disponible</th>
+                          <th class="p-3 text-right">Acciones</th>
+                        </tr>
+                      </thead>
+                      <tbody class="divide-y divide-[rgba(212,175,55,0.14)] text-xs">
+                        ${products.map((p) => `
+                          <tr class="hover:bg-[#181c24] transition-colors">
+                            <td class="p-3">
+                              <div class="flex items-center gap-2.5">
+                                <img src="${escapeHtml(p.imageUrl || './logo_barberia_lopez_hd.jpg')}" alt="${escapeHtml(p.name)}" loading="lazy" decoding="async" class="w-8 h-8 rounded-[6px] object-cover border border-[rgba(212,175,55,0.3)] bg-[#0a0b0d] shrink-0" onerror="this.src='./logo_barberia_lopez_hd.jpg'">
+                                <div>
+                                  <div class="font-semibold text-[#ffffff]">${escapeHtml(p.name)}</div>
+                                  <div class="text-[11px] text-[#8a8275]">${escapeHtml(p.category || 'General')}</div>
+                                </div>
+                              </div>
+                            </td>
+                            <td class="p-3 font-mono-tech font-bold text-[#d4af37]">
+                              $${Number(p.priceCop || 0).toLocaleString('es-CO')}
+                            </td>
+                            <td class="p-3">
+                              <div class="inline-flex items-center gap-2">
+                                <button type="button" data-stock-prod-id="${escapeHtml(p.id)}" data-stock-delta="-1" class="btn-adjust-stock px-2 py-0.5 rounded bg-[#161a22] border border-[rgba(212,175,55,0.3)] text-[#f3e5ab] hover:border-[#d4af37] font-mono-tech font-bold cursor-pointer">-</button>
+                                <span class="font-mono-tech font-bold text-sm ${p.stock <= 2 ? 'text-red-400' : 'text-[#ffffff]'} min-w-[28px] text-center">${p.stock}</span>
+                                <button type="button" data-stock-prod-id="${escapeHtml(p.id)}" data-stock-delta="1" class="btn-adjust-stock px-2 py-0.5 rounded bg-[#161a22] border border-[rgba(212,175,55,0.3)] text-[#f3e5ab] hover:border-[#d4af37] font-mono-tech font-bold cursor-pointer">+</button>
+                              </div>
+                            </td>
+                            <td class="p-3 text-right space-x-1.5 whitespace-nowrap">
+                              <button type="button" data-edit-prod-id="${escapeHtml(p.id)}" class="btn-edit-product btn-stone-outline py-1 px-2.5 text-[11px] cursor-pointer">
+                                Editar precio / foto / stock
+                              </button>
+                              <button type="button" data-delete-prod-id="${escapeHtml(p.id)}" data-delete-prod-name="${escapeHtml(p.name)}" class="btn-delete-product btn-stone-outline py-1 px-2.5 text-[11px] text-red-400 hover:text-red-300 hover:border-red-500 cursor-pointer">
+                                Quitar
+                              </button>
+                            </td>
+                          </tr>
+                        `).join('')}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+                    </div>
+                  </div>
+                ` : ''}
+
+                <!-- MODULO 4: HISTORIAL DE CORTES Y FACTURACIÓN -->
+                <div class="accordion-card rounded-[18px] bg-[#12151b] border border-[rgba(212,175,55,0.28)] shadow-lg overflow-hidden transition-all">
+                  <button 
+                    type="button" 
+                    class="btn-dashboard-accordion w-full flex items-center justify-between p-4 sm:p-5 text-left bg-gradient-to-r from-[#141822] via-[#12151b] to-[#141822] hover:bg-[#181c26] transition-all cursor-pointer select-none"
+                    data-accordion-target="accordion-content-historial"
+                    data-accordion-key="history"
+                    aria-expanded="${isHistoryOpen ? 'true' : 'false'}"
+                  >
+                    <div class="flex items-center gap-3 sm:gap-4 min-w-0">
+                      <div class="w-10 h-10 sm:w-11 sm:h-11 rounded-full bg-[#181c24] border border-[#d4af37]/50 flex items-center justify-center text-[#d4af37] shrink-0 shadow-sm">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                      </div>
+                      <div class="min-w-0">
+                        <div class="flex flex-wrap items-center gap-2">
+                          <span class="font-serif-editorial text-lg sm:text-xl font-normal text-[#ffffff] tracking-tight">
+                            Historial de Cortes y Facturación
+                          </span>
+                          <span class="text-[10px] font-mono-tech font-bold px-2.5 py-0.5 rounded-full bg-[#181c24] border border-[#d4af37]/35 text-[#d4af37] shrink-0">
+                            ${activeHistoryDisplayCuts.length} cortes · $${totalFilteredCop.toLocaleString('es-CO')} COP
+                          </span>
+                        </div>
+                        <p class="font-sans-ui text-xs text-[#c5c0b6] mt-0.5 truncate hidden sm:block">
+                          Registro histórico de clientes atendidos, balances por estación y filtro por mes.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div class="flex items-center gap-2.5 pl-3 shrink-0">
+                      <span class="accordion-indicator-text text-[11px] font-sans-ui font-semibold text-[#d4af37] uppercase tracking-wider hidden md:inline">
+                        ${isHistoryOpen ? 'Ocultar' : 'Desplegar'}
+                      </span>
+                      <div class="accordion-chevron w-8 h-8 rounded-full bg-[#181c24] border border-[#d4af37]/40 flex items-center justify-center text-[#d4af37] transition-transform duration-300 ${isHistoryOpen ? 'rotate-180' : ''}">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7"></path>
+                        </svg>
+                      </div>
+                    </div>
+                  </button>
+
+                  <div id="accordion-content-historial" class="accordion-content ${isHistoryOpen ? '' : 'hidden'} p-4 sm:p-6 border-t border-[rgba(212,175,55,0.18)] bg-[#0c0e13]">
+                    <!-- HISTORIAL EN BASE DE DATOS CON FILTRO POR MES Y SECTORES -->
           <div>
             <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4 pb-2 border-b border-[rgba(212,175,55,0.18)]">
               <div>
@@ -2393,6 +3727,12 @@
             </div>
 
           </div>
+                  </div>
+                </div>
+
+              </div>
+            `;
+          })()}
 
         </section>
       `;
@@ -2516,51 +3856,178 @@
               </div>
             </div>
           </div>
+
+          <!-- CONTROL DE CATÁLOGO E INVENTARIO DE PRODUCTOS (EXCLUSIVO SUPERADMINISTRADOR) -->
+          <div class="mb-12">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5 pb-4 border-b border-[rgba(212,175,55,0.22)]">
+              <div>
+                <div class="inline-flex items-center gap-2 mb-1 px-2.5 py-0.5 rounded-full bg-[#181c24] border border-[rgba(212,175,55,0.3)] text-[#f3e5ab] text-[11px] font-semibold">
+                  <span class="w-1.5 h-1.5 rounded-full bg-[#d4af37]"></span>
+                  <span>CATÁLOGO Y BOUTIQUE · SUPERADMINISTRADOR</span>
+                </div>
+                <h3 class="font-serif-editorial text-xl sm:text-2xl font-normal text-[#ffffff] tracking-tight">
+                  Control de Catálogo y Productos de la Tienda
+                </h3>
+                <p class="font-sans-ui text-xs sm:text-sm text-[#c5c0b6] mt-0.5">
+                  Agrega nuevos productos al catálogo oficial, ajusta precios en COP, recarga unidades de stock o elimina referencias de forma permanente.
+                </p>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <!-- FORMULARIO PARA AGREGAR NUEVO PRODUCTO -->
+              <div class="anthropic-card p-6">
+                <h4 class="font-serif-editorial text-lg text-[#ffffff] mb-1">Agregar nuevo producto</h4>
+                <p class="text-xs text-[#c5c0b6] mb-4">Publica un artículo inmediatamente en el apartado TIENDA.</p>
+                <form id="form-create-product" class="space-y-3.5">
+                  <div>
+                    <label class="block text-xs font-semibold text-[#c5c0b6] mb-1">Nombre del producto *</label>
+                    <input type="text" id="new-prod-name" required placeholder="Ej. Cera Mate Imperial 120g" class="input-parchment text-xs">
+                  </div>
+                  <div class="grid grid-cols-2 gap-3">
+                    <div>
+                      <label class="block text-xs font-semibold text-[#c5c0b6] mb-1">Categoría</label>
+                      <input type="text" id="new-prod-category" placeholder="Ej. Cuidado Capilar" value="Cuidado Capilar" class="input-parchment text-xs">
+                    </div>
+                    <div>
+                      <label class="block text-xs font-semibold text-[#c5c0b6] mb-1">Stock inicial *</label>
+                      <input type="number" id="new-prod-stock" required min="0" value="10" class="input-parchment text-xs font-mono-tech">
+                    </div>
+                  </div>
+                  <div>
+                    <label class="block text-xs font-semibold text-[#c5c0b6] mb-1">Precio en Efectivo (COP) *</label>
+                    <input type="number" id="new-prod-price" required min="1000" step="500" placeholder="Ej. 32000" class="input-parchment text-xs font-mono-tech">
+                  </div>
+                  <!-- FOTO DEL PRODUCTO (SUBIR O TOMAR FOTO) -->
+                  <div class="p-3 bg-[#12151b] rounded-[12px] border border-[rgba(212,175,55,0.22)]">
+                    <label class="block font-sans-ui text-xs font-semibold text-[#f3e5ab] mb-2">Foto del producto</label>
+                    <div class="flex items-center gap-3">
+                      <img id="new-prod-preview" src="./logo_barberia_lopez_hd.jpg" alt="Foto producto" class="w-14 h-14 rounded-[8px] object-cover border border-[rgba(212,175,55,0.35)] bg-[#0a0b0d] shrink-0">
+                      <div class="flex-1 space-y-1.5">
+                        <label for="new-prod-file" class="btn-clay py-1.5 px-3 text-xs font-medium cursor-pointer inline-flex items-center gap-1.5 shadow-sm">
+                          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                          <span>Subir o tomar foto</span>
+                        </label>
+                        <input type="file" id="new-prod-file" accept="image/*" class="hidden">
+                        <p class="font-sans-ui text-[10px] text-[#8a8275]" id="new-prod-file-status">
+                          Comprime y optimiza la foto en el dispositivo.
+                        </p>
+                      </div>
+                    </div>
+                    <div class="mt-2.5 pt-2 border-t border-[rgba(212,175,55,0.12)]">
+                      <label class="block font-sans-ui text-[10px] text-[#c5c0b6] mb-1">O pegar enlace web directo (URL):</label>
+                      <input type="url" id="new-prod-image" placeholder="https://..." class="input-parchment text-xs font-mono-tech">
+                    </div>
+                  </div>
+                  <div>
+                    <label class="block text-xs font-semibold text-[#c5c0b6] mb-1">Descripción breve</label>
+                    <textarea id="new-prod-desc" rows="2" placeholder="Beneficios y características del producto..." class="input-parchment text-xs"></textarea>
+                  </div>
+                  <button type="submit" class="btn-clay w-full py-2.5 justify-center text-xs font-semibold cursor-pointer">
+                    Publicar producto en Tienda →
+                  </button>
+                </form>
+              </div>
+
+              <!-- TABLA DE INVENTARIO ACTUAL -->
+              <div class="lg:col-span-2 anthropic-card p-6">
+                <h4 class="font-serif-editorial text-lg text-[#ffffff] mb-1">Inventario activo en tienda (${products.length})</h4>
+                <p class="text-xs text-[#c5c0b6] mb-4">Usa los botones rápidos para sumar/restar stock, cambiar precio o eliminar referencias del catálogo.</p>
+                <div class="overflow-x-auto">
+                  <table class="w-full text-left border-collapse font-sans-ui">
+                    <thead class="border-b border-[rgba(212,175,55,0.22)] bg-[#161a22] text-[11px] font-semibold text-[#c5c0b6] uppercase tracking-wider">
+                      <tr>
+                        <th class="p-3">Producto</th>
+                        <th class="p-3">Precio (COP)</th>
+                        <th class="p-3">Stock Disponible</th>
+                        <th class="p-3 text-right">Acciones de Admin</th>
+                      </tr>
+                    </thead>
+                    <tbody class="divide-y divide-[rgba(212,175,55,0.14)] text-xs">
+                      ${products.map((p) => `
+                        <tr class="hover:bg-[#181c24] transition-colors">
+                          <td class="p-3">
+                            <div class="flex items-center gap-2.5">
+                              <img src="${escapeHtml(p.imageUrl || './logo_barberia_lopez_hd.jpg')}" alt="${escapeHtml(p.name)}" loading="lazy" decoding="async" class="w-8 h-8 rounded-[6px] object-cover border border-[rgba(212,175,55,0.3)] bg-[#0a0b0d] shrink-0" onerror="this.src='./logo_barberia_lopez_hd.jpg'">
+                              <div>
+                                <div class="font-semibold text-[#ffffff]">${escapeHtml(p.name)}</div>
+                                <div class="text-[11px] text-[#8a8275]">${escapeHtml(p.category || 'General')}</div>
+                              </div>
+                            </div>
+                          </td>
+                          <td class="p-3 font-mono-tech font-bold text-[#d4af37]">
+                            $${Number(p.priceCop || 0).toLocaleString('es-CO')}
+                          </td>
+                          <td class="p-3">
+                            <div class="inline-flex items-center gap-2">
+                              <button type="button" data-stock-prod-id="${escapeHtml(p.id)}" data-stock-delta="-1" class="btn-adjust-stock px-2 py-0.5 rounded bg-[#161a22] border border-[rgba(212,175,55,0.3)] text-[#f3e5ab] hover:border-[#d4af37] font-mono-tech font-bold cursor-pointer">-</button>
+                              <span class="font-mono-tech font-bold text-sm ${p.stock <= 2 ? 'text-red-400' : 'text-[#ffffff]'} min-w-[28px] text-center">${p.stock}</span>
+                              <button type="button" data-stock-prod-id="${escapeHtml(p.id)}" data-stock-delta="1" class="btn-adjust-stock px-2 py-0.5 rounded bg-[#161a22] border border-[rgba(212,175,55,0.3)] text-[#f3e5ab] hover:border-[#d4af37] font-mono-tech font-bold cursor-pointer">+</button>
+                            </div>
+                          </td>
+                          <td class="p-3 text-right space-x-1.5 whitespace-nowrap">
+                            <button type="button" data-edit-prod-id="${escapeHtml(p.id)}" class="btn-edit-product btn-stone-outline py-1 px-2.5 text-[11px] cursor-pointer">
+                              Editar precio / foto / stock
+                            </button>
+                            <button type="button" data-delete-prod-id="${escapeHtml(p.id)}" data-delete-prod-name="${escapeHtml(p.name)}" class="btn-delete-product btn-stone-outline py-1 px-2.5 text-[11px] text-red-400 hover:text-red-300 hover:border-red-500 cursor-pointer">
+                              Quitar
+                            </button>
+                          </td>
+                        </tr>
+                      `).join('')}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
         </section>
       `;
     }
 
     root.innerHTML = `
       <!-- TOP EDITORIAL NAVIGATION BAR (Obsidian & Imperial Gold) -->
-      <header class="anthropic-nav">
-        <div class="max-w-[1240px] mx-auto flex items-center justify-between">
+      <header class="anthropic-nav sticky top-0 z-40 bg-[#0a0b0d]/95 backdrop-blur-md border-b border-[rgba(212,175,55,0.25)] px-3 sm:px-6 py-2.5 sm:py-3 shadow-lg">
+        <div class="max-w-[1240px] mx-auto flex items-center justify-between gap-2 sm:gap-4">
           
-          <!-- Far Left: Circular Avatar (Logo Oficial) + Wordmark -->
-          <a href="#hero" class="flex items-center gap-3 no-underline" id="nav-brand">
-            <img src="./logo_barberia_lopez_hd.jpg" alt="Barbería Lopez" class="w-9 h-9 rounded-full object-cover border border-[rgba(212,175,55,0.4)]">
-            <div class="flex flex-col">
-              <span class="font-serif-editorial text-xl font-normal tracking-tight text-[#ffffff] leading-none">Barbería Lopez</span>
-              <span class="font-sans-ui text-[11px] font-semibold text-[#d4af37] tracking-wider mt-0.5">NEIVA, HUILA · 2026</span>
-            </div>
+          <!-- Far Left: Logo Brand Button -->
+          <a href="#hero" class="flex items-center no-underline shrink-0" id="nav-brand" aria-label="Barbería López">
+            <img src="./logo_barberia_lopez_hd.jpg" alt="Barbería Lopez" class="w-8 h-8 sm:w-9 sm:h-9 rounded-full object-cover border border-[rgba(212,175,55,0.4)] hover:border-[#d4af37] transition-all">
           </a>
 
-          <!-- Center: Navigation Links -->
-          <nav class="hidden md:flex items-center gap-8">
-            <a href="#hero" class="font-sans-ui text-xs font-semibold uppercase tracking-wider text-[#c5c0b6] hover:text-[#d4af37] transition-colors">INICIO</a>
-            <a href="#calendario" class="font-sans-ui text-xs font-semibold uppercase tracking-wider text-[#c5c0b6] hover:text-[#d4af37] transition-colors">CALENDARIO</a>
-            <a href="#servicios" class="font-sans-ui text-xs font-semibold uppercase tracking-wider text-[#c5c0b6] hover:text-[#d4af37] transition-colors">SERVICIOS</a>
-            <a href="https://wa.me/573219897910" target="_blank" class="font-sans-ui text-xs font-semibold uppercase tracking-wider text-[#f3e5ab] hover:text-[#d4af37] transition-colors link-editorial">WHATSAPP</a>
+          <!-- Center: Navigation Links (Reservar y Tienda siempre visibles) -->
+          <nav class="flex items-center gap-2.5 sm:gap-5 md:gap-7">
+            <a href="#calendario" id="nav-link-calendario" class="font-sans-ui text-xs font-semibold uppercase tracking-wider text-[#f3e5ab] hover:text-[#d4af37] transition-colors cursor-pointer py-1">
+              Reservar
+            </a>
+            <button type="button" id="btn-nav-store" class="font-sans-ui text-xs font-semibold uppercase tracking-wider px-2.5 sm:px-3.5 py-1 rounded-full border transition-all cursor-pointer ${state.activeView === 'store' ? 'bg-[#d4af37] text-[#0a0b0d] border-[#d4af37] font-bold' : 'bg-[#181c24] text-[#f3e5ab] border-[rgba(212,175,55,0.45)] hover:border-[#d4af37] hover:text-[#ffffff]'}">
+              Tienda
+            </button>
+            <a href="#servicios" id="nav-link-servicios" class="hidden md:inline-block font-sans-ui text-xs font-semibold uppercase tracking-wider text-[#c5c0b6] hover:text-[#d4af37] transition-colors cursor-pointer py-1">
+              Servicios
+            </a>
           </nav>
 
           <!-- Far Right: Auth & Action Button -->
-          <div class="flex items-center gap-3">
+          <div class="flex items-center gap-1.5 sm:gap-3 shrink-0">
             ${!isAuth ? `
-              <button id="btn-login-trigger" class="btn-stone-outline py-2 px-3.5 text-xs">
+              <button id="btn-login-trigger" class="btn-stone-outline py-1.5 px-2.5 sm:px-3.5 text-xs">
                 Acceder
               </button>
-              <a href="#calendario" class="btn-clay py-2 px-4 text-xs font-medium">
+              <a href="#calendario" id="btn-cta-reservar" class="hidden sm:inline-flex btn-clay py-1.5 px-3.5 text-xs font-medium">
                 Reservar cita →
               </a>
             ` : `
-              <span class="font-sans-ui text-xs font-semibold text-[#f3e5ab] px-3 py-1 rounded-full bg-[#181c24] border border-[rgba(212,175,55,0.3)]">
+              <span class="font-sans-ui text-xs font-semibold text-[#f3e5ab] px-2.5 py-1 rounded-full bg-[#181c24] border border-[rgba(212,175,55,0.3)] hidden md:inline-block">
                 @${state.currentUser.username}
               </span>
               ${state.activeView !== 'home' ? `
-                <button id="btn-nav-home" class="btn-stone-outline py-2 px-3.5 text-xs">Inicio</button>
-              ` : `
-                <button id="btn-nav-panel" class="btn-clay py-2 px-3.5 text-xs">Mi panel →</button>
-              `}
-              <button id="btn-logout" class="btn-stone-outline py-2 px-3 text-xs" title="Salir">Salir</button>
+                <button id="btn-nav-home" class="btn-stone-outline py-1.5 px-2.5 sm:px-3 text-xs">Inicio</button>
+              ` : ''}
+              ${state.activeView !== 'dashboard' && state.activeView !== 'admin' ? `
+                <button id="btn-nav-panel" class="btn-clay py-1.5 px-2.5 sm:px-3.5 text-xs">Mi panel →</button>
+              ` : ''}
+              <button id="btn-logout" class="btn-stone-outline py-1.5 px-2.5 text-xs" title="Salir">Salir</button>
             `}
           </div>
 
@@ -2568,7 +4035,7 @@
       </header>
 
       <!-- MAIN CANVAS -->
-      <main>${mainContent}</main>
+      <main class="view-fade-enter">${mainContent}</main>
 
       <!-- FOOTER INVERSION (Charcoal Deep & Imperial Gold) -->
       <footer class="anthropic-footer mt-20">
@@ -2577,8 +4044,26 @@
             <span class="w-2 h-2 rounded-full bg-[#d4af37]"></span>
             <span class="font-sans-ui text-xs font-semibold uppercase tracking-wider text-[#f3e5ab]">ESTACIONES ACTIVAS · NEIVA, HUILA</span>
           </div>
-          <div class="font-sans-ui text-[13px] text-[#8a8275] text-center">
-            Barbería Lopez — Línea oficial +57 321 989 7910 · TikTok @barber_lopez_neiva
+          <div class="flex flex-wrap items-center justify-center gap-3">
+            <a 
+              href="https://www.tiktok.com/@barber_lopez_neiva" 
+              target="_blank" 
+              rel="noopener noreferrer" 
+              class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#181c24] border border-[rgba(212,175,55,0.35)] text-[#f3e5ab] hover:text-[#ffffff] hover:border-[#d4af37] text-xs font-semibold transition-all shadow-sm"
+            >
+              <svg class="w-3.5 h-3.5 fill-current shrink-0" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.63.41-1.11 1.04-1.36 1.75-.21.51-.24 1.07-.14 1.61.24 1.64 1.82 3.02 3.5 2.87 1.12-.01 2.19-.66 2.77-1.61.19-.33.4-.67.41-1.06.1-1.79.06-3.57.07-5.36.01-4.03-.01-8.05.02-12.07z"/>
+              </svg>
+              <span>TikTok @barber_lopez_neiva</span>
+            </a>
+            <a 
+              href="https://wa.me/573219897910" 
+              target="_blank" 
+              rel="noopener noreferrer" 
+              class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-[#181c24] border border-[rgba(212,175,55,0.35)] text-[#f3e5ab] hover:text-[#ffffff] hover:border-[#d4af37] text-xs font-semibold transition-all shadow-sm"
+            >
+              <span>WhatsApp (+57 321 989 7910)</span>
+            </a>
           </div>
           <a href="#calendario" class="btn-clay py-2 px-4 text-xs font-medium">
             Reservar turno →
@@ -2599,14 +4084,128 @@
           <form id="form-login" class="space-y-4">
             <div>
               <label class="block font-sans-ui text-xs font-semibold text-[#c5c0b6] mb-1.5">Usuario</label>
-              <input type="text" id="login-username" required placeholder="" class="input-parchment">
+              <input type="text" id="login-username" required placeholder="admin o david.barber" class="input-parchment" autocapitalize="none" autocorrect="off" spellcheck="false" autocomplete="username">
             </div>
             <div>
               <label class="block font-sans-ui text-xs font-semibold text-[#c5c0b6] mb-1.5">Contraseña</label>
-              <input type="password" id="login-password" required placeholder="••••••••" class="input-parchment">
+              <div class="relative">
+                <input type="password" id="login-password" required placeholder="••••••••" class="input-parchment pr-12" autocapitalize="none" autocorrect="off" spellcheck="false" autocomplete="current-password">
+                <button type="button" id="btn-toggle-login-pwd" class="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-[#c5c0b6] hover:text-[#d4af37] px-1.5 py-1 cursor-pointer select-none">
+                  Ver
+                </button>
+              </div>
             </div>
             <div id="login-error-msg" class="font-sans-ui text-xs text-red-400 bg-red-950/50 border border-red-800 p-3 rounded-[8px] hidden"></div>
-            <button type="submit" class="btn-clay w-full py-3 justify-center text-sm font-semibold">Ingresar al sistema →</button>
+            <button type="submit" id="btn-submit-login" class="btn-clay w-full py-3 justify-center text-sm font-semibold cursor-pointer">Ingresar al sistema →</button>
+          </form>
+        </div>
+      </div>
+
+      <!-- MODAL DE CAMBIO DE CONTRASEÑA (Obsidian & Imperial Gold) -->
+      <div id="modal-change-password" class="fixed inset-0 z-50 bg-[#0a0b0d]/85 backdrop-blur-sm flex items-center justify-center p-4 hidden">
+        <div class="anthropic-card w-full max-w-md p-6 sm:p-8 relative">
+          <button id="btn-close-change-pwd" type="button" class="absolute top-4 right-4 text-[#c5c0b6] hover:text-[#ffffff] text-xl font-light cursor-pointer">&times;</button>
+          
+          <div class="mb-5">
+            <div class="inline-flex items-center gap-2 mb-2 px-3 py-1 rounded-full bg-[#181c24] border border-[rgba(212,175,55,0.3)] text-[#f3e5ab] text-xs font-semibold">
+              <span class="w-2 h-2 rounded-full bg-[#d4af37]"></span>
+              <span id="change-pwd-target-label">SEGURIDAD DE ACCESO</span>
+            </div>
+            <h3 class="font-serif-editorial text-[26px] font-normal text-[#ffffff]">Actualizar contraseña</h3>
+            <p class="font-sans-ui text-xs text-[#c5c0b6] mt-1" id="change-pwd-subtitle">
+              Establece una nueva clave para la cuenta de acceso.
+            </p>
+          </div>
+
+          <form id="form-change-password" class="space-y-4">
+            <input type="hidden" id="change-pwd-user-id" value="">
+            <div>
+              <label class="block font-sans-ui text-xs font-semibold text-[#c5c0b6] mb-1.5">Nueva contraseña</label>
+              <div class="relative">
+                <input type="password" id="input-new-password" required placeholder="Mínimo 4 caracteres" class="input-parchment pr-12 text-sm" autocapitalize="none" autocorrect="off" spellcheck="false">
+                <button type="button" id="btn-toggle-new-pwd" class="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-[#c5c0b6] hover:text-[#d4af37] px-1.5 py-1 cursor-pointer select-none">Ver</button>
+              </div>
+            </div>
+            <div>
+              <label class="block font-sans-ui text-xs font-semibold text-[#c5c0b6] mb-1.5">Confirmar contraseña</label>
+              <div class="relative">
+                <input type="password" id="input-confirm-password" required placeholder="Repite la contraseña" class="input-parchment pr-12 text-sm" autocapitalize="none" autocorrect="off" spellcheck="false">
+                <button type="button" id="btn-toggle-confirm-pwd" class="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-[#c5c0b6] hover:text-[#d4af37] px-1.5 py-1 cursor-pointer select-none">Ver</button>
+              </div>
+            </div>
+            <div id="change-pwd-error-msg" class="font-sans-ui text-xs text-red-400 bg-red-950/50 border border-red-800 p-3 rounded-[8px] hidden"></div>
+            <div id="change-pwd-success-msg" class="font-sans-ui text-xs text-emerald-300 bg-emerald-950/50 border border-emerald-800 p-3 rounded-[8px] hidden"></div>
+            
+            <div class="flex items-center gap-2 pt-2">
+              <button type="button" id="btn-cancel-change-pwd" class="btn-stone-outline flex-1 py-2.5 justify-center text-xs font-semibold cursor-pointer">Cancelar</button>
+              <button type="submit" id="btn-submit-change-pwd" class="btn-clay flex-1 py-2.5 justify-center text-xs font-semibold cursor-pointer">Guardar clave →</button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- MODAL DE EDICIÓN DE PRECIO, STOCK Y FOTO DE PRODUCTO (Obsidian & Imperial Gold) -->
+      <div id="modal-edit-product" class="fixed inset-0 z-50 bg-[#0a0b0d]/85 backdrop-blur-sm flex items-center justify-center p-4 hidden">
+        <div class="anthropic-card w-full max-w-lg p-6 sm:p-8 relative max-h-[92vh] overflow-y-auto">
+          <button id="btn-close-edit-prod" type="button" class="absolute top-4 right-4 text-[#c5c0b6] hover:text-[#ffffff] text-xl font-light cursor-pointer">&times;</button>
+          
+          <div class="mb-5">
+            <div class="inline-flex items-center gap-2 mb-2 px-3 py-1 rounded-full bg-[#181c24] border border-[rgba(212,175,55,0.3)] text-[#f3e5ab] text-xs font-semibold">
+              <span class="w-2 h-2 rounded-full bg-[#d4af37]"></span>
+              <span id="edit-prod-badge">GESTIÓN DE BOUTIQUE</span>
+            </div>
+            <h3 class="font-serif-editorial text-[24px] font-normal text-[#ffffff]" id="edit-prod-title">Editar producto y foto</h3>
+            <p class="font-sans-ui text-xs text-[#c5c0b6] mt-1" id="edit-prod-subtitle">
+              Actualiza el precio de venta en COP, las unidades en stock o la foto del producto.
+            </p>
+          </div>
+
+          <form id="form-edit-product" class="space-y-4">
+            <input type="hidden" id="edit-prod-id" value="">
+            
+            <!-- SECCIÓN DE FOTO CON VISTA PREVIA Y SUBIDA DIRECTA -->
+            <div class="p-3.5 bg-[#161a22] rounded-[14px] border border-[rgba(212,175,55,0.22)]">
+              <label class="block font-sans-ui text-xs font-semibold text-[#f3e5ab] mb-2.5">
+                Foto del producto
+              </label>
+              <div class="flex items-center gap-4">
+                <img id="edit-prod-preview" src="./logo_barberia_lopez_hd.jpg" alt="Foto producto" class="w-20 h-20 rounded-[10px] object-cover border border-[rgba(212,175,55,0.45)] bg-[#0a0b0d] shrink-0 shadow-md">
+                <div class="flex-1 space-y-2">
+                  <div class="flex flex-wrap items-center gap-2">
+                    <label for="edit-prod-file" class="btn-clay py-1.5 px-3 text-xs font-medium cursor-pointer inline-flex items-center gap-1.5 shadow-sm">
+                      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                      <span>Subir o tomar foto</span>
+                    </label>
+                    <input type="file" id="edit-prod-file" accept="image/*" class="hidden">
+                  </div>
+                  <p class="font-sans-ui text-[11px] text-[#8a8275]" id="edit-prod-file-status">
+                    La imagen se comprime en el navegador a 600x600 px (menos de 50 KB) para no saturar el servidor.
+                  </p>
+                </div>
+              </div>
+              <div class="mt-3 pt-3 border-t border-[rgba(212,175,55,0.14)]">
+                <label class="block font-sans-ui text-[11px] text-[#c5c0b6] mb-1">O pegar enlace web directo (URL):</label>
+                <input type="url" id="edit-prod-image" class="input-parchment text-xs font-mono-tech" placeholder="https://ejemplo.com/foto.webp">
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+              <div>
+                <label class="block font-sans-ui text-xs font-semibold text-[#c5c0b6] mb-1.5">Precio en Efectivo (COP)</label>
+                <input type="number" id="edit-prod-price" required min="500" step="500" class="input-parchment text-sm font-mono-tech" placeholder="Ej. 25000">
+              </div>
+              <div>
+                <label class="block font-sans-ui text-xs font-semibold text-[#c5c0b6] mb-1.5">Unidades en Stock</label>
+                <input type="number" id="edit-prod-stock" required min="0" step="1" class="input-parchment text-sm font-mono-tech" placeholder="Ej. 10">
+              </div>
+            </div>
+
+            <div id="edit-prod-error-msg" class="font-sans-ui text-xs text-red-400 bg-red-950/50 border border-red-800 p-3 rounded-[8px] hidden"></div>
+            
+            <div class="flex items-center gap-2 pt-2">
+              <button type="button" id="btn-cancel-edit-prod" class="btn-stone-outline flex-1 py-2.5 justify-center text-xs font-semibold cursor-pointer">Cancelar</button>
+              <button type="submit" id="btn-submit-edit-prod" class="btn-clay flex-1 py-2.5 justify-center text-xs font-semibold cursor-pointer">Guardar cambios →</button>
+            </div>
           </form>
         </div>
       </div>
@@ -2647,8 +4246,14 @@
                     <div 
                       data-modal-barber-id="${b.id}" 
                       data-busy="${isBarberBusy ? 'true' : 'false'}"
-                      class="barber-modal-choice p-3.5 rounded-[12px] border cursor-pointer flex items-center gap-3 transition-all ${isBarberBusy ? 'opacity-50 border-red-500/30 bg-[#12151b]' : (isSelected ? 'selected border-[#d4af37] bg-[rgba(212,175,55,0.14)] shadow-[0_0_15px_rgba(212,175,55,0.2)]' : 'border-[rgba(212,175,55,0.22)] bg-[#161a22] hover:border-[#d4af37]')}">
-                      <img src="${b.avatar || './logo_barberia_lopez_hd.jpg'}" alt="${escapeHtml(b.name)}" class="w-11 h-11 rounded-full object-cover border border-[rgba(212,175,55,0.35)]">
+                      class="spotlight-card barber-modal-choice p-3.5 rounded-[12px] border cursor-pointer flex items-center gap-3 transition-all ${isBarberBusy ? 'opacity-50 border-red-500/30 bg-[#12151b]' : (isSelected ? 'selected border-[#d4af37] bg-[rgba(212,175,55,0.14)] shadow-[0_0_15px_rgba(212,175,55,0.2)]' : 'border-[rgba(212,175,55,0.22)] bg-[#161a22] hover:border-[#d4af37]')}">
+                      ${b.avatar ? `
+                        <img src="${escapeHtml(b.avatar)}" alt="${escapeHtml(b.name)}" class="w-11 h-11 rounded-full object-cover border border-[rgba(212,175,55,0.35)] shrink-0">
+                      ` : `
+                        <div class="w-11 h-11 rounded-full bg-[#181c24] border border-[rgba(212,175,55,0.4)] flex items-center justify-center font-serif-editorial text-base text-[#d4af37] shrink-0">
+                          ${escapeHtml(b.name.charAt(0))}
+                        </div>
+                      `}
                       <div class="flex-1">
                         <div class="font-sans-ui font-semibold text-[#ffffff] text-[14px] flex items-center justify-between">
                           <span>${escapeHtml(b.name)}</span>
@@ -2674,7 +4279,7 @@
                   return `
                     <div 
                       data-modal-service-id="${s.id}" 
-                      class="service-modal-choice p-3.5 rounded-[12px] border cursor-pointer flex flex-col justify-between transition-all ${isSelected ? 'selected border-[#d4af37] bg-[rgba(212,175,55,0.14)] shadow-[0_0_15px_rgba(212,175,55,0.2)]' : 'border-[rgba(212,175,55,0.22)] bg-[#161a22] hover:border-[#d4af37]'}">
+                      class="spotlight-card service-modal-choice p-3.5 rounded-[12px] border cursor-pointer flex flex-col justify-between transition-all ${isSelected ? 'selected border-[#d4af37] bg-[rgba(212,175,55,0.14)] shadow-[0_0_15px_rgba(212,175,55,0.2)]' : 'border-[rgba(212,175,55,0.22)] bg-[#161a22] hover:border-[#d4af37]'}">
                       <div class="flex items-center justify-between gap-1 mb-1">
                         <span class="font-sans-ui font-semibold text-[#ffffff] text-[14px]">${s.name}</span>
                         <span class="font-mono-tech font-bold text-[#d4af37] text-sm">$${s.priceCop.toLocaleString('es-CO')}</span>
@@ -2837,16 +4442,135 @@
     if (state.confirmationModalData) {
       showConfirmationModal(state.confirmationModalData);
     }
+    dismissPreloader();
   }
 
   // --- EVENTOS INTERACTIVOS ---
   function bindEvents(users, barbers, services) {
+    // Controlador interactivo del reproductor de video (Reel Showcase con gestos táctiles Swipe)
+    const heroVideo = document.getElementById('hero-reel-video');
+    const heroTitle = document.getElementById('hero-reel-title');
+    const heroCard = document.getElementById('hero-reel-card');
+    const btnSound = document.getElementById('btn-toggle-video-sound');
+    const iconSoundOff = document.getElementById('icon-sound-off');
+    const iconSoundOn = document.getElementById('icon-sound-on');
+    const btnReelPrev = document.getElementById('btn-reel-prev');
+    const btnReelNext = document.getElementById('btn-reel-next');
+    const reelDots = document.querySelectorAll('.reel-dot');
+
+    const REEL_VIDEOS = [
+      {
+        src: '/assets/videos/Download.mp4',
+        title: 'Corte Tradicional & Degradado'
+      },
+      {
+        src: '/assets/videos/Download%20(2).mp4',
+        title: 'Perfilado de Barba & Estilo'
+      },
+      {
+        src: '/assets/videos/Download%20(3).mp4',
+        title: 'Ambiente & Acabado Maestro'
+      }
+    ];
+
+    let currentReelIndex = 0;
+
+    function switchReelVideo(index) {
+      if (!heroVideo) return;
+      if (index < 0) index = REEL_VIDEOS.length - 1;
+      if (index >= REEL_VIDEOS.length) index = 0;
+      currentReelIndex = index;
+
+      const item = REEL_VIDEOS[currentReelIndex];
+      heroVideo.src = item.src;
+      heroVideo.play().catch(() => {});
+
+      if (heroTitle) {
+        heroTitle.textContent = item.title;
+      }
+
+      reelDots.forEach((dot, idx) => {
+        if (idx === currentReelIndex) {
+          dot.className = 'reel-dot w-6 h-1.5 rounded-full bg-[#d4af37] transition-all cursor-pointer';
+        } else {
+          dot.className = 'reel-dot w-2 h-1.5 rounded-full bg-white/40 transition-all cursor-pointer';
+        }
+      });
+    }
+
+    if (btnSound && heroVideo) {
+      btnSound.onclick = () => {
+        heroVideo.muted = !heroVideo.muted;
+        if (heroVideo.muted) {
+          iconSoundOff?.classList.remove('hidden');
+          iconSoundOn?.classList.add('hidden');
+        } else {
+          iconSoundOff?.classList.add('hidden');
+          iconSoundOn?.classList.remove('hidden');
+        }
+      };
+    }
+
+    if (btnReelPrev) btnReelPrev.onclick = () => switchReelVideo(currentReelIndex - 1);
+    if (btnReelNext) btnReelNext.onclick = () => switchReelVideo(currentReelIndex + 1);
+
+    reelDots.forEach((dot) => {
+      dot.onclick = () => {
+        const idx = Number(dot.dataset.videoIndex) || 0;
+        switchReelVideo(idx);
+      };
+    });
+
+    // Soporte de gestos táctiles Swipe (deslizar a la izquierda o derecha en móviles)
+    if (heroCard) {
+      let touchStartX = 0;
+      let touchStartY = 0;
+
+      heroCard.addEventListener('touchstart', (e) => {
+        if (!e.touches || !e.touches[0]) return;
+        touchStartX = e.touches[0].clientX;
+        touchStartY = e.touches[0].clientY;
+      }, { passive: true });
+
+      heroCard.addEventListener('touchend', (e) => {
+        if (!e.changedTouches || !e.changedTouches[0]) return;
+        const diffX = e.changedTouches[0].clientX - touchStartX;
+        const diffY = e.changedTouches[0].clientY - touchStartY;
+        // Solo actuar si el desplazamiento horizontal es significativo y mayor al vertical
+        if (Math.abs(diffX) > 40 && Math.abs(diffX) > Math.abs(diffY)) {
+          if (diffX < 0) {
+            switchReelVideo(currentReelIndex + 1); // Deslizar hacia la izquierda -> siguiente
+          } else {
+            switchReelVideo(currentReelIndex - 1); // Deslizar hacia la derecha -> anterior
+          }
+        }
+      }, { passive: true });
+    }
+
+    if (heroVideo) {
+      heroVideo.onended = () => {
+        switchReelVideo(currentReelIndex + 1);
+      };
+    }
+
     const btnLoginTrigger = document.getElementById('btn-login-trigger');
     const modalAuth = document.getElementById('modal-auth');
     const btnCloseAuth = document.getElementById('btn-close-auth');
+    const btnToggleLoginPwd = document.getElementById('btn-toggle-login-pwd');
 
     if (btnLoginTrigger && modalAuth) btnLoginTrigger.onclick = () => modalAuth.classList.remove('hidden');
     if (btnCloseAuth && modalAuth) btnCloseAuth.onclick = () => modalAuth.classList.add('hidden');
+
+    if (btnToggleLoginPwd) {
+      btnToggleLoginPwd.onclick = () => {
+        const inp = document.getElementById('login-password');
+        if (inp) {
+          const isPass = inp.type === 'password';
+          inp.type = isPass ? 'text' : 'password';
+          btnToggleLoginPwd.textContent = isPass ? 'Ocultar' : 'Ver';
+        }
+      };
+    }
 
     document.querySelectorAll('.quick-fill-btn').forEach((btn) => {
       btn.onclick = () => {
@@ -2862,6 +4586,12 @@
         const username = document.getElementById('login-username').value;
         const password = document.getElementById('login-password').value;
         const errorMsg = document.getElementById('login-error-msg');
+        const submitBtn = document.getElementById('btn-submit-login');
+        if (errorMsg) errorMsg.classList.add('hidden');
+        if (submitBtn) {
+          submitBtn.disabled = true;
+          submitBtn.textContent = 'Verificando...';
+        }
         try {
           const { user } = await loginUseCase.execute({ username, password });
           modalAuth.classList.add('hidden');
@@ -2870,8 +4600,15 @@
           state.activeView = user.role === Roles.ADMIN ? 'admin' : 'dashboard';
           renderApp();
         } catch (err) {
-          errorMsg.textContent = err.message;
-          errorMsg.classList.remove('hidden');
+          if (errorMsg) {
+            errorMsg.textContent = err.message;
+            errorMsg.classList.remove('hidden');
+          }
+        } finally {
+          if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Ingresar al sistema →';
+          }
         }
       };
     }
@@ -2903,6 +4640,636 @@
 
     const btnBackHome2 = document.getElementById('btn-admin-back-home');
     if (btnBackHome2) btnBackHome2.onclick = () => { state.activeView = 'home'; renderApp(); };
+
+    const btnStoreBackHome = document.getElementById('btn-store-back-home');
+    if (btnStoreBackHome) btnStoreBackHome.onclick = () => { state.activeView = 'home'; renderApp(); };
+
+    const btnNavStore = document.getElementById('btn-nav-store');
+    if (btnNavStore) {
+      btnNavStore.onclick = () => {
+        state.activeView = 'store';
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        renderApp();
+      };
+    }
+
+    const btnNavStoreMobile = document.getElementById('btn-nav-store-mobile');
+    if (btnNavStoreMobile) {
+      btnNavStoreMobile.onclick = () => {
+        state.activeView = 'store';
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        renderApp();
+      };
+    }
+
+    const btnHeroOpenStore = document.getElementById('btn-hero-open-store');
+    if (btnHeroOpenStore) {
+      btnHeroOpenStore.onclick = () => {
+        state.activeView = 'store';
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        renderApp();
+      };
+    }
+
+    const navBrand = document.getElementById('nav-brand');
+    if (navBrand) {
+      navBrand.onclick = async (e) => {
+        if (state.activeView !== 'home') {
+          e.preventDefault();
+          state.activeView = 'home';
+          await renderApp();
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+      };
+    }
+
+    ['nav-link-inicio', 'nav-link-calendario', 'nav-link-servicios', 'btn-cta-reservar'].forEach((id) => {
+      const el = document.getElementById(id);
+      if (el) {
+        el.onclick = async (e) => {
+          const targetHash = el.getAttribute('href') || '#hero';
+          if (state.activeView !== 'home') {
+            e.preventDefault();
+            state.activeView = 'home';
+            await renderApp();
+            const targetEl = document.querySelector(targetHash);
+            if (targetEl) {
+              targetEl.scrollIntoView({ behavior: 'smooth' });
+            } else {
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }
+          }
+        };
+      }
+    });
+
+    // Consulta de referencias del cliente en la vista Tienda
+    const inputClientOrderLookup = document.getElementById('input-client-order-lookup');
+    if (inputClientOrderLookup) {
+      inputClientOrderLookup.oninput = (e) => {
+        state.clientOrderLookup = e.target.value;
+      };
+      inputClientOrderLookup.onchange = (e) => {
+        state.clientOrderLookup = e.target.value;
+        renderApp();
+      };
+    }
+
+    const btnClearClientLookup = document.getElementById('btn-clear-client-lookup');
+    if (btnClearClientLookup) {
+      btnClearClientLookup.onclick = () => {
+        state.clientOrderLookup = '';
+        renderApp();
+      };
+    }
+
+    document.querySelectorAll('.btn-reopen-store-voucher').forEach((btn) => {
+      btn.onclick = () => {
+        const ref = btn.dataset.openVoucherRef;
+        const ord = (state.storeOrders || []).find((o) => o.referenceCode === ref);
+        if (ord) {
+          showStoreVoucherModal(ord);
+        }
+      };
+    });
+
+    // Alternar estado En Turno / Fuera de Turno de una estación de barbero
+    document.querySelectorAll('.btn-toggle-barber-shift').forEach((btn) => {
+      btn.onclick = async () => {
+        const barberId = btn.dataset.toggleShiftBarberId;
+        const barber = (state.barbers || []).find((b) => b.id === barberId);
+        if (!barber) return;
+        const currentShift = barber.onShift !== false && barber.active !== false;
+        const nextShift = !currentShift;
+        const updatedBarber = { ...barber, onShift: nextShift };
+        try {
+          await repo.updateBarber(updatedBarber);
+          state.barbers = (state.barbers || []).map((b) => b.id === barberId ? updatedBarber : b);
+          await renderApp();
+        } catch (err) {
+          alert(err.message);
+        }
+      };
+    });
+
+    // Venta Directa en Estación / Mostrador (cuando el cliente en barbería paga en efectivo al barbero en turno)
+    const formDirectStoreSale = document.getElementById('form-direct-store-sale');
+    if (formDirectStoreSale) {
+      formDirectStoreSale.onsubmit = async (e) => {
+        e.preventDefault();
+        const productId = document.getElementById('direct-sale-product')?.value;
+        const quantity = Math.max(1, parseInt(document.getElementById('direct-sale-qty')?.value, 10) || 1);
+        const clientName = (document.getElementById('direct-sale-client')?.value || '').trim() || 'Cliente en Estacion';
+        const barberSelect = document.getElementById('direct-sale-barber');
+        const barberId = barberSelect ? barberSelect.value : (state.currentUser?.barberId || null);
+
+        if (!productId) {
+          alert('Selecciona un producto con stock disponible.');
+          return;
+        }
+
+        try {
+          const res = await repo.createStoreOrder({
+            productId,
+            quantity,
+            clientName,
+            clientPhone: 'Venta Presencial',
+            deliveryMode: 'VENTA_DIRECTA',
+            directSale: true,
+            barberId
+          });
+          await renderApp();
+          alert(`Venta registrada y entregada en efectivo.\nReferencia: ${res.order.referenceCode}\nProducto: ${res.order.productName} (x${res.order.quantity})\nTotal en caja: $${Number(res.order.totalCop || 0).toLocaleString('es-CO')} COP`);
+        } catch (err) {
+          alert(err.message);
+        }
+      };
+    }
+
+    // Filtros de categorías en Tienda
+    document.querySelectorAll('.btn-store-cat').forEach((btn) => {
+      btn.onclick = () => {
+        state.storeCategoryFilter = btn.dataset.storeCat || 'ALL';
+        renderApp();
+      };
+    });
+
+    // Comprar producto en Tienda
+    document.querySelectorAll('.btn-buy-store-product').forEach((btn) => {
+      btn.onclick = () => {
+        const prodId = btn.dataset.buyProductId;
+        const prod = (state.products || []).find((p) => p.id === prodId);
+        if (prod) {
+          showStoreBuyModal(prod);
+        }
+      };
+    });
+
+    // Filtros de estado de pedidos en Dashboard
+    document.querySelectorAll('.btn-order-status-filter').forEach((btn) => {
+      btn.onclick = () => {
+        state.storeOrderStatusFilter = btn.dataset.orderStatusFilter || 'ALL';
+        renderApp();
+      };
+    });
+
+    // Filtros de día / fecha de pedidos en Dashboard
+    document.querySelectorAll('.btn-order-date-filter').forEach((btn) => {
+      btn.onclick = () => {
+        state.storeOrderDateFilter = btn.dataset.orderDateFilter || 'ALL';
+        renderApp();
+      };
+    });
+
+    const inputStoreOrderDate = document.getElementById('input-store-order-date');
+    if (inputStoreOrderDate) {
+      inputStoreOrderDate.onchange = (e) => {
+        state.storeOrderDateFilter = e.target.value || 'ALL';
+        renderApp();
+      };
+    }
+
+    const btnClearOrderDate = document.getElementById('btn-clear-order-date');
+    if (btnClearOrderDate) {
+      btnClearOrderDate.onclick = () => {
+        state.storeOrderDateFilter = 'ALL';
+        renderApp();
+      };
+    }
+
+    const inputStoreOrderSearch = document.getElementById('input-store-order-search');
+    if (inputStoreOrderSearch) {
+      inputStoreOrderSearch.oninput = (e) => {
+        state.storeOrderSearch = e.target.value;
+        const q = e.target.value.toLowerCase().trim();
+        document.querySelectorAll('.store-order-card').forEach((card) => {
+          const text = card.innerText.toLowerCase();
+          card.style.display = text.includes(q) ? '' : 'none';
+        });
+      };
+    }
+
+    // Control de acordeones desplegables del Dashboard
+    document.querySelectorAll('.btn-dashboard-accordion').forEach((btn) => {
+      btn.onclick = () => {
+        const targetId = btn.dataset.accordionTarget;
+        const key = btn.dataset.accordionKey;
+        const content = document.getElementById(targetId);
+        const chevron = btn.querySelector('.accordion-chevron');
+        const textIndicator = btn.querySelector('.accordion-indicator-text');
+        if (!content) return;
+
+        const isCurrentlyHidden = content.classList.contains('hidden');
+        if (isCurrentlyHidden) {
+          content.classList.remove('hidden');
+          if (chevron) chevron.classList.add('rotate-180');
+          if (textIndicator) textIndicator.textContent = 'Ocultar';
+          btn.setAttribute('aria-expanded', 'true');
+          if (key && state.dashboardAccordions) state.dashboardAccordions[key] = true;
+        } else {
+          content.classList.add('hidden');
+          if (chevron) chevron.classList.remove('rotate-180');
+          if (textIndicator) textIndicator.textContent = 'Desplegar';
+          btn.setAttribute('aria-expanded', 'false');
+          if (key && state.dashboardAccordions) state.dashboardAccordions[key] = false;
+        }
+      };
+    });
+
+    // Confirmar cobro en efectivo y entregar pedido
+    document.querySelectorAll('.btn-deliver-store-order').forEach((btn) => {
+      btn.onclick = async () => {
+        const orderId = btn.dataset.deliverOrderId;
+        const refCode = btn.dataset.deliverRef;
+        const ok = confirm(`¿Confirmas que recibiste el PAGO EN EFECTIVO de la referencia ${refCode} y entregaste el producto al cliente?`);
+        if (!ok) return;
+        try {
+          await repo.deliverStoreOrder(orderId);
+          await renderApp();
+        } catch (err) {
+          alert(err.message);
+        }
+      };
+    });
+
+    // Cancelar pedido y devolver unidades al stock
+    document.querySelectorAll('.btn-cancel-store-order').forEach((btn) => {
+      btn.onclick = async () => {
+        const orderId = btn.dataset.cancelOrderId;
+        const refCode = btn.dataset.cancelRef;
+        const ok = confirm(`¿Deseas cancelar el pedido ${refCode} y devolver las unidades apartadas al inventario disponible?`);
+        if (!ok) return;
+        try {
+          await repo.cancelStoreOrder(orderId);
+          await renderApp();
+        } catch (err) {
+          alert(err.message);
+        }
+      };
+    });
+
+    // Motor de compresión y optimización de imágenes en el cliente (Memory-safe para móviles)
+    let pendingCompressedNewProductImage = null;
+    let pendingCompressedProductImage = null;
+
+    function compressImageFile(file, maxWidth = 600, maxHeight = 600, quality = 0.82) {
+      return new Promise((resolve, reject) => {
+        if (!file) {
+          return reject(new Error('No se seleccionó ningún archivo de imagen.'));
+        }
+        const isImage = (file.type && file.type.startsWith('image/')) ||
+          /\.(jpe?g|png|webp|gif|bmp|heic|heif)$/i.test(file.name || '');
+        if (!isImage) {
+          return reject(new Error('El archivo seleccionado no es una imagen válida (debe ser JPG, PNG o WebP).'));
+        }
+
+        const runCanvasCompress = (img) => {
+          let width = img.naturalWidth || img.width || 600;
+          let height = img.naturalHeight || img.height || 600;
+          if (width > height) {
+            if (width > maxWidth) {
+              height = Math.round((height * maxWidth) / width);
+              width = maxWidth;
+            }
+          } else {
+            if (height > maxHeight) {
+              width = Math.round((width * maxHeight) / height);
+              height = maxHeight;
+            }
+          }
+          const canvas = document.createElement('canvas');
+          canvas.width = Math.max(1, width);
+          canvas.height = Math.max(1, height);
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+
+          let dataUri = canvas.toDataURL('image/webp', quality);
+          if (!dataUri.startsWith('data:image/webp')) {
+            dataUri = canvas.toDataURL('image/jpeg', quality);
+          }
+          return dataUri;
+        };
+
+        if (window.URL && typeof URL.createObjectURL === 'function') {
+          const blobUrl = URL.createObjectURL(file);
+          const img = new Image();
+          img.onload = () => {
+            URL.revokeObjectURL(blobUrl);
+            try {
+              resolve(runCanvasCompress(img));
+            } catch (err) {
+              reject(err);
+            }
+          };
+          img.onerror = () => {
+            URL.revokeObjectURL(blobUrl);
+            readWithFileReader(file, runCanvasCompress, resolve, reject);
+          };
+          img.src = blobUrl;
+        } else {
+          readWithFileReader(file, runCanvasCompress, resolve, reject);
+        }
+      });
+    }
+
+    function readWithFileReader(file, runCanvasCompress, resolve, reject) {
+      const reader = new FileReader();
+      reader.onerror = () => reject(new Error('No fue posible leer la imagen seleccionada.'));
+      reader.onload = () => {
+        const img = new Image();
+        img.onerror = () => reject(new Error('No fue posible procesar la imagen seleccionada.'));
+        img.onload = () => {
+          try {
+            resolve(runCanvasCompress(img));
+          } catch (err) {
+            reject(err);
+          }
+        };
+        img.src = reader.result;
+      };
+      reader.readAsDataURL(file);
+    }
+
+    // Selector de archivo / foto para Crear Nuevo Producto
+    const newProdFileInput = document.getElementById('new-prod-file');
+    if (newProdFileInput) {
+      newProdFileInput.onchange = async () => {
+        const file = newProdFileInput.files && newProdFileInput.files[0];
+        if (!file) return;
+        const statusEl = document.getElementById('new-prod-file-status');
+        const previewEl = document.getElementById('new-prod-preview');
+        const imgUrlInput = document.getElementById('new-prod-image');
+        if (statusEl) {
+          statusEl.textContent = 'Optimizando foto en el dispositivo...';
+          statusEl.className = 'font-sans-ui text-[10px] text-[#d4af37]';
+        }
+        try {
+          const dataUri = await compressImageFile(file, 600, 600, 0.82);
+          pendingCompressedNewProductImage = dataUri;
+          if (previewEl) previewEl.src = dataUri;
+          if (imgUrlInput) imgUrlInput.value = '';
+          const sizeKb = Math.round((dataUri.length * 3) / 4 / 1024);
+          if (statusEl) {
+            statusEl.textContent = `Foto lista (${sizeKb} KB). Se guardará con el producto.`;
+            statusEl.className = 'font-sans-ui text-[10px] text-emerald-400 font-medium';
+          }
+        } catch (err) {
+          if (statusEl) {
+            statusEl.textContent = err.message || 'Error al procesar la foto.';
+            statusEl.className = 'font-sans-ui text-[10px] text-red-400';
+          }
+        }
+      };
+    }
+
+    // Crear nuevo producto (Administrador o Barbero Jefe)
+    const formCreateProduct = document.getElementById('form-create-product');
+    if (formCreateProduct) {
+      formCreateProduct.onsubmit = async (e) => {
+        e.preventDefault();
+        if (!state.currentUser || (state.currentUser.role !== Roles.ADMIN && state.currentUser.role !== Roles.JEFE)) {
+          alert('Acceso denegado: solo el Administrador o el Barbero Jefe pueden agregar nuevos productos al catálogo.');
+          return;
+        }
+        const submitBtn = formCreateProduct.querySelector('button[type="submit"]');
+        if (submitBtn) {
+          submitBtn.disabled = true;
+          submitBtn.textContent = 'Guardando producto...';
+        }
+        try {
+          const name = document.getElementById('new-prod-name').value.trim();
+          const category = document.getElementById('new-prod-category').value.trim() || 'Cuidado Personal';
+          const stock = parseInt(document.getElementById('new-prod-stock').value, 10) || 0;
+          const priceCop = parseInt(document.getElementById('new-prod-price').value, 10) || 0;
+          const imageUrl = document.getElementById('new-prod-image').value.trim();
+          const description = document.getElementById('new-prod-desc').value.trim();
+
+          const created = await repo.saveProduct({
+            name,
+            category,
+            stock,
+            priceCop,
+            imageUrl: imageUrl || undefined,
+            description
+          });
+
+          if (pendingCompressedNewProductImage && created && created.id) {
+            if (submitBtn) submitBtn.textContent = 'Subiendo foto del producto...';
+            await repo.uploadProductImage(created.id, pendingCompressedNewProductImage);
+            pendingCompressedNewProductImage = null;
+          }
+
+          alert('Producto publicado exitosamente en el apartado TIENDA.');
+          renderApp();
+        } catch (err) {
+          alert(err.message);
+        } finally {
+          if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Publicar producto en Tienda →';
+          }
+        }
+      };
+    }
+
+    // Ajuste rápido de stock (+1 / -1)
+    document.querySelectorAll('.btn-adjust-stock').forEach((btn) => {
+      btn.onclick = async () => {
+        const prodId = btn.dataset.stockProdId;
+        const delta = parseInt(btn.dataset.stockDelta, 10) || 0;
+        const prod = (state.products || []).find((p) => p.id === prodId);
+        if (!prod) return;
+        const nextStock = Math.max(0, (Number(prod.stock) || 0) + delta);
+        try {
+          await repo.updateProduct(prodId, { stock: nextStock });
+          renderApp();
+        } catch (err) {
+          alert(err.message);
+        }
+      };
+    });
+
+    // Modal de edición de precio y stock
+    const modalEditProd = document.getElementById('modal-edit-product');
+    const btnCloseEditProd = document.getElementById('btn-close-edit-prod');
+    const btnCancelEditProd = document.getElementById('btn-cancel-edit-prod');
+    const formEditProd = document.getElementById('form-edit-product');
+
+    if (btnCloseEditProd && modalEditProd) {
+      btnCloseEditProd.onclick = () => modalEditProd.classList.add('hidden');
+    }
+    if (btnCancelEditProd && modalEditProd) {
+      btnCancelEditProd.onclick = () => modalEditProd.classList.add('hidden');
+    }
+
+    const editProdFileInput = document.getElementById('edit-prod-file');
+    if (editProdFileInput) {
+      editProdFileInput.onchange = async () => {
+        const file = editProdFileInput.files && editProdFileInput.files[0];
+        if (!file) return;
+        const statusEl = document.getElementById('edit-prod-file-status');
+        const previewEl = document.getElementById('edit-prod-preview');
+        const errorEl = document.getElementById('edit-prod-error-msg');
+        const imgInput = document.getElementById('edit-prod-image');
+        if (errorEl) errorEl.classList.add('hidden');
+        if (statusEl) {
+          statusEl.textContent = 'Optimizando foto en el dispositivo...';
+          statusEl.className = 'font-sans-ui text-[11px] text-[#d4af37]';
+        }
+        try {
+          const dataUri = await compressImageFile(file, 600, 600, 0.82);
+          pendingCompressedProductImage = dataUri;
+          if (previewEl) previewEl.src = dataUri;
+          if (imgInput) imgInput.value = '';
+          const sizeKb = Math.round((dataUri.length * 3) / 4 / 1024);
+          if (statusEl) {
+            statusEl.textContent = `Foto optimizada (${sizeKb} KB). Lista para guardar sin saturar el servidor.`;
+            statusEl.className = 'font-sans-ui text-[11px] text-emerald-400 font-medium';
+          }
+        } catch (err) {
+          if (statusEl) {
+            statusEl.textContent = err.message || 'Error al procesar la foto.';
+            statusEl.className = 'font-sans-ui text-[11px] text-red-400';
+          }
+        }
+      };
+    }
+
+    const editProdImageInput = document.getElementById('edit-prod-image');
+    if (editProdImageInput) {
+      editProdImageInput.oninput = () => {
+        const val = editProdImageInput.value.trim();
+        const previewEl = document.getElementById('edit-prod-preview');
+        if (previewEl && (val.startsWith('http://') || val.startsWith('https://') || val.startsWith('./'))) {
+          previewEl.src = val;
+        }
+      };
+    }
+
+    if (formEditProd) {
+      formEditProd.onsubmit = async (e) => {
+        e.preventDefault();
+        const prodId = document.getElementById('edit-prod-id').value;
+        const priceVal = parseInt(document.getElementById('edit-prod-price').value, 10);
+        const stockVal = parseInt(document.getElementById('edit-prod-stock').value, 10);
+        const errorMsg = document.getElementById('edit-prod-error-msg');
+        const submitBtn = document.getElementById('btn-submit-edit-prod');
+
+        if (errorMsg) errorMsg.classList.add('hidden');
+        if (Number.isNaN(priceVal) || priceVal < 500) {
+          if (errorMsg) {
+            errorMsg.textContent = 'El precio debe ser un valor válido mayor a 500 COP.';
+            errorMsg.classList.remove('hidden');
+          }
+          return;
+        }
+
+        if (Number.isNaN(stockVal) || stockVal < 0) {
+          if (errorMsg) {
+            errorMsg.textContent = 'El stock debe ser un número entero mayor o igual a 0.';
+            errorMsg.classList.remove('hidden');
+          }
+          return;
+        }
+
+        if (submitBtn) {
+          submitBtn.disabled = true;
+          submitBtn.textContent = 'Guardando...';
+        }
+
+        try {
+          let uploadedImageUrl = null;
+          if (pendingCompressedProductImage) {
+            if (submitBtn) submitBtn.textContent = 'Subiendo foto...';
+            const uploadRes = await repo.uploadProductImage(prodId, pendingCompressedProductImage);
+            if (uploadRes && uploadRes.imageUrl) {
+              uploadedImageUrl = uploadRes.imageUrl;
+            }
+            pendingCompressedProductImage = null;
+          }
+
+          const updatePayload = {
+            priceCop: priceVal,
+            stock: stockVal
+          };
+          if (uploadedImageUrl) {
+            updatePayload.imageUrl = uploadedImageUrl;
+          } else {
+            const imgInput = document.getElementById('edit-prod-image');
+            if (imgInput && imgInput.value.trim()) {
+              updatePayload.imageUrl = imgInput.value.trim();
+            }
+          }
+          await repo.updateProduct(prodId, updatePayload);
+          if (modalEditProd) modalEditProd.classList.add('hidden');
+          renderApp();
+        } catch (err) {
+          if (errorMsg) {
+            errorMsg.textContent = err.message || 'No fue posible actualizar el producto.';
+            errorMsg.classList.remove('hidden');
+          }
+        } finally {
+          if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Guardar cambios →';
+          }
+        }
+      };
+    }
+
+    // Editar precio, stock y foto de un producto (Abre modal elegante para Barbero Jefe y Admin)
+    document.querySelectorAll('.btn-edit-product').forEach((btn) => {
+      btn.onclick = () => {
+        const prodId = btn.dataset.editProdId;
+        const prod = (state.products || []).find((p) => p.id === prodId);
+        if (!prod) return;
+        pendingCompressedProductImage = null;
+        const hiddenId = document.getElementById('edit-prod-id');
+        const title = document.getElementById('edit-prod-title');
+        const price = document.getElementById('edit-prod-price');
+        const stock = document.getElementById('edit-prod-stock');
+        const imgInput = document.getElementById('edit-prod-image');
+        const previewEl = document.getElementById('edit-prod-preview');
+        const statusEl = document.getElementById('edit-prod-file-status');
+        const fileInput = document.getElementById('edit-prod-file');
+        const errorMsg = document.getElementById('edit-prod-error-msg');
+
+        if (hiddenId) hiddenId.value = prod.id;
+        if (title) title.textContent = `Editar ${prod.name}`;
+        if (price) price.value = prod.priceCop;
+        if (stock) stock.value = prod.stock;
+        if (imgInput) imgInput.value = prod.imageUrl || '';
+        if (previewEl) previewEl.src = prod.imageUrl || './logo_barberia_lopez_hd.jpg';
+        if (statusEl) {
+          statusEl.textContent = 'La imagen se comprime en el navegador a 600x600 px (menos de 50 KB) para no saturar el servidor.';
+          statusEl.className = 'font-sans-ui text-[11px] text-[#8a8275]';
+        }
+        if (fileInput) fileInput.value = '';
+        if (errorMsg) errorMsg.classList.add('hidden');
+        if (modalEditProd) modalEditProd.classList.remove('hidden');
+        if (price) price.focus();
+      };
+    });
+
+    // Eliminar producto del catálogo (Administrador o Barbero Jefe)
+    document.querySelectorAll('.btn-delete-product').forEach((btn) => {
+      btn.onclick = async () => {
+        if (!state.currentUser || (state.currentUser.role !== Roles.ADMIN && state.currentUser.role !== Roles.JEFE)) {
+          alert('Acceso denegado: solo el Administrador o el Barbero Jefe pueden eliminar productos del catálogo.');
+          return;
+        }
+        const prodId = btn.dataset.deleteProdId;
+        const prodName = btn.dataset.deleteProdName;
+        const ok = confirm(`¿Seguro que deseas quitar "${prodName}" del catálogo de la tienda de forma permanente?`);
+        if (!ok) return;
+        try {
+          await repo.deleteProduct(prodId);
+          renderApp();
+        } catch (err) {
+          alert(err.message);
+        }
+      };
+    });
 
     // Controles de mes del calendario
     const btnPrev = document.getElementById('cal-btn-prev');
@@ -3316,40 +5683,140 @@
             password: document.getElementById('new-barber-password').value,
             role: document.getElementById('new-barber-role').value
           });
-          alert("Barbero y credenciales creados con exito.");
-          formCreateBarber.reset();
-          await renderApp();
+          alert("Barbero y credenciales creados con éxito.");
+          renderApp();
         } catch (err) {
           alert(err.message);
         } finally {
           if (submitBtn) {
             submitBtn.disabled = false;
-            submitBtn.textContent = 'Crear cuenta de barbero ->';
+            submitBtn.textContent = 'Crear cuenta de barbero →';
           }
         }
       };
     }
 
+    const modalChangePwd = document.getElementById('modal-change-password');
+    const btnCloseChangePwd = document.getElementById('btn-close-change-pwd');
+    const btnCancelChangePwd = document.getElementById('btn-cancel-change-pwd');
+    const formChangePwd = document.getElementById('form-change-password');
+    const btnToggleNewPwd = document.getElementById('btn-toggle-new-pwd');
+    const btnToggleConfirmPwd = document.getElementById('btn-toggle-confirm-pwd');
+
+    if (btnCloseChangePwd && modalChangePwd) {
+      btnCloseChangePwd.onclick = () => modalChangePwd.classList.add('hidden');
+    }
+    if (btnCancelChangePwd && modalChangePwd) {
+      btnCancelChangePwd.onclick = () => modalChangePwd.classList.add('hidden');
+    }
+
+    if (btnToggleNewPwd) {
+      btnToggleNewPwd.onclick = () => {
+        const inp = document.getElementById('input-new-password');
+        if (inp) {
+          const isPass = inp.type === 'password';
+          inp.type = isPass ? 'text' : 'password';
+          btnToggleNewPwd.textContent = isPass ? 'Ocultar' : 'Ver';
+        }
+      };
+    }
+
+    if (btnToggleConfirmPwd) {
+      btnToggleConfirmPwd.onclick = () => {
+        const inp = document.getElementById('input-confirm-password');
+        if (inp) {
+          const isPass = inp.type === 'password';
+          inp.type = isPass ? 'text' : 'password';
+          btnToggleConfirmPwd.textContent = isPass ? 'Ocultar' : 'Ver';
+        }
+      };
+    }
+
     document.querySelectorAll('.btn-change-password').forEach((btn) => {
-      btn.onclick = async () => {
+      btn.onclick = () => {
         const userId = btn.dataset.userId;
-        const username = btn.dataset.username;
-        const newPassword = prompt(`Nueva contraseña para @${username}:`);
-        if (newPassword && newPassword.trim().length >= 4) {
-          try {
-            const res = await manageUsersUseCase.changePassword({
-              adminUser: state.currentUser,
-              userId,
-              newPassword
-            });
-            alert(res.message);
+        const username = btn.dataset.username || userId;
+        const targetLabel = document.getElementById('change-pwd-target-label');
+        const subtitle = document.getElementById('change-pwd-subtitle');
+        const hiddenUserId = document.getElementById('change-pwd-user-id');
+        const inputNew = document.getElementById('input-new-password');
+        const inputConfirm = document.getElementById('input-confirm-password');
+        const errorMsg = document.getElementById('change-pwd-error-msg');
+        const successMsg = document.getElementById('change-pwd-success-msg');
+
+        if (hiddenUserId) hiddenUserId.value = userId;
+        if (targetLabel) targetLabel.textContent = `@${username}`;
+        if (subtitle) subtitle.textContent = `Establece una nueva clave para la cuenta @${username}.`;
+        if (inputNew) inputNew.value = '';
+        if (inputConfirm) inputConfirm.value = '';
+        if (errorMsg) errorMsg.classList.add('hidden');
+        if (successMsg) successMsg.classList.add('hidden');
+        if (modalChangePwd) modalChangePwd.classList.remove('hidden');
+        if (inputNew) inputNew.focus();
+      };
+    });
+
+    if (formChangePwd) {
+      formChangePwd.onsubmit = async (e) => {
+        e.preventDefault();
+        const userId = document.getElementById('change-pwd-user-id').value;
+        const newPwd = document.getElementById('input-new-password').value.trim();
+        const confirmPwd = document.getElementById('input-confirm-password').value.trim();
+        const errorMsg = document.getElementById('change-pwd-error-msg');
+        const successMsg = document.getElementById('change-pwd-success-msg');
+        const submitBtn = document.getElementById('btn-submit-change-pwd');
+
+        if (errorMsg) errorMsg.classList.add('hidden');
+        if (successMsg) successMsg.classList.add('hidden');
+
+        if (!newPwd || newPwd.length < 4) {
+          if (errorMsg) {
+            errorMsg.textContent = 'La contraseña debe tener al menos 4 caracteres.';
+            errorMsg.classList.remove('hidden');
+          }
+          return;
+        }
+
+        if (newPwd !== confirmPwd) {
+          if (errorMsg) {
+            errorMsg.textContent = 'Las contraseñas no coinciden. Verifícalas.';
+            errorMsg.classList.remove('hidden');
+          }
+          return;
+        }
+
+        if (submitBtn) {
+          submitBtn.disabled = true;
+          submitBtn.textContent = 'Guardando clave...';
+        }
+
+        try {
+          const res = await manageUsersUseCase.changePassword({
+            adminUser: state.currentUser,
+            userId,
+            newPassword: newPwd
+          });
+          if (successMsg) {
+            successMsg.textContent = res.message || 'Contraseña actualizada con éxito.';
+            successMsg.classList.remove('hidden');
+          }
+          setTimeout(() => {
+            if (modalChangePwd) modalChangePwd.classList.add('hidden');
             renderApp();
-          } catch (err) {
-            alert(err.message);
+          }, 900);
+        } catch (err) {
+          if (errorMsg) {
+            errorMsg.textContent = err.message || 'No fue posible actualizar la contraseña.';
+            errorMsg.classList.remove('hidden');
+          }
+        } finally {
+          if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Guardar clave →';
           }
         }
       };
-    });
+    }
 
     document.querySelectorAll('.btn-toggle-status').forEach((btn) => {
       btn.onclick = async () => {
@@ -3383,6 +5850,247 @@
           }
         }
       };
+    });
+  }
+
+  function showStoreBuyModal(product) {
+    const container = document.getElementById('modal-confirmation-container');
+    if (!container) return;
+
+    const savedPhone = localStorage.getItem('blopez_last_phone') || '';
+    const maxQty = Math.min(10, Math.max(1, Number(product.stock) || 1));
+    const onShiftBarbers = (state.barbers || []).filter((b) => b.active !== false && b.onShift !== false);
+
+    container.innerHTML = `
+      <div id="modal-store-buy" class="fixed inset-0 z-50 bg-[#0a0b0d]/85 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="anthropic-card w-full max-w-lg max-h-[92vh] overflow-y-auto p-6 sm:p-8 relative border border-[#d4af37]/40 shadow-2xl">
+          <button id="btn-close-store-buy" class="absolute top-4 right-4 text-[#c5c0b6] hover:text-[#ffffff] text-xl font-light cursor-pointer">&times;</button>
+
+          <div class="mb-5">
+            <div class="inline-flex items-center gap-2 mb-2 px-3 py-1 rounded-full bg-[#181c24] border border-[rgba(212,175,55,0.35)] text-[#f3e5ab] text-xs font-semibold">
+              <span class="w-2 h-2 rounded-full bg-[#d4af37]"></span>
+              <span>COMPRA EN TIENDA · PAGO EN EFECTIVO</span>
+            </div>
+            <h3 class="font-serif-editorial text-[26px] sm:text-[30px] font-normal leading-tight text-[#ffffff]">
+              ${escapeHtml(product.name)}
+            </h3>
+            <p class="font-sans-ui text-xs text-[#c5c0b6] mt-1">
+              Completa tus datos para generar tu <strong>Referencia Única de Pago</strong> y apartar el producto en inventario.
+            </p>
+          </div>
+
+          <form id="form-store-buy" class="space-y-4 font-sans-ui">
+            <div class="bg-[#161a22] p-4 rounded-[12px] border border-[rgba(212,175,55,0.22)] flex items-center justify-between">
+              <div>
+                <span class="block text-[11px] text-[#8a8275] uppercase font-semibold">Valor unitario</span>
+                <span class="font-mono-tech text-lg font-bold text-[#d4af37]">$${Number(product.priceCop || 0).toLocaleString('es-CO')} COP</span>
+              </div>
+              <div class="text-right">
+                <span class="block text-[11px] text-[#8a8275] uppercase font-semibold">Disponibles</span>
+                <span class="font-mono-tech text-sm font-bold text-[#f3e5ab]">${product.stock} unidades</span>
+              </div>
+            </div>
+
+            <!-- ESCENARIO DEL CLIENTE: EN BARBERIA vs APARTADO DESDE FUERA -->
+            <div>
+              <label class="block text-xs font-semibold text-[#c5c0b6] mb-1.5">¿Dónde te encuentras en este momento? *</label>
+              <select id="store-buy-delivery-mode" class="input-parchment text-xs sm:text-sm">
+                <option value="APARTADO_RECOGIDA">No estoy en la barbería · Apartar para recoger y pagar más tarde</option>
+                <option value="EN_BARBERIA">Estoy en la barbería ahora mismo · Reclamo y pago inmediato en estación</option>
+              </select>
+            </div>
+
+            <!-- BARBERO EN TURNO QUE ATIENDE O RECIBE EL EFECTIVO -->
+            <div>
+              <label class="block text-xs font-semibold text-[#c5c0b6] mb-1.5">Barbero en turno que te atiende / recibirá tu pago</label>
+              <select id="store-buy-barber" class="input-parchment text-xs sm:text-sm">
+                <option value="ANY">Cualquier barbero disponible en turno</option>
+                ${onShiftBarbers.map((b) => `
+                  <option value="${escapeHtml(b.id)}">${escapeHtml(b.name)} (En Turno)</option>
+                `).join('')}
+              </select>
+              <span class="block text-[11px] text-[#8a8275] mt-1">
+                Solo se listan barberos activos de turno. Al entregar el efectivo, cualquier barbero en turno puede validar tu código.
+              </span>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div>
+                <label class="block text-xs font-semibold text-[#c5c0b6] mb-1">Cantidad *</label>
+                <input type="number" id="store-buy-qty" required min="1" max="${maxQty}" value="1" class="input-parchment font-mono-tech text-sm">
+              </div>
+              <div class="sm:col-span-2">
+                <label class="block text-xs font-semibold text-[#c5c0b6] mb-1">Método de pago autorizado</label>
+                <div class="input-parchment bg-[#141720] text-[#d4af37] font-mono-tech text-xs font-bold flex items-center h-[42px] px-3 border border-[rgba(212,175,55,0.35)]">
+                  EFECTIVO (Al reclamar en barbería)
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-xs font-semibold text-[#c5c0b6] mb-1">Tu nombre completo *</label>
+              <input type="text" id="store-buy-name" required value="${escapeHtml(state.bookingForm.clientName || '')}" placeholder="Ej. Andrés Felipe Gómez" class="input-parchment text-sm">
+            </div>
+
+            <div>
+              <label class="block text-xs font-semibold text-[#c5c0b6] mb-1">Tu número de celular / WhatsApp *</label>
+              <input type="tel" id="store-buy-phone" required value="${escapeHtml(savedPhone)}" placeholder="Ej. 321 989 7910" class="input-parchment text-sm">
+            </div>
+
+            <div class="bg-[#12151b] p-4 rounded-[12px] border border-[rgba(212,175,55,0.28)] flex items-center justify-between">
+              <span class="text-xs font-semibold text-[#c5c0b6] uppercase tracking-wider">Total a pagar en efectivo:</span>
+              <span id="store-buy-total-display" class="font-mono-tech text-xl font-bold text-[#d4af37]">
+                $${Number(product.priceCop || 0).toLocaleString('es-CO')} COP
+              </span>
+            </div>
+
+            <div id="store-buy-error" class="hidden text-xs text-red-300 bg-red-950/60 border border-red-800 p-3 rounded-[8px]"></div>
+
+            <button type="submit" class="btn-clay w-full py-3 justify-center text-sm font-semibold cursor-pointer">
+              Confirmar pedido y generar Referencia de Pago →
+            </button>
+          </form>
+        </div>
+      </div>
+    `;
+
+    const qtyInput = document.getElementById('store-buy-qty');
+    const totalDisplay = document.getElementById('store-buy-total-display');
+    if (qtyInput && totalDisplay) {
+      qtyInput.oninput = () => {
+        const q = Math.max(1, Math.min(maxQty, parseInt(qtyInput.value, 10) || 1));
+        totalDisplay.textContent = `$${(q * Number(product.priceCop || 0)).toLocaleString('es-CO')} COP`;
+      };
+    }
+
+    document.getElementById('btn-close-store-buy')?.addEventListener('click', () => {
+      container.innerHTML = '';
+    });
+
+    const form = document.getElementById('form-store-buy');
+    if (form) {
+      form.onsubmit = async (e) => {
+        e.preventDefault();
+        const quantity = Math.max(1, parseInt(document.getElementById('store-buy-qty').value, 10) || 1);
+        const clientName = document.getElementById('store-buy-name').value.trim();
+        const clientPhone = document.getElementById('store-buy-phone').value.trim();
+        const deliveryMode = document.getElementById('store-buy-delivery-mode')?.value || 'APARTADO_RECOGIDA';
+        const preferredBarberId = document.getElementById('store-buy-barber')?.value || 'ANY';
+        const errBox = document.getElementById('store-buy-error');
+
+        if (clientPhone) {
+          localStorage.setItem('blopez_last_phone', clientPhone);
+        }
+        state.bookingForm.clientName = clientName;
+        state.bookingForm.clientPhone = clientPhone;
+
+        try {
+          const res = await repo.createStoreOrder({
+            productId: product.id,
+            quantity,
+            clientName,
+            clientPhone,
+            deliveryMode,
+            preferredBarberId
+          });
+          await renderApp();
+          showStoreVoucherModal(res.order);
+        } catch (err) {
+          if (errBox) {
+            errBox.textContent = err.message;
+            errBox.classList.remove('hidden');
+          } else {
+            alert(err.message);
+          }
+        }
+      };
+    }
+  }
+
+  function showStoreVoucherModal(order) {
+    const container = document.getElementById('modal-confirmation-container');
+    if (!container || !order) return;
+
+    const modeDesc = order.deliveryMode === 'EN_BARBERIA'
+      ? 'Cliente en barberia (Entrega inmediata en estacion)'
+      : 'Apartado para recoger en barberia';
+
+    const waText = encodeURIComponent(
+      `Hola Barberia Lopez, he apartado un producto en la Tienda Web:\n` +
+      `Referencia de Pago: ${order.referenceCode}\n` +
+      `Producto: ${order.productName} (x${order.quantity})\n` +
+      `Modalidad: ${modeDesc}\n` +
+      `Barbero asignado: ${order.preferredBarberName || 'Cualquier barbero en turno'}\n` +
+      `Total a pagar en efectivo: $${Number(order.totalCop || 0).toLocaleString('es-CO')} COP\n` +
+      `Cliente: ${order.clientName} (${order.clientPhone})`
+    );
+    const whatsappUrl = `https://wa.me/573219897910?text=${waText}`;
+
+    container.innerHTML = `
+      <div id="modal-store-voucher" class="fixed inset-0 z-50 bg-[#0a0b0d]/85 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="anthropic-card w-full max-w-lg p-6 sm:p-8 relative border border-[#d4af37]/50 shadow-2xl">
+          <div class="mb-5 text-center">
+            <div class="inline-flex items-center gap-2 mb-2 px-3 py-1 rounded-full bg-[#181c24] border border-[rgba(212,175,55,0.4)] text-[#f3e5ab] text-xs font-semibold">
+              <span class="w-2 h-2 rounded-full bg-[#d4af37]"></span>
+              <span>PRODUCTO APARTADO · PAGO EN EFECTIVO</span>
+            </div>
+            <h3 class="font-serif-editorial text-[28px] sm:text-[32px] font-normal text-[#ffffff] leading-tight">
+              Referencia de Pago Generada
+            </h3>
+            <p class="font-sans-ui text-xs text-[#c5c0b6] mt-1">
+              Muestra este código al barbero en turno cuando entregues el efectivo para recibir tu producto.
+            </p>
+          </div>
+
+          <!-- CAJA DESTACADA DEL CÓDIGO DE REFERENCIA ANTI-ROBO -->
+          <div class="bg-[#0a0b0d] border-2 border-[#d4af37] rounded-[16px] p-5 text-center mb-5 shadow-[0_0_25px_rgba(212,175,55,0.2)]">
+            <span class="block text-[11px] font-sans-ui font-semibold uppercase tracking-widest text-[#f3e5ab] mb-1">
+              CÓDIGO ÚNICO DE RECLAMO Y VERIFICACIÓN
+            </span>
+            <div class="font-mono-tech text-3xl sm:text-4xl font-bold text-[#d4af37] tracking-widest select-all">
+              ${escapeHtml(order.referenceCode)}
+            </div>
+            <button type="button" id="btn-copy-store-ref" class="mt-3 btn-stone-outline py-1 px-3 text-[11px] font-semibold text-[#f3e5ab] cursor-pointer">
+              Copiar código de referencia
+            </button>
+          </div>
+
+          <div class="bg-[#161a22] p-4 rounded-[12px] border border-[rgba(212,175,55,0.22)] space-y-2 mb-5 font-sans-ui text-xs sm:text-sm">
+            <div class="flex justify-between"><span class="text-[#8a8275]">Producto</span><span class="text-[#ffffff] font-semibold">${escapeHtml(order.productName)}</span></div>
+            <div class="flex justify-between"><span class="text-[#8a8275]">Cantidad apartada</span><span class="text-[#f3e5ab] font-mono-tech font-bold">${order.quantity} und</span></div>
+            <div class="flex justify-between"><span class="text-[#8a8275]">Modalidad de entrega</span><span class="text-[#f3e5ab] font-medium">${escapeHtml(modeDesc)}</span></div>
+            <div class="flex justify-between"><span class="text-[#8a8275]">Barbero en turno</span><span class="text-[#ffffff] font-medium">${escapeHtml(order.preferredBarberName || 'Cualquier barbero en turno')}</span></div>
+            <div class="flex justify-between"><span class="text-[#8a8275]">Cliente titular</span><span class="text-[#ffffff]">${escapeHtml(order.clientName)}</span></div>
+            <div class="flex justify-between"><span class="text-[#8a8275]">Modalidad de pago</span><span class="text-[#f3e5ab] font-semibold">EFECTIVO EN BARBERÍA</span></div>
+            <div class="flex justify-between pt-2.5 border-t border-[rgba(212,175,55,0.2)]">
+              <span class="text-[#8a8275] font-semibold">Total a pagar en efectivo</span>
+              <span class="text-[#d4af37] font-mono-tech font-bold text-base">$${Number(order.totalCop || 0).toLocaleString('es-CO')} COP</span>
+            </div>
+          </div>
+
+          <div class="space-y-2.5">
+            <a href="${whatsappUrl}" target="_blank" class="btn-clay w-full py-3 justify-center text-xs sm:text-sm font-semibold text-center block cursor-pointer">
+              Enviar mi referencia por WhatsApp a la Barbería →
+            </a>
+            <button type="button" id="btn-close-store-voucher" class="btn-stone-outline w-full py-2.5 justify-center text-xs text-[#c5c0b6] cursor-pointer">
+              Listo, ya guardé mi número de referencia
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
+
+    document.getElementById('btn-copy-store-ref')?.addEventListener('click', () => {
+      navigator.clipboard.writeText(order.referenceCode).then(() => {
+        alert(`Referencia ${order.referenceCode} copiada al portapapeles.`);
+      }).catch(() => {
+        prompt('Copia tu código de referencia:', order.referenceCode);
+      });
+    });
+
+    document.getElementById('btn-close-store-voucher')?.addEventListener('click', () => {
+      container.innerHTML = '';
+      renderApp();
     });
   }
 
@@ -3686,6 +6394,32 @@
     container.innerHTML = renderClientSyncContent(savedPhone);
     attachListeners();
   }
+
+  // Motor global de Spotlight interactivo con iluminacion perimetral y haz radial
+  function setupGlobalSpotlightEngine() {
+    if (typeof window === 'undefined' || window.__spotlightEngineActive) return;
+    window.__spotlightEngineActive = true;
+
+    function handlePointerMove(e) {
+      const clientX = e.touches && e.touches[0] ? e.touches[0].clientX : e.clientX;
+      const clientY = e.touches && e.touches[0] ? e.touches[0].clientY : e.clientY;
+      if (typeof clientX !== 'number' || typeof clientY !== 'number') return;
+      const targetCard = e.target && e.target.closest ? e.target.closest('.spotlight-card') : null;
+
+      if (targetCard) {
+        const rect = targetCard.getBoundingClientRect();
+        const x = clientX - rect.left;
+        const y = clientY - rect.top;
+        targetCard.style.setProperty('--mouse-x', `${x}px`);
+        targetCard.style.setProperty('--mouse-y', `${y}px`);
+      }
+    }
+
+    window.addEventListener('mousemove', handlePointerMove, { passive: true });
+    window.addEventListener('touchmove', handlePointerMove, { passive: true });
+  }
+
+  setupGlobalSpotlightEngine();
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', renderApp);
