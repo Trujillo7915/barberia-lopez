@@ -51,15 +51,11 @@ barberia-lopez/
 │       ├── theme.css           # Paleta Obsidian & Imperial Gold y tipografia
 │       └── animations.css      # Micro-interacciones y transiciones
 │
-├── data/                       # Base de datos persistente en disco (JSON blindados)
-│   ├── .auth_secret            # Secreto HMAC persistente
-│   ├── appointments.json       # Citas agendadas y estados
-│   ├── barbers.json            # Barberos y estado de turno en estacion (onShift)
-│   ├── history.json            # Historial inmutable de cortes completados
-│   ├── products.json           # Catalogo de productos e inventario
-│   ├── services.json           # Catalogo oficial de servicios
-│   ├── store_orders.json       # Pedidos con referencia unica REF-BL-XXXXXX
-│   └── users.json              # Cuentas de usuario con scrypt/pbkdf2 y RBAC
+├── data.example/               # Semillas seguras y plantillas para arranque local
+│   ├── README.md
+│   ├── barbers.json
+│   ├── products.json
+│   └── services.json
 │
 ├── tests/                      # Suites de pruebas automatizadas
 │   ├── run_all_tests.js        # Ejecutor maestro
@@ -72,14 +68,7 @@ barberia-lopez/
 │   ├── dossier_barberia_lopez.html
 │   └── Dossier_Plataforma_Barberia_Lopez.pdf
 │
-├── archive/v1-legacy-scaffold/ # Andamiaje modular inicial archivado (NO usado en produccion)
-│   └── README.md
-│
-├── barberia-docs/              # Especificaciones formales de negocio y diagramas
-│   └── README.md
-│
-├── media/                      # Material multimedia de archivo
-└── REGLAS-IA/                  # Reglas de trabajo de Fabian (cero emojis, rigor tecnico)
+└── barberia-docs/              # Especificaciones formales de negocio y diagramas
     └── README.md
 ```
 

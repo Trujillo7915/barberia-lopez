@@ -1,5 +1,64 @@
+# ==============================================================================
+# .gitignore — Barbería López (Protección y Blindaje de Repositorio)
+# ==============================================================================
+
+# Entornos y dependencias
 node_modules/
-.DS_Store
-*.log
 .env
+.env.local
+.env.*.local
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ------------------------------------------------------------------------------
+# 1. Base de datos persistente y secretos (CRÍTICO - PRIVACIDAD Y SEGURIDAD)
+# ------------------------------------------------------------------------------
+# Contiene citas de clientes reales, teléfonos, pedidos, contraseñas y claves HMAC.
+data/
+data/.auth_secret
+*.log
+
+# ------------------------------------------------------------------------------
+# 2. Documentos privados del cliente y actas de entrega
+# ------------------------------------------------------------------------------
+# Documentación legal/comercial bilateral que contiene claves maestras y contratos.
+docs/ACTA_DE_ENTREGA_A_SATISFACCION.md
+docs/GUIA_DE_ENTREGA_DEL_CLIENTE.md
+
+# ------------------------------------------------------------------------------
+# 3. Directivas internas del desarrollador y configuraciones de IA
+# ------------------------------------------------------------------------------
+# Archivos de prompts personales, reglas de tokens y agentes de desarrollo.
+REGLAS-IA/
 .agents/
+.agent/
+
+# ------------------------------------------------------------------------------
+# 4. Artefactos de generación de marketing y scripts auxiliares
+# ------------------------------------------------------------------------------
+public/
+public/qr_agenda.png
+scripts/generate_qr.js
+
+# ------------------------------------------------------------------------------
+# 5. Multimedia pesada / no optimizada y videos
+# ------------------------------------------------------------------------------
+media/
+*.mp4
+*.mov
+*.avi
+
+# ------------------------------------------------------------------------------
+# 6. Código legado y andamiajes de prueba descartados
+# ------------------------------------------------------------------------------
+archive/
+
+# ------------------------------------------------------------------------------
+# 7. Respaldos locales y temporales del sistema operativo
+# ------------------------------------------------------------------------------
+.DS_Store
+Thumbs.db
+respaldos/
+*.bak
+*.tmp
