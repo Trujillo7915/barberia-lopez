@@ -101,7 +101,7 @@ graph LR
   - RBAC: Jefe ve Practicante; Practicante no ve Jefe; Admin en modo incógnito.
   - Visualización de caja diaria para el Barbero Jefe.
 * **Should Have (Deseable):**
-  - Notificación de recordatorio directo por WhatsApp (`+57 321 989 7910`).
+  - Notificación de recordatorio directo por WhatsApp (`+57 300 123 4567`).
   - Bloqueo de franjas horarias (almuerzo/descanso).
 * **Could Have (Para siguientes versiones):**
   - Filtros avanzados de historial por rango de fechas en PDF.

@@ -145,7 +145,7 @@ const DEFAULT_BARBERS = [
     userId: 'u-david-01',
     name: 'David',
     specialty: 'Barbero Jefe · Maestro Barbero',
-    phone: '+57 321 989 7910',
+    phone: '+57 300 123 4567',
     avatar: '',
     active: true,
     onShift: true
@@ -329,8 +329,8 @@ const DEFAULT_STORE_ORDERS = [
     "unitPriceCop": 36000,
     "quantity": 1,
     "totalCop": 36000,
-    "clientName": "Fabián Ricardo Trujillo González",
-    "clientPhone": "3204668428",
+    "clientName": "Cliente Demo",
+    "clientPhone": "3001234567",
     "deliveryMode": "APARTADO_RECOGIDA",
     "preferredBarberId": null,
     "preferredBarberName": "Cualquier barbero en turno",
@@ -1062,7 +1062,7 @@ function generateSingleAppointmentIcs(appt) {
   const uid = sanitizeIcsText(appt.calendarEventUid || `${appt.id || Date.now()}@barberialopez.co`);
   const summary = sanitizeIcsText(`Cita Barbería López - ${service.name}`);
   const description = sanitizeIcsText(
-    `Cita agendada con ${barber.name}.\\nServicio: ${service.name}\\nValor: $${(service.priceCop || 0).toLocaleString('es-CO')} COP\\nLínea oficial: +57 321 989 7910`
+    `Cita agendada con ${barber.name}.\\nServicio: ${service.name}\\nValor: $${(service.priceCop || 0).toLocaleString('es-CO')} COP\\nLínea oficial: +57 300 123 4567`
   );
 
   return [
@@ -1127,7 +1127,7 @@ function generateIcsForClient(clientPhone) {
     const uid = sanitizeIcsText(appt.calendarEventUid || `${appt.id || Date.now()}@barberialopez.co`);
     const summary = sanitizeIcsText(`Cita Barbería López - ${s.name}`);
     const description = sanitizeIcsText(
-      `Barbero: ${b.name}\\nServicio: ${s.name}\\nValor: $${(s.priceCop || 0).toLocaleString('es-CO')} COP\\nLínea oficial: +57 321 989 7910`
+      `Barbero: ${b.name}\\nServicio: ${s.name}\\nValor: $${(s.priceCop || 0).toLocaleString('es-CO')} COP\\nLínea oficial: +57 300 123 4567`
     );
 
     return [
@@ -1679,7 +1679,7 @@ const server = http.createServer(async (req, res) => {
         userId: userId,
         name: String(barberData.name || 'Barbero').trim(),
         specialty: String(barberData.specialty || 'Barbero Profesional').trim(),
-        phone: String(barberData.phone || '+57 321 989 7910').trim(),
+        phone: String(barberData.phone || '+57 300 123 4567').trim(),
         avatar: String(barberData.avatar || '').trim(),
         active: barberData.active !== false,
         onShift: barberData.onShift !== false

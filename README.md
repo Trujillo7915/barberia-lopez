@@ -101,6 +101,6 @@ barberia-lopez/
 
 - **Establecimiento:** Barberia Lopez — *"Somos los arquitectos de tu imagen"*.
 - **Ubicacion:** Neiva, Huila, Colombia.
-- **Linea WhatsApp Oficial:** `+57 321 989 7910`.
-- **TikTok Oficial:** `@barber_lopez_neiva`.
+- **Linea WhatsApp Oficial:** `+57 300 123 4567`.
+- **TikTok Oficial:** `@barberia_demo`.
 - **Politica Visual:** Estetica Josh Warner (Obsidian `#0a0b0d`, Dark Metal `#14161a`, Oro Imperial `#d4af37` y Tipografia Editorial Serif con JetBrains Mono).

@@ -276,7 +276,7 @@
       userId: 'u-david-01',
       name: 'David',
       specialty: 'Barbero Jefe · Maestro Barbero',
-      phone: '+57 321 989 7910',
+      phone: '+57 300 123 4567',
       avatar: '',
       active: true,
       onShift: true
@@ -521,8 +521,8 @@
     "unitPriceCop": 36000,
     "quantity": 1,
     "totalCop": 36000,
-    "clientName": "Fabián Ricardo Trujillo González",
-    "clientPhone": "3204668428",
+    "clientName": "Cliente Demo",
+    "clientPhone": "3001234567",
     "deliveryMode": "APARTADO_RECOGIDA",
     "preferredBarberId": null,
     "preferredBarberName": "Cualquier barbero en turno",
@@ -1296,7 +1296,7 @@ async findAllProducts() {
       const dates = `${cleanDate}T${cleanStart}/${cleanDate}T${cleanEnd}`;
       const text = encodeURIComponent(`Cita Barbería Lopez - ${serviceName}`);
       const details = encodeURIComponent(
-        `Cita agendada con ${barberName}.\nServicio: ${serviceName}\nValor: $${priceCop.toLocaleString('es-CO')} COP\nLínea oficial: +57 321 989 7910`
+        `Cita agendada con ${barberName}.\nServicio: ${serviceName}\nValor: $${priceCop.toLocaleString('es-CO')} COP\nLínea oficial: +57 300 123 4567`
       );
       const location = encodeURIComponent('Barbería Lopez, Neiva, Huila');
       const googleUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${text}&dates=${dates}&details=${details}&location=${location}&ctz=America/Bogota`;
@@ -1304,7 +1304,7 @@ async findAllProducts() {
       const waText = encodeURIComponent(
         `Hola Barbería Lopez, confirmo mi turno agendado en la web:\nBarbero: ${barberName}\nServicio: ${serviceName}\nFecha: ${appointment.date}\nHora: ${appointment.startTime}`
       );
-      const whatsappUrl = `https://wa.me/573219897910?text=${waText}`;
+      const whatsappUrl = `https://wa.me/573001234567?text=${waText}`;
       const host = window.location.host;
       const cleanPhone = (appointment.clientPhone || '').replace(/\D/g, '');
       const clientWebcalUrl = cleanPhone 
@@ -2021,11 +2021,11 @@ async findAllProducts() {
                   <button type="button" id="btn-hero-open-store" class="btn-stone-outline text-[#f3e5ab] border-[#d4af37]/40 py-3 px-5 text-xs sm:text-sm font-semibold cursor-pointer">
                     Tienda de productos →
                   </button>
-                  <a href="https://wa.me/573219897910" target="_blank" rel="noopener noreferrer" class="btn-stone-outline py-3 px-4 text-xs font-semibold inline-flex items-center gap-2">
+                  <a href="https://wa.me/573001234567" target="_blank" rel="noopener noreferrer" class="btn-stone-outline py-3 px-4 text-xs font-semibold inline-flex items-center gap-2">
                     <span>WhatsApp</span>
                   </a>
                   <a 
-                    href="https://www.tiktok.com/@barber_lopez_neiva" 
+                    href="https://www.tiktok.com" 
                     target="_blank" 
                     rel="noopener noreferrer" 
                     class="btn-stone-outline inline-flex items-center gap-2 text-[#f3e5ab] hover:text-[#ffffff] hover:border-[#d4af37] py-3 px-4 text-xs font-semibold transition-all"
@@ -4202,7 +4202,7 @@ async findAllProducts() {
           </div>
           <div class="flex flex-wrap items-center justify-center gap-3">
             <a 
-              href="https://www.tiktok.com/@barber_lopez_neiva" 
+              href="https://www.tiktok.com" 
               target="_blank" 
               rel="noopener noreferrer" 
               class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#181c24] border border-[rgba(212,175,55,0.35)] text-[#f3e5ab] hover:text-[#ffffff] hover:border-[#d4af37] text-xs font-semibold transition-all shadow-sm"
@@ -4210,15 +4210,15 @@ async findAllProducts() {
               <svg class="w-3.5 h-3.5 fill-current shrink-0" viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.63.41-1.11 1.04-1.36 1.75-.21.51-.24 1.07-.14 1.61.24 1.64 1.82 3.02 3.5 2.87 1.12-.01 2.19-.66 2.77-1.61.19-.33.4-.67.41-1.06.1-1.79.06-3.57.07-5.36.01-4.03-.01-8.05.02-12.07z"/>
               </svg>
-              <span>TikTok @barber_lopez_neiva</span>
+              <span>TikTok @barberia_demo</span>
             </a>
             <a 
-              href="https://wa.me/573219897910" 
+              href="https://wa.me/573001234567" 
               target="_blank" 
               rel="noopener noreferrer" 
               class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-[#181c24] border border-[rgba(212,175,55,0.35)] text-[#f3e5ab] hover:text-[#ffffff] hover:border-[#d4af37] text-xs font-semibold transition-all shadow-sm"
             >
-              <span>WhatsApp (+57 321 989 7910)</span>
+              <span>WhatsApp (+57 300 123 4567)</span>
             </a>
           </div>
           <a href="#calendario" class="btn-clay py-2 px-4 text-xs font-medium">
@@ -4555,7 +4555,7 @@ async findAllProducts() {
                     id="client-booking-phone" 
                     required 
                     value="${escapeHtml(state.bookingForm.clientPhone)}" 
-                    placeholder="Ej. 321 989 7910" 
+                    placeholder="Ej. 300 123 4567" 
                     class="input-parchment"
                   >
                 </div>
@@ -6120,7 +6120,7 @@ async findAllProducts() {
 
             <div>
               <label class="block text-xs font-semibold text-[#c5c0b6] mb-1">Tu número de celular / WhatsApp *</label>
-              <input type="tel" id="store-buy-phone" required value="${escapeHtml(savedPhone)}" placeholder="Ej. 321 989 7910" class="input-parchment text-sm">
+              <input type="tel" id="store-buy-phone" required value="${escapeHtml(savedPhone)}" placeholder="Ej. 300 123 4567" class="input-parchment text-sm">
             </div>
 
             <div class="bg-[#12151b] p-4 rounded-[12px] border border-[rgba(212,175,55,0.28)] flex items-center justify-between">
@@ -6210,7 +6210,7 @@ async findAllProducts() {
       `Total a pagar en efectivo: $${Number(order.totalCop || 0).toLocaleString('es-CO')} COP\n` +
       `Cliente: ${order.clientName} (${order.clientPhone})`
     );
-    const whatsappUrl = `https://wa.me/573219897910?text=${waText}`;
+    const whatsappUrl = `https://wa.me/573001234567?text=${waText}`;
 
     container.innerHTML = `
       <div id="modal-store-voucher" class="fixed inset-0 z-50 bg-[#0a0b0d]/85 backdrop-blur-sm flex items-center justify-center p-4">
@@ -6349,7 +6349,7 @@ async findAllProducts() {
 
             <!-- CONFIRMACION POR WHATSAPP -->
             <a href="${calendarPayload.whatsappUrl}" target="_blank" rel="noopener noreferrer" class="btn-stone-outline w-full py-2.5 justify-center text-xs font-semibold text-[#f3e5ab] link-editorial text-center block">
-              Enviar confirmación por WhatsApp (+57 321 989 7910)
+              Enviar confirmación por WhatsApp (+57 300 123 4567)
             </a>
           </div>
 
@@ -6503,7 +6503,7 @@ async findAllProducts() {
               <div>
                 <label class="block text-xs font-semibold text-[#f3e5ab] uppercase tracking-wider mb-1.5">Número de teléfono con el que reservaste:</label>
                 <div class="flex gap-2">
-                  <input type="tel" id="input-client-sync-phone" value="${phone}" placeholder="Ej: 320 466 8428" class="input-parchment flex-1 text-sm font-mono-tech py-2">
+                  <input type="tel" id="input-client-sync-phone" value="${phone}" placeholder="Ej: 300 123 4567" class="input-parchment flex-1 text-sm font-mono-tech py-2">
                   <button type="button" id="btn-update-client-sync-phone" class="btn-clay text-xs px-4 py-2 font-semibold cursor-pointer">Actualizar</button>
                 </div>
               </div>
